@@ -8,6 +8,7 @@ import (
 	"brunocollective_inventory/database"
 	"brunocollective_inventory/handlers"
 	"brunocollective_inventory/middleware"
+	"brunocollective_inventory/services"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cors"
@@ -37,6 +38,30 @@ func main() {
 	// Serve uploaded files
 	app.Static("/uploads", cfg.UploadDir)
 
+	// LINE Webhook (public - called by LINE platform)
+	app.Post("/webhook/line", func(c *fiber.Ctx) error {
+		var body struct {
+			Events []struct {
+				Type   string `json:"type"`
+				Source struct {
+					Type    string `json:"type"`
+					GroupID string `json:"groupId"`
+				} `json:"source"`
+			} `json:"events"`
+		}
+		if err := c.BodyParser(&body); err != nil {
+			return c.SendStatus(200)
+		}
+		for _, event := range body.Events {
+			if event.Source.GroupID != "" {
+				log.Printf("========================================")
+				log.Printf("LINE GROUP ID: %s", event.Source.GroupID)
+				log.Printf("========================================")
+			}
+		}
+		return c.SendStatus(200)
+	})
+
 	// Public routes
 	authHandler := handlers.NewAuthHandler(cfg)
 	app.Post("/api/login", authHandler.Login)
@@ -65,8 +90,11 @@ func main() {
 	api.Put("/customers/:id", customerHandler.Update)
 	api.Delete("/customers/:id", customerHandler.Delete)
 
+	// LINE Notifier
+	lineNotifier := services.NewLineNotifier(cfg)
+
 	// Orders
-	orderHandler := handlers.NewOrderHandler(cfg)
+	orderHandler := handlers.NewOrderHandler(cfg, lineNotifier)
 	api.Get("/orders", orderHandler.List)
 	api.Get("/orders/:id", orderHandler.Get)
 	api.Post("/orders", orderHandler.Create)

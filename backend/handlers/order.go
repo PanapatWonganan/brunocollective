@@ -9,6 +9,7 @@ import (
 	"brunocollective_inventory/config"
 	"brunocollective_inventory/database"
 	"brunocollective_inventory/models"
+	"brunocollective_inventory/services"
 
 	"github.com/gofiber/fiber/v2"
 	"gorm.io/gorm"
@@ -16,10 +17,11 @@ import (
 
 type OrderHandler struct {
 	Config *config.Config
+	Line   *services.LineNotifier
 }
 
-func NewOrderHandler(cfg *config.Config) *OrderHandler {
-	return &OrderHandler{Config: cfg}
+func NewOrderHandler(cfg *config.Config, line *services.LineNotifier) *OrderHandler {
+	return &OrderHandler{Config: cfg, Line: line}
 }
 
 func (h *OrderHandler) List(c *fiber.Ctx) error {
@@ -116,6 +118,9 @@ func (h *OrderHandler) Create(c *fiber.Ctx) error {
 
 	// Reload with relations
 	database.DB.Preload("Customer").Preload("Items").Preload("Items.Product").First(&order, order.ID)
+
+	h.Line.NotifyNewOrder(&order)
+
 	return c.Status(fiber.StatusCreated).JSON(order)
 }
 
@@ -139,6 +144,9 @@ func (h *OrderHandler) UpdateStatus(c *fiber.Ctx) error {
 
 	database.DB.Model(&order).Update("status", body.Status)
 	database.DB.Preload("Customer").Preload("Items").Preload("Items.Product").First(&order, id)
+
+	h.Line.NotifyStatusChange(&order, body.Status)
+
 	return c.JSON(order)
 }
 
@@ -168,6 +176,9 @@ func (h *OrderHandler) UploadSlip(c *fiber.Ctx) error {
 
 	database.DB.Model(&order).Update("slip_image", filename)
 	database.DB.Preload("Customer").Preload("Items").Preload("Items.Product").First(&order, id)
+
+	h.Line.NotifySlipUploaded(&order)
+
 	return c.JSON(order)
 }
 
