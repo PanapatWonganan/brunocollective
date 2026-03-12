@@ -38,7 +38,7 @@ Then open http://localhost:5173
 
 ```
 backend/
-├── main.go              # Fiber app setup, route registration, CORS, static files, LINE webhook
+├── main.go              # Fiber app setup, route registration, CORS, static files, LINE webhook, daily summary scheduler
 ├── config/              # Environment-based configuration
 ├── database/            # GORM connection, auto-migration, admin seed
 ├── models/              # Data models: User, Product, Customer, Order, OrderItem
@@ -53,7 +53,7 @@ frontend/
 │   ├── router/              # Vue Router with auth guard
 │   ├── stores/auth.ts       # Pinia auth store (login, logout, token management)
 │   ├── services/api.ts      # Axios instance with JWT interceptor + 401 redirect
-│   ├── layouts/             # DefaultLayout with sidebar navigation
+│   ├── layouts/             # DefaultLayout with sidebar navigation + change password dialog
 │   └── views/               # Dashboard, Products, Customers, Orders, Login
 └── vite.config.ts           # Dev proxy to backend
 ```
@@ -62,7 +62,8 @@ frontend/
 
 - **Database:** GORM AutoMigrate runs on startup; no manual migration files. SQLite database file at `backend/inventory.db`.
 - **Auth flow:** POST `/api/login` returns JWT. All other `/api/*` routes require `Authorization: Bearer <token>`. 401 responses auto-redirect to login on the frontend.
-- **File uploads:** Slip images uploaded via multipart form to `POST /api/orders/:id/slip`, stored in `backend/uploads/`, served as static files at `/uploads/`. 10MB body limit. Filenames: `slip_{orderID}_{timestamp}{ext}`.
+- **File uploads:** Slip images can be uploaded during order creation (multipart form) or separately via `POST /api/orders/:id/slip`. Stored in `backend/uploads/`, served as static files at `/uploads/`. 10MB body limit. Filenames: `slip_{orderID}_{timestamp}{ext}`.
+- **Order creation:** `POST /api/orders` accepts both JSON and multipart form data. When using multipart, `customer_id`, `notes`, and `items` (JSON string) are form fields, with optional `slip` file attachment.
 - **Stock management:** Creating an order deducts stock atomically in a DB transaction. Deleting an order restores stock via `gorm.Expr("stock + ?", qty)`.
 - **Default admin:** On first run, seeds `admin` / `admin123`.
 - **Frontend proxy:** Vite dev server proxies `/api` and `/uploads` to `http://localhost:8080`.
@@ -71,14 +72,17 @@ frontend/
 
 ## LINE Notifications
 
-`services/line.go` sends messages to a LINE group via Messaging API on three events:
-- **New order created** — includes item list and current stock levels
-- **Order status changed** — includes new status and stock levels
-- **Payment slip uploaded** — includes order and customer summary
+`services/line.go` sends messages to a LINE group via Messaging API on these events:
+- **New order created** — includes item list, stock levels, today's sales summary, and slip image if attached
+- **Order status changed** — includes new status, stock levels, and today's sales summary
+- **Payment slip uploaded** — includes order/customer summary and slip image
+- **Daily summary** — sent automatically at 8:00 AM Bangkok time (Asia/Bangkok); summarizes previous day's orders, revenue, and status breakdown. Can be manually triggered via `POST /api/daily-summary`.
 
 Stock warnings are included automatically: `LOW` when stock <=5, `OUT OF STOCK` when 0.
 
-The webhook endpoint `POST /webhook/line` (public, no auth) logs the Group ID when the bot joins a group — used during initial setup only.
+Today's sales summary appears on every new order and status change notification, counting only non-cancelled orders since midnight (server local time).
+
+The webhook endpoint `POST /webhook/line` (public, no auth) logs the Group ID when the bot joins a group — used during initial setup only. Debug logging is enabled for webhook payloads.
 
 ## Shipping Label Printing
 
@@ -94,14 +98,16 @@ Both `OrdersView.vue` and `CustomersView.vue` generate 100mm x 150mm shipping la
 | POST | `/webhook/line` | No | LINE platform webhook (logs group ID) |
 | GET | `/api/dashboard` | Yes | Stats summary (totals, low stock, recent orders) |
 | GET | `/api/dashboard/charts` | Yes | Chart data (revenue series, status distribution, stock overview, top products) |
+| PUT | `/api/change-password` | Yes | Change authenticated user's password |
 | GET/POST | `/api/products` | Yes | List / Create product |
 | GET/PUT/DELETE | `/api/products/:id` | Yes | Get / Update / Delete product |
 | GET/POST | `/api/customers` | Yes | List / Create customer |
 | GET/PUT/DELETE | `/api/customers/:id` | Yes | Get / Update / Delete customer |
-| GET/POST | `/api/orders` | Yes | List / Create order |
+| GET/POST | `/api/orders` | Yes | List / Create order (supports multipart form with slip) |
 | GET/DELETE | `/api/orders/:id` | Yes | Get / Delete order |
 | PUT | `/api/orders/:id/status` | Yes | Update order status |
 | POST | `/api/orders/:id/slip` | Yes | Upload payment slip |
+| POST | `/api/daily-summary` | Yes | Manually trigger daily LINE summary |
 
 ## Environment Variables
 
@@ -112,3 +118,14 @@ All optional, with defaults:
 - `UPLOAD_DIR` — Slip upload directory (default: `./uploads`)
 - `LINE_CHANNEL_TOKEN` — LINE Messaging API channel access token (default: empty, disables notifications)
 - `LINE_GROUP_ID` — LINE group ID to send notifications to (default: empty, disables notifications)
+- `BASE_URL` — Public base URL for image links in LINE notifications (default: `http://localhost:8080`)
+
+## Deployment
+
+Production runs on Vultr VPS (Ubuntu) with:
+- **Nginx** reverse proxy serving frontend static files from `frontend/dist/` and proxying `/api/`, `/uploads/`, `/webhook/` to Go backend on port 8080
+- **Cloudflare** DNS + SSL (Full Strict mode with Origin Certificate)
+- **systemd** service (`inventory.service`) running the Go binary as `www-data`
+- **EnvironmentFile** at `/opt/inventory/backend/.env` — values with special characters (like `/` or `=`) must be quoted
+- **Deploy script** at `/opt/inventory/deploy.sh` — pulls from GitHub, rebuilds frontend + backend, restarts service
+- **Backup cron** at `/opt/inventory/backup.sh` — daily at 2:00 AM, copies `inventory.db`, retains 30 days

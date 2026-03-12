@@ -1,24 +1,28 @@
 <template>
   <div>
-    <div class="d-flex align-center mb-6">
+    <div class="d-flex flex-wrap align-center ga-3 mb-6">
       <div>
         <div class="text-h5 font-weight-bold">Orders</div>
         <div class="text-caption text-medium-emphasis">Manage customer orders and payments</div>
       </div>
       <v-spacer />
-      <v-btn
-        variant="tonal"
-        color="secondary"
-        prepend-icon="mdi-printer"
-        class="text-none mr-3"
-        :disabled="!printableOrders.length"
-        @click="printAllLabels"
-      >
-        Print All Labels ({{ printableOrders.length }})
-      </v-btn>
-      <v-btn color="primary" prepend-icon="mdi-plus" @click="openCreateDialog" class="text-none">
-        New Order
-      </v-btn>
+      <div class="d-flex ga-2">
+        <v-btn
+          variant="tonal"
+          color="secondary"
+          prepend-icon="mdi-printer"
+          class="text-none"
+          :disabled="!printableOrders.length"
+          @click="printAllLabels"
+        >
+          <span class="d-none d-sm-inline">Print All Labels</span>
+          <span class="d-sm-none">Print</span>
+          ({{ printableOrders.length }})
+        </v-btn>
+        <v-btn color="primary" prepend-icon="mdi-plus" @click="openCreateDialog" class="text-none">
+          New Order
+        </v-btn>
+      </div>
     </div>
 
     <!-- Status Filter Chips -->
