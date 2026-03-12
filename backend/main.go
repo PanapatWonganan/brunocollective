@@ -40,6 +40,9 @@ func main() {
 
 	// LINE Webhook (public - called by LINE platform)
 	app.Post("/webhook/line", func(c *fiber.Ctx) error {
+		rawBody := string(c.Body())
+		log.Printf("LINE Webhook received: %s", rawBody)
+
 		var body struct {
 			Events []struct {
 				Type   string `json:"type"`
@@ -50,9 +53,12 @@ func main() {
 			} `json:"events"`
 		}
 		if err := c.BodyParser(&body); err != nil {
+			log.Printf("LINE Webhook parse error: %v", err)
 			return c.SendStatus(200)
 		}
+		log.Printf("LINE Webhook events count: %d", len(body.Events))
 		for _, event := range body.Events {
+			log.Printf("LINE event type=%s source_type=%s groupID=%s", event.Type, event.Source.Type, event.Source.GroupID)
 			if event.Source.GroupID != "" {
 				log.Printf("========================================")
 				log.Printf("LINE GROUP ID: %s", event.Source.GroupID)
