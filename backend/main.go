@@ -69,6 +69,9 @@ func main() {
 	// Protected routes
 	api := app.Group("/api", middleware.JWTAuth(cfg))
 
+	// Change Password
+	api.Put("/change-password", authHandler.ChangePassword)
+
 	// Dashboard
 	dashboardHandler := handlers.NewDashboardHandler()
 	api.Get("/dashboard", dashboardHandler.Stats)

@@ -71,6 +71,21 @@
             </v-tooltip>
           </div>
 
+          <!-- Change Password -->
+          <v-tooltip text="Change Password" location="end" :disabled="!collapsed">
+            <template v-slot:activator="{ props }">
+              <div
+                v-bind="props"
+                class="nav-btn"
+                :class="collapsed ? 'nav-btn--collapsed' : ''"
+                @click="showPasswordDialog = true"
+              >
+                <v-icon icon="mdi-lock-reset" :size="collapsed ? 22 : 20" />
+                <span v-if="!collapsed" class="nav-btn-label">Change Password</span>
+              </div>
+            </template>
+          </v-tooltip>
+
           <!-- Collapse Toggle -->
           <v-tooltip :text="collapsed ? 'Expand' : ''" location="end" :disabled="!collapsed">
             <template v-slot:activator="{ props }">
@@ -124,6 +139,58 @@
         <router-view />
       </v-container>
     </v-main>
+    <!-- Change Password Dialog -->
+    <v-dialog v-model="showPasswordDialog" max-width="420">
+      <v-card rounded="lg">
+        <v-card-title class="text-h6 pa-5 pb-2">Change Password</v-card-title>
+        <v-card-text class="px-5">
+          <v-text-field
+            v-model="passwordForm.current"
+            label="Current Password"
+            :type="showCurrent ? 'text' : 'password'"
+            :append-inner-icon="showCurrent ? 'mdi-eye-off' : 'mdi-eye'"
+            @click:append-inner="showCurrent = !showCurrent"
+            variant="outlined"
+            density="comfortable"
+            class="mb-2"
+          />
+          <v-text-field
+            v-model="passwordForm.newPass"
+            label="New Password"
+            :type="showNew ? 'text' : 'password'"
+            :append-inner-icon="showNew ? 'mdi-eye-off' : 'mdi-eye'"
+            @click:append-inner="showNew = !showNew"
+            variant="outlined"
+            density="comfortable"
+            class="mb-2"
+            :rules="[v => v.length >= 6 || 'At least 6 characters']"
+          />
+          <v-text-field
+            v-model="passwordForm.confirm"
+            label="Confirm New Password"
+            :type="showConfirm ? 'text' : 'password'"
+            :append-inner-icon="showConfirm ? 'mdi-eye-off' : 'mdi-eye'"
+            @click:append-inner="showConfirm = !showConfirm"
+            variant="outlined"
+            density="comfortable"
+            :rules="[v => v === passwordForm.newPass || 'Passwords do not match']"
+          />
+          <v-alert v-if="passwordError" type="error" density="compact" class="mt-2">{{ passwordError }}</v-alert>
+          <v-alert v-if="passwordSuccess" type="success" density="compact" class="mt-2">{{ passwordSuccess }}</v-alert>
+        </v-card-text>
+        <v-card-actions class="px-5 pb-5">
+          <v-spacer />
+          <v-btn variant="text" @click="closePasswordDialog">Cancel</v-btn>
+          <v-btn
+            color="primary"
+            variant="flat"
+            :loading="passwordLoading"
+            :disabled="!canSubmitPassword"
+            @click="changePassword"
+          >Change</v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
   </v-layout>
 </template>
 
@@ -138,6 +205,50 @@ const route = useRoute()
 const drawer = ref(true)
 const collapsed = ref(false)
 const pendingCount = ref(0)
+
+// Change Password
+const showPasswordDialog = ref(false)
+const showCurrent = ref(false)
+const showNew = ref(false)
+const showConfirm = ref(false)
+const passwordLoading = ref(false)
+const passwordError = ref('')
+const passwordSuccess = ref('')
+const passwordForm = ref({ current: '', newPass: '', confirm: '' })
+
+const canSubmitPassword = computed(() =>
+  passwordForm.value.current.length > 0 &&
+  passwordForm.value.newPass.length >= 6 &&
+  passwordForm.value.newPass === passwordForm.value.confirm
+)
+
+function closePasswordDialog() {
+  showPasswordDialog.value = false
+  passwordForm.value = { current: '', newPass: '', confirm: '' }
+  passwordError.value = ''
+  passwordSuccess.value = ''
+  showCurrent.value = false
+  showNew.value = false
+  showConfirm.value = false
+}
+
+async function changePassword() {
+  passwordError.value = ''
+  passwordSuccess.value = ''
+  passwordLoading.value = true
+  try {
+    await api.put('/change-password', {
+      current_password: passwordForm.value.current,
+      new_password: passwordForm.value.newPass,
+    })
+    passwordSuccess.value = 'Password changed successfully'
+    setTimeout(() => closePasswordDialog(), 1500)
+  } catch (err: any) {
+    passwordError.value = err.response?.data?.error || 'Failed to change password'
+  } finally {
+    passwordLoading.value = false
+  }
+}
 
 const navItems = [
   { title: 'Dashboard', icon: 'mdi-view-dashboard-outline', to: '/' },
