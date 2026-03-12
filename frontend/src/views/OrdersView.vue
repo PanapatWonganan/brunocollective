@@ -156,6 +156,17 @@
           </v-card>
 
           <v-textarea v-model="orderForm.notes" label="Notes (optional)" rows="2" class="mt-3" />
+
+          <v-file-input
+            v-model="createSlipFile"
+            label="Payment Slip (optional)"
+            accept="image/*"
+            prepend-icon="mdi-camera"
+            show-size
+            class="mt-2"
+          />
+          <v-img v-if="createSlipPreview" :src="createSlipPreview" max-height="200" contain
+            class="rounded-lg border mt-2" style="background: #f8f8f8;" />
         </v-card-text>
         <v-card-actions class="pa-5 pt-0">
           <v-spacer />
@@ -407,6 +418,15 @@ const labelRef = ref<HTMLElement | null>(null)
 const slipFile = ref<File | null>(null)
 const slipViewUrl = ref('')
 
+const createSlipFile = ref<File | null>(null)
+
+const createSlipPreview = computed(() => {
+  if (createSlipFile.value) {
+    return URL.createObjectURL(createSlipFile.value)
+  }
+  return ''
+})
+
 const slipPreview = computed(() => {
   if (slipFile.value) {
     return URL.createObjectURL(slipFile.value)
@@ -456,13 +476,21 @@ async function fetchMasterData() {
 
 function openCreateDialog() {
   orderForm.value = { customer_id: 0, notes: '', items: [{ product_id: 0, quantity: 1 }] }
+  createSlipFile.value = null
   createDialog.value = true
 }
 
 async function createOrder() {
   saving.value = true
   try {
-    await api.post('/orders', orderForm.value)
+    const fd = new FormData()
+    fd.append('customer_id', String(orderForm.value.customer_id))
+    fd.append('notes', orderForm.value.notes)
+    fd.append('items', JSON.stringify(orderForm.value.items))
+    if (createSlipFile.value) {
+      fd.append('slip', createSlipFile.value)
+    }
+    await api.post('/orders', fd)
     createDialog.value = false
     await Promise.all([fetchOrders(), fetchMasterData()])
   } finally {

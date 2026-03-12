@@ -1,7 +1,9 @@
 package handlers
 
 import (
+	"encoding/json"
 	"fmt"
+	"os"
 	"path/filepath"
 	"strconv"
 	"time"
@@ -57,8 +59,21 @@ func (h *OrderHandler) Get(c *fiber.Ctx) error {
 
 func (h *OrderHandler) Create(c *fiber.Ctx) error {
 	var req models.CreateOrderRequest
-	if err := c.BodyParser(&req); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid request body"})
+
+	// Support both JSON and multipart form
+	contentType := c.Get("Content-Type")
+	if len(contentType) >= 19 && contentType[:19] == "multipart/form-data" {
+		customerID, _ := strconv.Atoi(c.FormValue("customer_id"))
+		req.CustomerID = uint(customerID)
+		req.Notes = c.FormValue("notes")
+		itemsJSON := c.FormValue("items")
+		if itemsJSON != "" {
+			json.Unmarshal([]byte(itemsJSON), &req.Items)
+		}
+	} else {
+		if err := c.BodyParser(&req); err != nil {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid request body"})
+		}
 	}
 
 	if req.CustomerID == 0 || len(req.Items) == 0 {
@@ -71,9 +86,21 @@ func (h *OrderHandler) Create(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "customer not found"})
 	}
 
+	// Handle slip file if provided
+	var slipFilename string
+	slipFile, err := c.FormFile("slip")
+	if err == nil && slipFile != nil {
+		ext := filepath.Ext(slipFile.Filename)
+		slipFilename = fmt.Sprintf("slip_new_%d%s", time.Now().UnixNano(), ext)
+		savePath := filepath.Join(h.Config.UploadDir, slipFilename)
+		if err := c.SaveFile(slipFile, savePath); err != nil {
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to save slip"})
+		}
+	}
+
 	// Build order within a transaction
 	var order models.Order
-	err := database.DB.Transaction(func(tx *gorm.DB) error {
+	err = database.DB.Transaction(func(tx *gorm.DB) error {
 		var totalAmount float64
 		var items []models.OrderItem
 
@@ -106,6 +133,7 @@ func (h *OrderHandler) Create(c *fiber.Ctx) error {
 			Status:      models.StatusPending,
 			TotalAmount: totalAmount,
 			Notes:       req.Notes,
+			SlipImage:   slipFilename,
 			Items:       items,
 		}
 
@@ -116,12 +144,27 @@ func (h *OrderHandler) Create(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": err.Error()})
 	}
 
+	// Rename slip file with actual order ID
+	if slipFilename != "" {
+		newFilename := fmt.Sprintf("slip_%d_%d%s", order.ID, time.Now().Unix(), filepath.Ext(slipFilename))
+		oldPath := filepath.Join(h.Config.UploadDir, slipFilename)
+		newPath := filepath.Join(h.Config.UploadDir, newFilename)
+		if err := fileRename(oldPath, newPath); err == nil {
+			database.DB.Model(&order).Update("slip_image", newFilename)
+			order.SlipImage = newFilename
+		}
+	}
+
 	// Reload with relations
 	database.DB.Preload("Customer").Preload("Items").Preload("Items.Product").First(&order, order.ID)
 
 	h.Line.NotifyNewOrder(&order)
 
 	return c.Status(fiber.StatusCreated).JSON(order)
+}
+
+func fileRename(oldPath, newPath string) error {
+	return os.Rename(oldPath, newPath)
 }
 
 func (h *OrderHandler) UpdateStatus(c *fiber.Ctx) error {

@@ -65,7 +65,12 @@ func (l *LineNotifier) NotifyNewOrder(order *models.Order) {
 		today,
 	)
 
-	go l.pushMessage(msg)
+	if order.SlipImage != "" {
+		imageURL := fmt.Sprintf("%s/uploads/%s", l.baseURL, order.SlipImage)
+		go l.pushMessageWithImage(msg, imageURL)
+	} else {
+		go l.pushMessage(msg)
+	}
 }
 
 // NotifyStatusChange sends a notification when order status changes
