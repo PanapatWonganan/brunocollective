@@ -3,6 +3,7 @@ package main
 import (
 	"log"
 	"os"
+	"time"
 
 	"brunocollective_inventory/config"
 	"brunocollective_inventory/database"
@@ -110,6 +111,27 @@ func main() {
 	api.Put("/orders/:id/status", orderHandler.UpdateStatus)
 	api.Post("/orders/:id/slip", orderHandler.UploadSlip)
 	api.Delete("/orders/:id", orderHandler.Delete)
+
+	// Daily summary scheduler (8:00 AM Bangkok time)
+	go func() {
+		loc, _ := time.LoadLocation("Asia/Bangkok")
+		for {
+			now := time.Now().In(loc)
+			next := time.Date(now.Year(), now.Month(), now.Day(), 8, 0, 0, 0, loc)
+			if now.After(next) {
+				next = next.Add(24 * time.Hour)
+			}
+			time.Sleep(time.Until(next))
+			log.Println("Sending daily summary...")
+			lineNotifier.SendDailySummary()
+		}
+	}()
+
+	// Manual trigger for daily summary (protected)
+	api.Post("/daily-summary", func(c *fiber.Ctx) error {
+		go lineNotifier.SendDailySummary()
+		return c.JSON(fiber.Map{"message": "daily summary sent"})
+	})
 
 	log.Printf("Server starting on port %s", cfg.Port)
 	log.Fatal(app.Listen(":" + cfg.Port))

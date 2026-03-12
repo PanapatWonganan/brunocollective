@@ -7,6 +7,7 @@ import (
 	"log"
 	"net/http"
 	"strings"
+	"time"
 
 	"brunocollective_inventory/config"
 	"brunocollective_inventory/database"
@@ -118,6 +119,58 @@ func (l *LineNotifier) NotifySlipUploaded(order *models.Order) {
 	)
 
 	go l.pushMessage(msg)
+}
+
+// SendDailySummary sends a daily order summary to the LINE group
+func (l *LineNotifier) SendDailySummary() {
+	if !l.enabled {
+		return
+	}
+
+	now := time.Now()
+	startOfDay := time.Date(now.Year(), now.Month(), now.Day()-1, 0, 0, 0, 0, now.Location())
+	endOfDay := time.Date(now.Year(), now.Month(), now.Day()-1, 23, 59, 59, 0, now.Location())
+
+	var orders []models.Order
+	database.DB.Preload("Customer").Preload("Items.Product").
+		Where("created_at BETWEEN ? AND ?", startOfDay, endOfDay).
+		Find(&orders)
+
+	totalOrders := len(orders)
+	var totalRevenue float64
+	statusCount := map[models.OrderStatus]int{}
+
+	for _, order := range orders {
+		totalRevenue += order.TotalAmount
+		statusCount[order.Status]++
+	}
+
+	dateStr := startOfDay.Format("02/01/2006")
+
+	msg := fmt.Sprintf(""+
+		"\U0001F4CA Daily Summary (%s)\n"+
+		"===============================\n"+
+		"Total Orders: %d\n"+
+		"Total Revenue: %.2f THB\n"+
+		"-------------------------------\n"+
+		"Status Breakdown:\n"+
+		"  \U0001F7E1 Pending: %d\n"+
+		"  \U0001F535 Confirmed: %d\n"+
+		"  \U0001F69A Shipped: %d\n"+
+		"  \u2705 Delivered: %d\n"+
+		"  \u274C Cancelled: %d\n"+
+		"===============================",
+		dateStr,
+		totalOrders,
+		totalRevenue,
+		statusCount[models.StatusPending],
+		statusCount[models.StatusConfirmed],
+		statusCount[models.StatusShipped],
+		statusCount[models.StatusDelivered],
+		statusCount[models.StatusCancelled],
+	)
+
+	l.pushMessage(msg)
 }
 
 func (l *LineNotifier) pushMessage(text string) {
