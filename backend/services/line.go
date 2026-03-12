@@ -17,6 +17,7 @@ import (
 type LineNotifier struct {
 	channelToken string
 	groupID      string
+	baseURL      string
 	enabled      bool
 }
 
@@ -30,6 +31,7 @@ func NewLineNotifier(cfg *config.Config) *LineNotifier {
 	return &LineNotifier{
 		channelToken: cfg.LineChannelToken,
 		groupID:      cfg.LineGroupID,
+		baseURL:      cfg.BaseURL,
 		enabled:      enabled,
 	}
 }
@@ -43,6 +45,8 @@ func (l *LineNotifier) NotifyNewOrder(order *models.Order) {
 	items := formatOrderItems(order.Items)
 	stock := getStockSummary(order.Items)
 
+	today := getTodaySummary()
+
 	msg := fmt.Sprintf(""+
 		"\U0001F4E6 New Order #%d\n"+
 		"-------------------------------\n"+
@@ -50,12 +54,15 @@ func (l *LineNotifier) NotifyNewOrder(order *models.Order) {
 		"Total: %.2f THB\n"+
 		"Items:\n%s\n"+
 		"-------------------------------\n"+
-		"Stock Remaining:\n%s",
+		"Stock Remaining:\n%s\n"+
+		"-------------------------------\n"+
+		"%s",
 		order.ID,
 		order.Customer.Name,
 		order.TotalAmount,
 		items,
 		stock,
+		today,
 	)
 
 	go l.pushMessage(msg)
@@ -82,6 +89,8 @@ func (l *LineNotifier) NotifyStatusChange(order *models.Order, newStatus models.
 
 	stock := getStockSummary(order.Items)
 
+	today := getTodaySummary()
+
 	msg := fmt.Sprintf(""+
 		"%s Order #%d Status Updated\n"+
 		"-------------------------------\n"+
@@ -89,13 +98,16 @@ func (l *LineNotifier) NotifyStatusChange(order *models.Order, newStatus models.
 		"Status: %s\n"+
 		"Total: %.2f THB\n"+
 		"-------------------------------\n"+
-		"Stock Remaining:\n%s",
+		"Stock Remaining:\n%s\n"+
+		"-------------------------------\n"+
+		"%s",
 		emoji,
 		order.ID,
 		order.Customer.Name,
 		strings.ToUpper(string(newStatus)),
 		order.TotalAmount,
 		stock,
+		today,
 	)
 
 	go l.pushMessage(msg)
@@ -118,7 +130,12 @@ func (l *LineNotifier) NotifySlipUploaded(order *models.Order) {
 		order.TotalAmount,
 	)
 
-	go l.pushMessage(msg)
+	if order.SlipImage != "" {
+		imageURL := fmt.Sprintf("%s/uploads/%s", l.baseURL, order.SlipImage)
+		go l.pushMessageWithImage(msg, imageURL)
+	} else {
+		go l.pushMessage(msg)
+	}
 }
 
 // SendDailySummary sends a daily order summary to the LINE group
@@ -173,6 +190,46 @@ func (l *LineNotifier) SendDailySummary() {
 	l.pushMessage(msg)
 }
 
+func (l *LineNotifier) pushMessageWithImage(text string, imageURL string) {
+	body := map[string]interface{}{
+		"to": l.groupID,
+		"messages": []interface{}{
+			map[string]string{"type": "text", "text": text},
+			map[string]string{
+				"type":               "image",
+				"originalContentUrl": imageURL,
+				"previewImageUrl":    imageURL,
+			},
+		},
+	}
+
+	jsonBody, err := json.Marshal(body)
+	if err != nil {
+		log.Printf("LINE notify marshal error: %v", err)
+		return
+	}
+
+	req, err := http.NewRequest("POST", "https://api.line.me/v2/bot/message/push", bytes.NewBuffer(jsonBody))
+	if err != nil {
+		log.Printf("LINE notify request error: %v", err)
+		return
+	}
+
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+l.channelToken)
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		log.Printf("LINE notify send error: %v", err)
+		return
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		log.Printf("LINE notify response: %d", resp.StatusCode)
+	}
+}
+
 func (l *LineNotifier) pushMessage(text string) {
 	body := map[string]interface{}{
 		"to": l.groupID,
@@ -206,6 +263,32 @@ func (l *LineNotifier) pushMessage(text string) {
 	if resp.StatusCode != http.StatusOK {
 		log.Printf("LINE notify response: %d", resp.StatusCode)
 	}
+}
+
+func getTodaySummary() string {
+	now := time.Now()
+	startOfDay := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
+
+	var orders []models.Order
+	database.DB.Preload("Items").
+		Where("created_at >= ? AND status != ?", startOfDay, models.StatusCancelled).
+		Find(&orders)
+
+	totalOrders := len(orders)
+	var totalRevenue float64
+	var totalItems int
+
+	for _, order := range orders {
+		totalRevenue += order.TotalAmount
+		for _, item := range order.Items {
+			totalItems += item.Quantity
+		}
+	}
+
+	return fmt.Sprintf(
+		"\U0001F4C8 Today: %d orders | %d items | %.2f THB",
+		totalOrders, totalItems, totalRevenue,
+	)
 }
 
 func formatOrderItems(items []models.OrderItem) string {

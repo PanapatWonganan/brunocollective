@@ -9,6 +9,7 @@ type Config struct {
 	UploadDir          string
 	LineChannelToken   string
 	LineGroupID        string
+	BaseURL            string
 }
 
 func Load() *Config {
@@ -19,6 +20,7 @@ func Load() *Config {
 		UploadDir:        getEnv("UPLOAD_DIR", "./uploads"),
 		LineChannelToken: getEnv("LINE_CHANNEL_TOKEN", ""),
 		LineGroupID:      getEnv("LINE_GROUP_ID", ""),
+		BaseURL:          getEnv("BASE_URL", "http://localhost:8080"),
 	}
 }
 
