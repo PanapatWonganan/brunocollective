@@ -4,7 +4,10 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"html"
+	"io"
 	"log"
+	"mime/multipart"
 	"net/http"
 	"strings"
 	"time"
@@ -14,41 +17,40 @@ import (
 	"brunocollective_inventory/models"
 )
 
-type LineNotifier struct {
-	channelToken string
-	groupID      string
-	baseURL      string
-	enabled      bool
+type TelegramNotifier struct {
+	botToken string
+	chatID   string
+	baseURL  string
+	enabled  bool
 }
 
-func NewLineNotifier(cfg *config.Config) *LineNotifier {
-	enabled := cfg.LineChannelToken != "" && cfg.LineGroupID != ""
+func NewTelegramNotifier(cfg *config.Config) *TelegramNotifier {
+	enabled := cfg.TelegramBotToken != "" && cfg.TelegramChatID != ""
 	if enabled {
-		log.Println("LINE notifications enabled")
+		log.Println("Telegram notifications enabled")
 	} else {
-		log.Println("LINE notifications disabled (LINE_CHANNEL_TOKEN or LINE_GROUP_ID not set)")
+		log.Println("Telegram notifications disabled (TELEGRAM_BOT_TOKEN or TELEGRAM_CHAT_ID not set)")
 	}
-	return &LineNotifier{
-		channelToken: cfg.LineChannelToken,
-		groupID:      cfg.LineGroupID,
-		baseURL:      cfg.BaseURL,
-		enabled:      enabled,
+	return &TelegramNotifier{
+		botToken: cfg.TelegramBotToken,
+		chatID:   cfg.TelegramChatID,
+		baseURL:  cfg.BaseURL,
+		enabled:  enabled,
 	}
 }
 
 // NotifyNewOrder sends a notification when a new order is created
-func (l *LineNotifier) NotifyNewOrder(order *models.Order) {
-	if !l.enabled {
+func (t *TelegramNotifier) NotifyNewOrder(order *models.Order) {
+	if !t.enabled {
 		return
 	}
 
 	items := formatOrderItems(order.Items)
 	stock := getStockSummary(order.Items)
-
 	today := getTodaySummary()
 
 	msg := fmt.Sprintf(""+
-		"\U0001F4E6 New Order #%d\n"+
+		"\U0001F4E6 <b>New Order #%d</b>\n"+
 		"-------------------------------\n"+
 		"Customer: %s\n"+
 		"Total: %.2f THB\n"+
@@ -58,7 +60,7 @@ func (l *LineNotifier) NotifyNewOrder(order *models.Order) {
 		"-------------------------------\n"+
 		"%s",
 		order.ID,
-		order.Customer.Name,
+		html.EscapeString(order.Customer.Name),
 		order.TotalAmount,
 		items,
 		stock,
@@ -66,16 +68,16 @@ func (l *LineNotifier) NotifyNewOrder(order *models.Order) {
 	)
 
 	if order.SlipImage != "" {
-		imageURL := fmt.Sprintf("%s/uploads/%s", l.baseURL, order.SlipImage)
-		go l.pushMessageWithImage(msg, imageURL)
+		imageURL := fmt.Sprintf("%s/uploads/%s", t.baseURL, order.SlipImage)
+		go t.sendPhoto(msg, imageURL)
 	} else {
-		go l.pushMessage(msg)
+		go t.sendMessage(msg)
 	}
 }
 
 // NotifyStatusChange sends a notification when order status changes
-func (l *LineNotifier) NotifyStatusChange(order *models.Order, newStatus models.OrderStatus) {
-	if !l.enabled {
+func (t *TelegramNotifier) NotifyStatusChange(order *models.Order, newStatus models.OrderStatus) {
+	if !t.enabled {
 		return
 	}
 
@@ -93,11 +95,10 @@ func (l *LineNotifier) NotifyStatusChange(order *models.Order, newStatus models.
 	}
 
 	stock := getStockSummary(order.Items)
-
 	today := getTodaySummary()
 
 	msg := fmt.Sprintf(""+
-		"%s Order #%d Status Updated\n"+
+		"%s <b>Order #%d Status Updated</b>\n"+
 		"-------------------------------\n"+
 		"Customer: %s\n"+
 		"Status: %s\n"+
@@ -108,44 +109,44 @@ func (l *LineNotifier) NotifyStatusChange(order *models.Order, newStatus models.
 		"%s",
 		emoji,
 		order.ID,
-		order.Customer.Name,
+		html.EscapeString(order.Customer.Name),
 		strings.ToUpper(string(newStatus)),
 		order.TotalAmount,
 		stock,
 		today,
 	)
 
-	go l.pushMessage(msg)
+	go t.sendMessage(msg)
 }
 
 // NotifySlipUploaded sends a notification when payment slip is uploaded
-func (l *LineNotifier) NotifySlipUploaded(order *models.Order) {
-	if !l.enabled {
+func (t *TelegramNotifier) NotifySlipUploaded(order *models.Order) {
+	if !t.enabled {
 		return
 	}
 
 	msg := fmt.Sprintf(""+
-		"\U0001F4B3 Payment Slip Uploaded\n"+
+		"\U0001F4B3 <b>Payment Slip Uploaded</b>\n"+
 		"-------------------------------\n"+
 		"Order #%d\n"+
 		"Customer: %s\n"+
 		"Total: %.2f THB",
 		order.ID,
-		order.Customer.Name,
+		html.EscapeString(order.Customer.Name),
 		order.TotalAmount,
 	)
 
 	if order.SlipImage != "" {
-		imageURL := fmt.Sprintf("%s/uploads/%s", l.baseURL, order.SlipImage)
-		go l.pushMessageWithImage(msg, imageURL)
+		imageURL := fmt.Sprintf("%s/uploads/%s", t.baseURL, order.SlipImage)
+		go t.sendPhoto(msg, imageURL)
 	} else {
-		go l.pushMessage(msg)
+		go t.sendMessage(msg)
 	}
 }
 
-// SendDailySummary sends a daily order summary to the LINE group
-func (l *LineNotifier) SendDailySummary() {
-	if !l.enabled {
+// SendDailySummary sends a daily order summary to the Telegram chat
+func (t *TelegramNotifier) SendDailySummary() {
+	if !t.enabled {
 		return
 	}
 
@@ -170,7 +171,7 @@ func (l *LineNotifier) SendDailySummary() {
 	dateStr := startOfDay.Format("02/01/2006")
 
 	msg := fmt.Sprintf(""+
-		"\U0001F4CA Daily Summary (%s)\n"+
+		"\U0001F4CA <b>Daily Summary (%s)</b>\n"+
 		"===============================\n"+
 		"Total Orders: %d\n"+
 		"Total Revenue: %.2f THB\n"+
@@ -192,81 +193,58 @@ func (l *LineNotifier) SendDailySummary() {
 		statusCount[models.StatusCancelled],
 	)
 
-	l.pushMessage(msg)
+	t.sendMessage(msg)
 }
 
-func (l *LineNotifier) pushMessageWithImage(text string, imageURL string) {
+func (t *TelegramNotifier) sendMessage(text string) {
+	url := fmt.Sprintf("https://api.telegram.org/bot%s/sendMessage", t.botToken)
+
 	body := map[string]interface{}{
-		"to": l.groupID,
-		"messages": []interface{}{
-			map[string]string{"type": "text", "text": text},
-			map[string]string{
-				"type":               "image",
-				"originalContentUrl": imageURL,
-				"previewImageUrl":    imageURL,
-			},
-		},
+		"chat_id":    t.chatID,
+		"text":       text,
+		"parse_mode": "HTML",
 	}
 
 	jsonBody, err := json.Marshal(body)
 	if err != nil {
-		log.Printf("LINE notify marshal error: %v", err)
+		log.Printf("Telegram notify marshal error: %v", err)
 		return
 	}
 
-	req, err := http.NewRequest("POST", "https://api.line.me/v2/bot/message/push", bytes.NewBuffer(jsonBody))
+	resp, err := http.Post(url, "application/json", bytes.NewBuffer(jsonBody))
 	if err != nil {
-		log.Printf("LINE notify request error: %v", err)
-		return
-	}
-
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", "Bearer "+l.channelToken)
-
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		log.Printf("LINE notify send error: %v", err)
+		log.Printf("Telegram notify send error: %v", err)
 		return
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		log.Printf("LINE notify response: %d", resp.StatusCode)
+		respBody, _ := io.ReadAll(resp.Body)
+		log.Printf("Telegram notify response: %d - %s", resp.StatusCode, string(respBody))
 	}
 }
 
-func (l *LineNotifier) pushMessage(text string) {
-	body := map[string]interface{}{
-		"to": l.groupID,
-		"messages": []map[string]string{
-			{"type": "text", "text": text},
-		},
-	}
+func (t *TelegramNotifier) sendPhoto(caption string, imageURL string) {
+	url := fmt.Sprintf("https://api.telegram.org/bot%s/sendPhoto", t.botToken)
 
-	jsonBody, err := json.Marshal(body)
+	var buf bytes.Buffer
+	writer := multipart.NewWriter(&buf)
+	writer.WriteField("chat_id", t.chatID)
+	writer.WriteField("caption", caption)
+	writer.WriteField("parse_mode", "HTML")
+	writer.WriteField("photo", imageURL)
+	writer.Close()
+
+	resp, err := http.Post(url, writer.FormDataContentType(), &buf)
 	if err != nil {
-		log.Printf("LINE notify marshal error: %v", err)
-		return
-	}
-
-	req, err := http.NewRequest("POST", "https://api.line.me/v2/bot/message/push", bytes.NewBuffer(jsonBody))
-	if err != nil {
-		log.Printf("LINE notify request error: %v", err)
-		return
-	}
-
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", "Bearer "+l.channelToken)
-
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		log.Printf("LINE notify send error: %v", err)
+		log.Printf("Telegram photo send error: %v", err)
 		return
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		log.Printf("LINE notify response: %d", resp.StatusCode)
+		respBody, _ := io.ReadAll(resp.Body)
+		log.Printf("Telegram photo response: %d - %s", resp.StatusCode, string(respBody))
 	}
 }
 
@@ -303,7 +281,7 @@ func formatOrderItems(items []models.OrderItem) string {
 		if item.Product.Name != "" {
 			name = item.Product.Name
 		}
-		lines = append(lines, fmt.Sprintf("  - %s x%d (%.2f)", name, item.Quantity, item.Price*float64(item.Quantity)))
+		lines = append(lines, fmt.Sprintf("  - %s x%d (%.2f)", html.EscapeString(name), item.Quantity, item.Price*float64(item.Quantity)))
 	}
 	return strings.Join(lines, "\n")
 }
@@ -331,7 +309,7 @@ func getStockSummary(orderItems []models.OrderItem) string {
 			warning = " \U0001F6A8 OUT OF STOCK"
 		}
 
-		lines = append(lines, fmt.Sprintf("  - %s: %d%s", product.Name, product.Stock, warning))
+		lines = append(lines, fmt.Sprintf("  - %s: %d%s", html.EscapeString(product.Name), product.Stock, warning))
 	}
 
 	if len(lines) == 0 {

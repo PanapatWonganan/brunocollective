@@ -18,12 +18,12 @@ import (
 )
 
 type OrderHandler struct {
-	Config *config.Config
-	Line   *services.LineNotifier
+	Config   *config.Config
+	Telegram *services.TelegramNotifier
 }
 
-func NewOrderHandler(cfg *config.Config, line *services.LineNotifier) *OrderHandler {
-	return &OrderHandler{Config: cfg, Line: line}
+func NewOrderHandler(cfg *config.Config, telegram *services.TelegramNotifier) *OrderHandler {
+	return &OrderHandler{Config: cfg, Telegram: telegram}
 }
 
 func (h *OrderHandler) List(c *fiber.Ctx) error {
@@ -158,7 +158,7 @@ func (h *OrderHandler) Create(c *fiber.Ctx) error {
 	// Reload with relations
 	database.DB.Preload("Customer").Preload("Items").Preload("Items.Product").First(&order, order.ID)
 
-	h.Line.NotifyNewOrder(&order)
+	h.Telegram.NotifyNewOrder(&order)
 
 	return c.Status(fiber.StatusCreated).JSON(order)
 }
@@ -188,7 +188,7 @@ func (h *OrderHandler) UpdateStatus(c *fiber.Ctx) error {
 	database.DB.Model(&order).Update("status", body.Status)
 	database.DB.Preload("Customer").Preload("Items").Preload("Items.Product").First(&order, id)
 
-	h.Line.NotifyStatusChange(&order, body.Status)
+	h.Telegram.NotifyStatusChange(&order, body.Status)
 
 	return c.JSON(order)
 }
@@ -220,7 +220,7 @@ func (h *OrderHandler) UploadSlip(c *fiber.Ctx) error {
 	database.DB.Model(&order).Update("slip_image", filename)
 	database.DB.Preload("Customer").Preload("Items").Preload("Items.Product").First(&order, id)
 
-	h.Line.NotifySlipUploaded(&order)
+	h.Telegram.NotifySlipUploaded(&order)
 
 	return c.JSON(order)
 }

@@ -3,13 +3,13 @@ package config
 import "os"
 
 type Config struct {
-	Port               string
-	DBPath             string
-	JWTSecret          string
-	UploadDir          string
-	LineChannelToken   string
-	LineGroupID        string
-	BaseURL            string
+	Port             string
+	DBPath           string
+	JWTSecret        string
+	UploadDir        string
+	TelegramBotToken string
+	TelegramChatID   string
+	BaseURL          string
 }
 
 func Load() *Config {
@@ -18,8 +18,8 @@ func Load() *Config {
 		DBPath:           getEnv("DB_PATH", "inventory.db"),
 		JWTSecret:        getEnv("JWT_SECRET", "change-me-in-production"),
 		UploadDir:        getEnv("UPLOAD_DIR", "./uploads"),
-		LineChannelToken: getEnv("LINE_CHANNEL_TOKEN", ""),
-		LineGroupID:      getEnv("LINE_GROUP_ID", ""),
+		TelegramBotToken: getEnv("TELEGRAM_BOT_TOKEN", ""),
+		TelegramChatID:   getEnv("TELEGRAM_CHAT_ID", ""),
 		BaseURL:          getEnv("BASE_URL", "http://localhost:8080"),
 	}
 }

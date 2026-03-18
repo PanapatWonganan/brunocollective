@@ -39,36 +39,6 @@ func main() {
 	// Serve uploaded files
 	app.Static("/uploads", cfg.UploadDir)
 
-	// LINE Webhook (public - called by LINE platform)
-	app.Post("/webhook/line", func(c *fiber.Ctx) error {
-		rawBody := string(c.Body())
-		log.Printf("LINE Webhook received: %s", rawBody)
-
-		var body struct {
-			Events []struct {
-				Type   string `json:"type"`
-				Source struct {
-					Type    string `json:"type"`
-					GroupID string `json:"groupId"`
-				} `json:"source"`
-			} `json:"events"`
-		}
-		if err := c.BodyParser(&body); err != nil {
-			log.Printf("LINE Webhook parse error: %v", err)
-			return c.SendStatus(200)
-		}
-		log.Printf("LINE Webhook events count: %d", len(body.Events))
-		for _, event := range body.Events {
-			log.Printf("LINE event type=%s source_type=%s groupID=%s", event.Type, event.Source.Type, event.Source.GroupID)
-			if event.Source.GroupID != "" {
-				log.Printf("========================================")
-				log.Printf("LINE GROUP ID: %s", event.Source.GroupID)
-				log.Printf("========================================")
-			}
-		}
-		return c.SendStatus(200)
-	})
-
 	// Public routes
 	authHandler := handlers.NewAuthHandler(cfg)
 	app.Post("/api/login", authHandler.Login)
@@ -100,11 +70,11 @@ func main() {
 	api.Put("/customers/:id", customerHandler.Update)
 	api.Delete("/customers/:id", customerHandler.Delete)
 
-	// LINE Notifier
-	lineNotifier := services.NewLineNotifier(cfg)
+	// Telegram Notifier
+	telegramNotifier := services.NewTelegramNotifier(cfg)
 
 	// Orders
-	orderHandler := handlers.NewOrderHandler(cfg, lineNotifier)
+	orderHandler := handlers.NewOrderHandler(cfg, telegramNotifier)
 	api.Get("/orders", orderHandler.List)
 	api.Get("/orders/:id", orderHandler.Get)
 	api.Post("/orders", orderHandler.Create)
@@ -123,13 +93,13 @@ func main() {
 			}
 			time.Sleep(time.Until(next))
 			log.Println("Sending daily summary...")
-			lineNotifier.SendDailySummary()
+			telegramNotifier.SendDailySummary()
 		}
 	}()
 
 	// Manual trigger for daily summary (protected)
 	api.Post("/daily-summary", func(c *fiber.Ctx) error {
-		go lineNotifier.SendDailySummary()
+		go telegramNotifier.SendDailySummary()
 		return c.JSON(fiber.Map{"message": "daily summary sent"})
 	})
 
