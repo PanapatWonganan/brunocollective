@@ -1,0 +1,15 @@
+.strip{
+  border-top:1px solid var(--hairline);
+  border-bottom:1px solid var(--hairline);
+  background:var(--cream);
+  overflow:hidden;
+}
+.inner{
+  display:flex; gap:64px; padding:18px 0; white-space:nowrap;
+  animation:marquee 56s linear infinite;
+  font-size:11px; letter-spacing:.36em; text-transform:uppercase; color:var(--ink-faint);
+}
+.run{display:inline-flex;align-items:center;gap:64px}
+.dot{width:4px;height:4px;background:var(--champagne);border-radius:50%}
+@keyframes marquee{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+@media (prefers-reduced-motion:reduce){.inner{animation:none}}

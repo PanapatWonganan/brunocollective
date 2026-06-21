@@ -1,0 +1,69 @@
+.hero{
+  position:relative; min-height:100vh; min-height:100svh;
+  display:grid; grid-template-rows:1fr auto;
+  color:var(--ivory);
+  overflow:hidden;
+}
+.img{
+  position:absolute; inset:0; z-index:0;
+  background-image:url("/design/hero-polo-dunes.png");
+  background-size:cover; background-position:center 25%;
+  filter:saturate(.85) contrast(.95);
+  transform:scale(1.04);
+  animation:slowZoom 18s ease-out forwards;
+}
+@keyframes slowZoom{to{transform:scale(1.0)}}
+.scrim{
+  position:absolute; inset:0; z-index:1;
+  background:
+    linear-gradient(180deg, rgba(31,42,64,.45) 0%, rgba(31,42,64,.18) 30%, rgba(31,42,64,.0) 55%, rgba(31,42,64,.55) 100%),
+    linear-gradient(90deg, rgba(31,42,64,.35) 0%, rgba(31,42,64,0) 55%);
+}
+.inner{
+  position:relative; z-index:2;
+  padding:130px var(--pad) 64px;
+  max-width:var(--maxw); width:100%; margin:0 auto;
+  align-self:end;
+}
+.h1{
+  font-family:var(--serif); font-weight:400;
+  font-size:clamp(64px, 12vw, 200px);
+  line-height:.92; letter-spacing:-.018em;
+  color:var(--ivory);
+  margin-bottom:.18em; margin-top:22px;
+}
+.h1 em{font-style:italic;color:var(--champagne-2);font-weight:300}
+.tagline{
+  font-family:var(--serif); font-style:italic; font-weight:300;
+  font-size:clamp(18px, 2vw, 24px);
+  color:var(--ivory); opacity:.92;
+  max-width:38ch; margin:0 0 38px;
+}
+.metaRow{
+  position:relative; z-index:2;
+  display:grid; grid-template-columns:1fr auto 1fr;
+  align-items:end; gap:32px;
+  padding:0 var(--pad) 38px;
+  max-width:var(--maxw); margin:0 auto; width:100%;
+  color:var(--ivory);
+}
+.metaRow :global(.label){color:rgba(247,242,232,.7)}
+.center{justify-self:center; text-align:center;}
+.right{justify-self:end; text-align:right;}
+.num{font-family:var(--serif);font-size:30px;line-height:1;display:block;margin-bottom:6px;color:var(--champagne-2)}
+
+.scrollCue{
+  position:absolute; left:50%; bottom:30px; transform:translateX(-50%);
+  z-index:3; display:flex; flex-direction:column; align-items:center; gap:10px;
+  color:rgba(247,242,232,.75); font-size:9.5px; letter-spacing:.32em; text-transform:uppercase;
+}
+.line{display:block;width:1px;height:42px;background:rgba(247,242,232,.6); animation:cueLine 2.4s var(--ease) infinite}
+@keyframes cueLine{0%{transform:scaleY(.2);transform-origin:top}50%{transform:scaleY(1);transform-origin:top}50.01%{transform-origin:bottom}100%{transform:scaleY(0);transform-origin:bottom}}
+
+@media (prefers-reduced-motion:reduce){
+  .img{animation:none;transform:none}
+}
+@media (max-width:600px){
+  .metaRow{grid-template-columns:1fr; gap:10px; text-align:left}
+  .center,.right{justify-self:start; text-align:left}
+}

@@ -1,0 +1,17 @@
+.wrap{margin-top:8px}
+.row{display:flex; gap:16px; align-items:stretch}
+.stepper{display:flex; align-items:center; gap:18px; border:1px solid var(--hairline); padding:0 18px}
+.stepper button{font-size:18px; color:var(--ink); line-height:1}
+.stepper button:disabled{opacity:.3; cursor:not-allowed}
+.stepper span{font-size:14px; min-width:18px; text-align:center}
+.add{
+  flex:1; display:inline-flex; align-items:center; justify-content:center; gap:.7em;
+  padding:18px 28px; background:var(--ink); color:var(--ivory);
+  font-size:11px; letter-spacing:.32em; text-transform:uppercase; font-weight:500;
+  transition:background .4s var(--ease), gap .4s var(--ease);
+}
+.add:hover{background:var(--ink-soft); gap:1.1em}
+.add:disabled{background:var(--ink-quiet); cursor:not-allowed; gap:.7em}
+.add .arrow{transition:transform .5s var(--ease)}
+.add:hover .arrow{transform:translateX(4px)}
+.note{margin-top:16px; font-size:10.5px; letter-spacing:.24em; text-transform:uppercase; color:var(--champagne); font-weight:500}

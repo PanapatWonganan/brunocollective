@@ -1,0 +1,38 @@
+.footer{background:var(--ink); color:rgba(247,242,232,.8); padding:88px 0 36px;}
+.grid{
+  display:grid; grid-template-columns: 1.6fr 1fr 1fr 1fr 1fr; gap:48px;
+  padding-bottom:56px; border-bottom:1px solid rgba(247,242,232,.12);
+}
+.mark{
+  font-family:var(--serif); font-style:italic; font-size:48px;
+  color:var(--champagne-2); line-height:1; letter-spacing:-.04em;
+}
+.name{
+  margin-top:14px; font-size:13px; letter-spacing:.34em; text-transform:uppercase; color:var(--ivory); font-weight:500;
+}
+.pitch{
+  margin-top:22px; font-family:var(--serif); font-style:italic; font-size:18px;
+  color:rgba(247,242,232,.72); max-width:34ch; line-height:1.5; font-weight:300;
+}
+.h5{
+  font-family:var(--sans); font-size:10.5px; letter-spacing:.3em; text-transform:uppercase;
+  color:rgba(247,242,232,.55); font-weight:500; margin:0 0 22px;
+}
+.ul{list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:12px}
+.ul a{color:rgba(247,242,232,.86); font-size:13.5px; transition:color .3s var(--ease)}
+.ul a:hover{color:var(--champagne-2)}
+.boutiques li{display:flex;flex-direction:column;gap:2px}
+.city{font-family:var(--serif); font-style:italic; font-size:18px; color:var(--ivory)}
+.addr{font-size:11.5px; color:rgba(247,242,232,.55); letter-spacing:.02em}
+.bottom{
+  display:flex; justify-content:space-between; align-items:center; gap:24px;
+  margin-top:32px; padding-top:0;
+  font-size:10.5px; letter-spacing:.26em; text-transform:uppercase; color:rgba(247,242,232,.45); font-weight:500;
+}
+.social{display:flex; gap:24px}
+.social a:hover{color:var(--champagne-2)}
+@media (max-width:900px){
+  .grid{grid-template-columns:1fr 1fr; gap:36px}
+  .brandBlock{grid-column:1/-1}
+  .bottom{flex-direction:column; align-items:flex-start}
+}

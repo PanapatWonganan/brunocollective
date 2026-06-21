@@ -1,0 +1,59 @@
+.scrim{
+  position:fixed; inset:0; z-index:60;
+  background:rgba(31,42,64,.45); backdrop-filter:blur(2px);
+  opacity:0; pointer-events:none; transition:opacity .5s var(--ease);
+}
+.scrimOn{opacity:1; pointer-events:auto}
+
+.drawer{
+  position:fixed; top:0; right:0; bottom:0; z-index:61;
+  width:min(440px, 92vw);
+  background:var(--paper);
+  border-left:1px solid var(--hairline);
+  display:flex; flex-direction:column;
+  transform:translateX(100%);
+  transition:transform .55s var(--ease);
+}
+.drawerOn{transform:translateX(0)}
+
+.head{
+  display:flex; align-items:center; justify-content:space-between;
+  padding:26px var(--pad); border-bottom:1px solid var(--hairline);
+}
+.close{font-size:14px; color:var(--ink-faint); transition:color .3s var(--ease)}
+.close:hover{color:var(--ink)}
+
+.empty{padding:56px var(--pad); display:flex; flex-direction:column; gap:24px; align-items:flex-start}
+.emptyNote{font-family:var(--serif); font-style:italic; font-size:22px; color:var(--ink-faint); margin:0}
+
+.lines{flex:1; overflow-y:auto; padding:8px var(--pad)}
+.line{display:flex; gap:18px; padding:24px 0; border-bottom:1px solid var(--hairline-soft)}
+.thumb{
+  width:78px; height:98px; flex:none;
+  background:var(--ivory) center/cover no-repeat;
+  border:1px solid var(--hairline-soft);
+}
+.lineBody{flex:1; min-width:0}
+.lineName{font-family:var(--serif); font-size:18px; line-height:1.2}
+.lineMeta{font-size:11px; letter-spacing:.16em; color:var(--ink-faint); margin-top:4px; text-transform:uppercase}
+.qtyRow{display:flex; align-items:center; justify-content:space-between; margin-top:16px}
+.stepper{display:flex; align-items:center; gap:14px; border:1px solid var(--hairline); padding:5px 12px}
+.stepper button{font-size:15px; color:var(--ink); line-height:1}
+.stepper button:disabled{opacity:.3; cursor:not-allowed}
+.stepper span{font-size:13px; min-width:14px; text-align:center}
+.removeBtn{font-size:10px; letter-spacing:.22em; text-transform:uppercase; color:var(--ink-quiet); transition:color .3s var(--ease)}
+.removeBtn:hover{color:var(--champagne)}
+
+.foot{padding:24px var(--pad) 32px; border-top:1px solid var(--hairline)}
+.totalRow{display:flex; align-items:baseline; justify-content:space-between; margin-bottom:22px}
+.total{font-family:var(--serif); font-size:26px}
+.checkout{
+  display:flex; align-items:center; justify-content:center; gap:.7em;
+  width:100%; padding:16px;
+  background:var(--ink); color:var(--ivory);
+  font-size:11px; letter-spacing:.32em; text-transform:uppercase; font-weight:500;
+  transition:background .4s var(--ease), gap .4s var(--ease);
+}
+.checkout:hover{background:var(--ink-soft); gap:1.1em}
+.checkout .arrow{transition:transform .5s var(--ease)}
+.checkout:hover .arrow{transform:translateX(4px)}

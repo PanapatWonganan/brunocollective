@@ -1,0 +1,20 @@
+[Unit]
+Description=Bruno Collective Storefront (Next.js)
+After=network.target inventory.service
+Wants=inventory.service
+
+[Service]
+Type=simple
+User=www-data
+WorkingDirectory=/opt/inventory/storefront
+# next start serves the production build created by `next build`
+ExecStart=/usr/bin/npm run start
+Restart=on-failure
+RestartSec=5
+Environment=NODE_ENV=production
+Environment=PORT=3000
+# Server-side fetches (SSR / revalidate) hit the Go backend on localhost.
+Environment=BACKEND_URL=http://localhost:8080
+
+[Install]
+WantedBy=multi-user.target

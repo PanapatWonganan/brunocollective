@@ -39,9 +39,18 @@ func main() {
 	// Serve uploaded files
 	app.Static("/uploads", cfg.UploadDir)
 
+	// Telegram Notifier
+	telegramNotifier := services.NewTelegramNotifier(cfg)
+
 	// Public routes
 	authHandler := handlers.NewAuthHandler(cfg)
 	app.Post("/api/login", authHandler.Login)
+
+	// Public storefront routes (no auth) — product browsing + customer checkout
+	shopHandler := handlers.NewShopHandler(cfg, telegramNotifier)
+	app.Get("/api/shop/products", shopHandler.Products)
+	app.Get("/api/shop/products/:id", shopHandler.Product)
+	app.Post("/api/shop/orders", shopHandler.Checkout)
 
 	// Protected routes
 	api := app.Group("/api", middleware.JWTAuth(cfg))
@@ -69,9 +78,6 @@ func main() {
 	api.Post("/customers", customerHandler.Create)
 	api.Put("/customers/:id", customerHandler.Update)
 	api.Delete("/customers/:id", customerHandler.Delete)
-
-	// Telegram Notifier
-	telegramNotifier := services.NewTelegramNotifier(cfg)
 
 	// Orders
 	orderHandler := handlers.NewOrderHandler(cfg, telegramNotifier)

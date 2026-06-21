@@ -92,7 +92,7 @@ Stock warnings are included automatically: `LOW` when stock <=5, `OUT OF STOCK` 
 
 Today's sales summary appears on every new order and status change notification, counting only non-cancelled orders since midnight (server local time).
 
-Messages use MarkdownV2 formatting. Images are sent via `sendPhoto` with the public URL. To get the chat ID, add the bot to a group and use `https://api.telegram.org/bot<token>/getUpdates`.
+Messages use HTML parse mode (`<b>` for bold). Images are sent via `sendPhoto` with the public URL. To get the chat ID, message the bot and check `https://api.telegram.org/bot<token>/getUpdates`.
 
 ## Shipping Label Printing
 

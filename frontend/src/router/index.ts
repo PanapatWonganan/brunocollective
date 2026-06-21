@@ -1,7 +1,9 @@
 import { createRouter, createWebHistory } from 'vue-router'
 
 const router = createRouter({
-  history: createWebHistory(),
+  // Base path comes from Vite's `base` config (set to /admin/ for production),
+  // so the admin app lives under /admin while the storefront owns the root.
+  history: createWebHistory(import.meta.env.BASE_URL),
   routes: [
     {
       path: '/login',

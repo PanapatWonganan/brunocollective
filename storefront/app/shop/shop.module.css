@@ -1,0 +1,12 @@
+.page{padding:clamp(120px,16vh,180px) var(--pad) clamp(80px,11vw,140px); max-width:var(--maxw); margin:0 auto}
+.head{max-width:720px; margin-bottom:clamp(48px,7vw,88px)}
+.title{font-size:clamp(40px,6vw,84px); margin:14px 0 24px; line-height:1.02}
+.title em{font-style:italic;color:var(--champagne);font-weight:300}
+.sub{color:var(--ink-faint); max-width:52ch; font-size:14.5px}
+.empty{font-family:var(--serif);font-style:italic;font-size:26px;color:var(--ink-faint);padding:60px 0}
+.grid{
+  display:grid; grid-template-columns:repeat(3,1fr);
+  gap:clamp(32px,4vw,56px) clamp(24px,3vw,40px);
+}
+@media (max-width:900px){.grid{grid-template-columns:repeat(2,1fr)}}
+@media (max-width:560px){.grid{grid-template-columns:1fr}}
