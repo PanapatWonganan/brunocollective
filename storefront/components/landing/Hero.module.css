@@ -27,7 +27,7 @@
 }
 .h1{
   font-family:var(--serif); font-weight:400;
-  font-size:clamp(64px, 12vw, 200px);
+  font-size:clamp(44px, 12vw, 200px);
   line-height:.92; letter-spacing:-.018em;
   color:var(--ivory);
   margin-bottom:.18em; margin-top:22px;
@@ -64,6 +64,7 @@
   .img{animation:none;transform:none}
 }
 @media (max-width:600px){
+  .inner{padding:104px var(--pad) 48px}
   .metaRow{grid-template-columns:1fr; gap:10px; text-align:left}
   .center,.right{justify-self:start; text-align:left}
 }

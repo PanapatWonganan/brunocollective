@@ -67,3 +67,9 @@
   .c7{grid-column:4/-1; margin-top:0}
   .c1 .imgbox,.c2 .imgbox,.c3 .imgbox,.c4 .imgbox,.c5 .imgbox,.c6 .imgbox,.c7 .imgbox{aspect-ratio:3/4}
 }
+
+@media (max-width:560px){
+  .grid{grid-template-columns:1fr; gap:36px}
+  .c1,.c2,.c3,.c4,.c5,.c6,.c7{grid-column:1/-1; margin-top:0}
+  .c1 .imgbox,.c2 .imgbox,.c3 .imgbox,.c4 .imgbox,.c5 .imgbox,.c6 .imgbox,.c7 .imgbox{aspect-ratio:4/5}
+}

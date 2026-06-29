@@ -1,6 +1,6 @@
 <template>
   <div>
-    <div class="d-flex align-center mb-6">
+    <div class="d-flex flex-wrap align-center ga-3 mb-6">
       <div>
         <div class="text-h5 font-weight-bold">Customers</div>
         <div class="text-caption text-medium-emphasis">Manage your customer records</div>

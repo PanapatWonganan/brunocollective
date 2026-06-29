@@ -2,9 +2,10 @@
   <v-layout>
     <v-navigation-drawer
       v-model="drawer"
-      permanent
+      :permanent="!mobile"
+      :temporary="mobile"
       class="sidebar"
-      :width="collapsed ? 76 : 260"
+      :width="collapsed && !mobile ? 76 : 260"
     >
       <div class="sidebar-inner d-flex flex-column h-100">
         <!-- Logo -->
@@ -121,8 +122,15 @@
 
     <v-app-bar flat color="transparent" :elevation="0">
       <div class="d-flex align-center px-2 w-100">
-        <div>
-          <div class="text-h6 font-weight-bold" style="color: #1A1714;">{{ currentPageTitle }}</div>
+        <v-btn
+          v-if="mobile"
+          icon="mdi-menu"
+          variant="text"
+          class="mr-1"
+          @click="drawer = !drawer"
+        />
+        <div class="text-truncate">
+          <div class="text-h6 font-weight-bold text-truncate" style="color: #1A1714;">{{ currentPageTitle }}</div>
           <div class="text-caption" style="color: #8C8478;">{{ greeting }}</div>
         </div>
         <v-spacer />
@@ -135,7 +143,7 @@
     </v-app-bar>
 
     <v-main style="background: #F7F3EE;">
-      <v-container fluid class="pa-6">
+      <v-container fluid :class="mobile ? 'pa-4' : 'pa-6'">
         <router-view />
       </v-container>
     </v-main>
@@ -195,16 +203,23 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
+import { useDisplay } from 'vuetify'
 import { useAuthStore } from '@/stores/auth'
 import api from '@/services/api'
 
 const auth = useAuthStore()
 const route = useRoute()
-const drawer = ref(true)
+const { mobile } = useDisplay()
+const drawer = ref(!mobile.value)
 const collapsed = ref(false)
 const pendingCount = ref(0)
+
+// Close the overlay drawer after navigating on mobile
+watch(() => route.path, () => {
+  if (mobile.value) drawer.value = false
+})
 
 // Change Password
 const showPasswordDialog = ref(false)

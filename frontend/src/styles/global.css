@@ -1,0 +1,22 @@
+/* ── Global responsive safety net ──
+   Prevents horizontal overflow on mobile across all views. */
+
+/* Never let the page itself scroll sideways */
+html,
+body {
+  overflow-x: hidden;
+}
+
+/* Vuetify data-tables / tables don't scroll horizontally by default.
+   On narrow screens a wide table pushes the whole page to the right.
+   Make the table's own wrapper scroll instead. */
+.v-table__wrapper,
+.v-data-table__wrapper {
+  overflow-x: auto;
+}
+
+/* Allow flex children (e.g. table cells, card content) to shrink below
+   their content width so long text truncates/scrolls instead of overflowing. */
+.v-main {
+  min-width: 0;
+}
