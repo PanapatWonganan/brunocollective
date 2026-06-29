@@ -2,12 +2,11 @@ import styles from "./MarqueeStrip.module.css";
 
 const PHRASE = (
   <>
-    Linen of Solbiate Olona <i className={styles.dot} /> Cashmere from Inner
-    Mongolia <i className={styles.dot} /> Hand-finished in Solomeo{" "}
-    <i className={styles.dot} /> Sea-island cotton from Barbados{" "}
-    <i className={styles.dot} /> Italian box-calf leather{" "}
-    <i className={styles.dot} /> Buttons in Corozo <i className={styles.dot} />{" "}
-    One hundred and seventeen hours per coat <i className={styles.dot} />
+    Designed in Khon Kaen <i className={styles.dot} /> Cut &amp; finished by hand{" "}
+    <i className={styles.dot} /> Considered fabrics, chosen with care{" "}
+    <i className={styles.dot} /> Limited runs <i className={styles.dot} /> Quiet
+    luxury, made in Thailand <i className={styles.dot} /> เสื้อผ้าคุณภาพ ตัดเย็บในไทย{" "}
+    <i className={styles.dot} /> Made to be worn for years <i className={styles.dot} />
   </>
 );
 

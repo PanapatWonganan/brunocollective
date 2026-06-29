@@ -113,7 +113,7 @@
               <div class="label-from-name">Bruno Collective</div>
               <div class="label-from-detail">87/4-5 ถนน กลางเมือง ตำบลในเมือง</div>
               <div class="label-from-detail">อำเภอเมืองขอนแก่น ขอนแก่น 40000</div>
-              <div class="label-from-detail">Tel: 081-4469442</div>
+              <div class="label-from-detail">Tel: 0952964145</div>
             </div>
             <div class="label-divider" />
             <div class="label-section label-to">

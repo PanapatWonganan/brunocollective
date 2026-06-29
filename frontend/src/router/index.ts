@@ -19,6 +19,8 @@ const router = createRouter({
         { path: 'products', name: 'Products', component: () => import('@/views/ProductsView.vue') },
         { path: 'customers', name: 'Customers', component: () => import('@/views/CustomersView.vue') },
         { path: 'orders', name: 'Orders', component: () => import('@/views/OrdersView.vue') },
+        { path: 'site-images', name: 'SiteImages', component: () => import('@/views/SiteImagesView.vue') },
+        { path: 'receipts', name: 'Receipts', component: () => import('@/views/ReceiptsView.vue') },
       ]
     }
   ]

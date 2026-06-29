@@ -4,7 +4,18 @@ import Link from "next/link";
 import { getProduct } from "@/lib/api";
 import { money, imageSrc } from "@/lib/format";
 import AddToBag from "@/components/AddToBag";
+import ProductGallery from "@/components/ProductGallery";
 import styles from "./product.module.css";
+
+// Build the gallery list: prefer the multi-image array, fall back to the
+// legacy single image_url, de-duplicated and stripped of blanks.
+function galleryImages(product: { images?: string[]; image_url?: string }): string[] {
+  const list = [...(product.images || [])];
+  if (product.image_url && !list.includes(product.image_url)) {
+    list.unshift(product.image_url);
+  }
+  return list.filter(Boolean);
+}
 
 interface Params {
   params: Promise<{ id: string }>;
@@ -18,7 +29,7 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
     title: product.name,
     description:
       product.description ||
-      `${product.name} — finished by a single hand at the Bruno Collective atelier.`,
+      `${product.name} — cut and finished by hand at the Bruno Collective atelier in Khon Kaen, Thailand.`,
     openGraph: {
       title: product.name,
       description: product.description || product.name,
@@ -41,19 +52,10 @@ export default async function ProductPage({ params }: Params) {
       </div>
 
       <div className={styles.grid}>
-        <div className={styles.imgbox}>
-          <div
-            className={styles.img}
-            style={{
-              backgroundImage: product.image_url
-                ? `url('${imageSrc(product.image_url)}')`
-                : undefined,
-            }}
-          />
-        </div>
+        <ProductGallery images={galleryImages(product)} alt={product.name} />
 
         <div className={styles.detail}>
-          <span className="kicker">Bruno Collective — Spring MMXXVI</span>
+          <span className="kicker">Bruno Collective — Made in Thailand</span>
           <h1 className={styles.name}>{product.name}</h1>
           <div className={styles.price}>{money(product.price)}</div>
 
@@ -70,6 +72,12 @@ export default async function ProductPage({ params }: Params) {
                 <dd>{product.sku}</dd>
               </div>
             )}
+            {product.size && (
+              <div>
+                <dt>Size</dt>
+                <dd>{product.size}</dd>
+              </div>
+            )}
             <div>
               <dt>Availability</dt>
               <dd>
@@ -80,7 +88,7 @@ export default async function ProductPage({ params }: Params) {
             </div>
             <div>
               <dt>Finishing</dt>
-              <dd>By a single hand</dd>
+              <dd>Made &amp; finished by hand in Thailand</dd>
             </div>
           </dl>
         </div>

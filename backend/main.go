@@ -51,6 +51,7 @@ func main() {
 	app.Get("/api/shop/products", shopHandler.Products)
 	app.Get("/api/shop/products/:id", shopHandler.Product)
 	app.Post("/api/shop/orders", shopHandler.Checkout)
+	app.Get("/api/shop/site-images", shopHandler.SiteImages)
 
 	// Protected routes
 	api := app.Group("/api", middleware.JWTAuth(cfg))
@@ -64,12 +65,20 @@ func main() {
 	api.Get("/dashboard/charts", dashboardHandler.Charts)
 
 	// Products
-	productHandler := handlers.NewProductHandler()
+	productHandler := handlers.NewProductHandler(cfg)
 	api.Get("/products", productHandler.List)
 	api.Get("/products/:id", productHandler.Get)
 	api.Post("/products", productHandler.Create)
 	api.Put("/products/:id", productHandler.Update)
 	api.Delete("/products/:id", productHandler.Delete)
+	api.Post("/products/:id/images", productHandler.UploadImages)
+	api.Delete("/products/:id/images", productHandler.DeleteImage)
+
+	// Site Images (editable storefront hero/lookbook/journal)
+	siteImageHandler := handlers.NewSiteImageHandler(cfg)
+	api.Get("/site-images", siteImageHandler.List)
+	api.Post("/site-images/:key/image", siteImageHandler.UploadImage)
+	api.Put("/site-images/:key", siteImageHandler.UpdateCaptions)
 
 	// Customers
 	customerHandler := handlers.NewCustomerHandler()
@@ -87,6 +96,12 @@ func main() {
 	api.Put("/orders/:id/status", orderHandler.UpdateStatus)
 	api.Post("/orders/:id/slip", orderHandler.UploadSlip)
 	api.Delete("/orders/:id", orderHandler.Delete)
+
+	// Receipts (ใบเสร็จรับเงิน) — running number, persisted history
+	receiptHandler := handlers.NewReceiptHandler()
+	api.Get("/receipts", receiptHandler.List)
+	api.Get("/orders/:id/receipt", receiptHandler.Get)
+	api.Post("/orders/:id/receipt", receiptHandler.Issue)
 
 	// Daily summary scheduler (8:00 AM Bangkok time)
 	go func() {

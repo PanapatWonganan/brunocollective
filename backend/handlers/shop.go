@@ -62,6 +62,20 @@ func (h *ShopHandler) Product(c *fiber.Ctx) error {
 	return c.JSON(product)
 }
 
+// SiteImages returns the editable storefront images keyed by slot, e.g.
+// {"hero": {...}, "lookbook_1": {...}}. Only slots that have an image set are
+// returned; the storefront falls back to its built-in defaults for the rest.
+func (h *ShopHandler) SiteImages(c *fiber.Ctx) error {
+	var images []models.SiteImage
+	database.DB.Where("image_url <> ''").Find(&images)
+
+	out := make(map[string]models.SiteImage, len(images))
+	for _, img := range images {
+		out[img.Key] = img
+	}
+	return c.JSON(out)
+}
+
 // ShopCheckoutRequest is the public order payload posted from the storefront.
 type ShopCheckoutRequest struct {
 	Name    string                   `json:"name"`

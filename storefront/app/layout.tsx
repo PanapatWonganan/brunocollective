@@ -27,15 +27,15 @@ const inter = Inter({
 export const metadata: Metadata = {
   metadataBase: new URL("https://brunocollective.example"),
   title: {
-    default: "Bruno Collective — A Quiet Inheritance",
+    default: "Bruno Collective — Quietly Made in Thailand",
     template: "%s — Bruno Collective",
   },
   description:
-    "Garments cut for the long quiet of a life lived deliberately — linen, cashmere, and time. A heritage house since 1908.",
+    "Considered clothing, cut and finished by hand in Khon Kaen, Thailand — born from a love of fine cloth and quiet luxury. เสื้อผ้าคุณภาพ ตัดเย็บในไทย.",
   openGraph: {
-    title: "Bruno Collective — A Quiet Inheritance",
+    title: "Bruno Collective — Quietly Made in Thailand",
     description:
-      "Garments cut for the long quiet of a life lived deliberately — linen, cashmere, and time.",
+      "Considered clothing, cut and finished by hand in Khon Kaen, Thailand — born from a love of fine cloth and quiet luxury.",
     type: "website",
   },
 };

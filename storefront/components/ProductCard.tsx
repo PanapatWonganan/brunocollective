@@ -10,6 +10,7 @@ export default function ProductCard({ product }: { product: Product }) {
   const { add } = useCart();
   const soldOut = product.stock <= 0;
   const low = !soldOut && product.stock <= 5;
+  const cover = product.image_url || product.images?.[0] || "";
 
   return (
     <figure className={styles.card}>
@@ -17,9 +18,7 @@ export default function ProductCard({ product }: { product: Product }) {
         <div
           className={styles.img}
           style={{
-            backgroundImage: product.image_url
-              ? `url('${imageSrc(product.image_url)}')`
-              : undefined,
+            backgroundImage: cover ? `url('${imageSrc(cover)}')` : undefined,
           }}
         />
         {soldOut && <span className={styles.tag}>Sold Out</span>}

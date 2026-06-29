@@ -29,9 +29,8 @@ export default function CollectionGrid({ products }: { products: Product[] }) {
               quietly considered.
             </h2>
             <p className={s.intro}>
-              Pieces from this season&apos;s atelier — the quiet uniform of a
-              considered life, cut in limited runs and finished by a single hand
-              from button to lining.
+              Pieces from the atelier — everyday essentials, cut in limited runs
+              and finished by hand in Khon Kaen. Quiet luxury, made to be worn.
             </p>
           </div>
         </Reveal>

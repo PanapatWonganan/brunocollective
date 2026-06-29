@@ -25,6 +25,27 @@ export async function getProducts(opts?: {
   return res.json();
 }
 
+export interface SiteImage {
+  key: string;
+  image_url: string;
+  caption_a: string;
+  caption_b: string;
+}
+
+// Editable storefront images keyed by slot (hero, lookbook_1…6, journal_1…3).
+// Only customised slots are returned; callers fall back to built-in defaults.
+export async function getSiteImages(): Promise<Record<string, SiteImage>> {
+  try {
+    const res = await fetch(`${BASE}/api/shop/site-images`, {
+      next: { revalidate: 30 },
+    });
+    if (!res.ok) return {};
+    return res.json();
+  } catch {
+    return {};
+  }
+}
+
 export async function getProduct(id: number | string): Promise<Product | null> {
   const res = await fetch(`${BASE}/api/shop/products/${id}`, {
     next: { revalidate: 30 },

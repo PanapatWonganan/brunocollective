@@ -26,12 +26,27 @@ func Connect(cfg *config.Config) {
 		&models.Customer{},
 		&models.Order{},
 		&models.OrderItem{},
+		&models.SiteImage{},
+		&models.Receipt{},
 	)
 	if err != nil {
 		log.Fatal("Failed to migrate database:", err)
 	}
 
 	seedAdmin()
+	seedSiteImages()
+}
+
+// seedSiteImages ensures a row exists for every canonical slot so the admin
+// always shows the full set, even before any image is uploaded.
+func seedSiteImages() {
+	for _, key := range models.SiteImageSlots {
+		var count int64
+		DB.Model(&models.SiteImage{}).Where("key = ?", key).Count(&count)
+		if count == 0 {
+			DB.Create(&models.SiteImage{Key: key})
+		}
+	}
 }
 
 func seedAdmin() {

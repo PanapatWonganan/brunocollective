@@ -22,8 +22,8 @@ export default function Newsletter() {
           <em>Letters from</em> the house.
         </h2>
         <p className={styles.copy}>
-          A quarterly note from the atelier — collection previews, private
-          invitations, and the occasional essay. Sent four times a year.
+          An occasional note from the atelier — new pieces, restocks, and the
+          occasional essay. No noise, just the good stuff. ไม่บ่อย แต่คัดมาแล้ว.
         </p>
 
         <form className={styles.form} onSubmit={onSubmit} autoComplete="off">

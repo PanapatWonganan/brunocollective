@@ -137,25 +137,31 @@ export default function CheckoutPage() {
           </label>
 
           <div className={styles.payment}>
-            <h2 className={styles.payTitle}>Payment</h2>
+            <h2 className={styles.payTitle}>Payment · ชำระเงิน</h2>
             <p className={styles.payCopy}>
               Please transfer the total below, then attach your payment slip to
-              confirm the order.
+              confirm the order. โอนยอดด้านล่าง แล้วแนบสลิปเพื่อยืนยันคำสั่งซื้อ
             </p>
             <dl className={styles.bank}>
               <div>
-                <dt>Bank</dt>
-                <dd>Kasikornbank (KBank)</dd>
+                <dt>Bank · ธนาคาร</dt>
+                <dd>ธนาคารกสิกรไทย (KBank)</dd>
               </div>
               <div>
-                <dt>Account</dt>
-                <dd>123-4-56789-0</dd>
+                <dt>Account · เลขบัญชี</dt>
+                <dd>231-1421-053</dd>
               </div>
               <div>
-                <dt>Name</dt>
-                <dd>Bruno Collective Co., Ltd.</dd>
+                <dt>Name · ชื่อบัญชี</dt>
+                <dd>บจก. บรูโน่ คอลเลคทีฟ</dd>
               </div>
             </dl>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              className={styles.bankImage}
+              src="/payment/bank-kbank.jpg"
+              alt="ช่องทางการชำระเงิน — ธนาคารกสิกรไทย เลขบัญชี 231-1421-053 บจก. บรูโน่ คอลเลคทีฟ"
+            />
           </div>
 
           <div className={styles.field}>

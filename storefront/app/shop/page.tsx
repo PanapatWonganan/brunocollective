@@ -7,7 +7,7 @@ import styles from "./shop.module.css";
 export const metadata: Metadata = {
   title: "The Collection",
   description:
-    "Shop the full Bruno Collective collection — limited runs, finished by a single hand.",
+    "Shop the full Bruno Collective collection — limited runs, cut and finished by hand in Khon Kaen, Thailand.",
 };
 
 export default async function ShopPage() {
@@ -21,13 +21,13 @@ export default async function ShopPage() {
   return (
     <main className={styles.page}>
       <header className={styles.head}>
-        <span className="kicker">The Collection — Spring MMXXVI</span>
+        <span className="kicker">The Collection</span>
         <h1 className={`display ${styles.title}`}>
           Pieces, <em>quietly considered.</em>
         </h1>
         <p className={styles.sub}>
-          Cut in limited runs and finished by a single hand from button to
-          lining. Every order is reserved against our atelier stock.
+          Cut in limited runs and finished by hand in Khon Kaen. Every order is
+          reserved against our atelier stock. ตัดเย็บในไทย.
         </p>
       </header>
 

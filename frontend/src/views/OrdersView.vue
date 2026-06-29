@@ -271,6 +271,15 @@
           >
             Print Shipping Label
           </v-btn>
+          <v-btn
+            variant="tonal"
+            color="primary"
+            prepend-icon="mdi-receipt-text-outline"
+            class="text-none"
+            @click="openReceiptDialog(selectedOrder)"
+          >
+            Receipt
+          </v-btn>
           <v-spacer />
           <v-btn @click="viewDialog = false" variant="text" class="text-none">Close</v-btn>
         </v-card-actions>
@@ -336,7 +345,7 @@
               <div class="label-from-name">Bruno Collective</div>
               <div class="label-from-detail">87/4-5 ถนน กลางเมือง ตำบลในเมือง</div>
               <div class="label-from-detail">อำเภอเมืองขอนแก่น ขอนแก่น 40000</div>
-              <div class="label-from-detail">Tel: 081-4469442</div>
+              <div class="label-from-detail">Tel: 0952964145</div>
             </div>
             <div class="label-divider" />
             <div class="label-section label-to">
@@ -360,6 +369,75 @@
             </v-btn>
           </div>
         </v-card-text>
+      </v-card>
+    </v-dialog>
+
+    <!-- Receipt (ใบเสร็จรับเงิน) -->
+    <v-dialog v-model="receiptDialog" max-width="520">
+      <v-card>
+        <v-card-title class="pa-5 pb-2 d-flex align-center">
+          <span class="text-h6 font-weight-bold">Issue Receipt · ใบเสร็จรับเงิน</span>
+          <v-spacer />
+          <v-btn icon="mdi-close" size="small" variant="text" @click="receiptDialog = false" />
+        </v-card-title>
+        <v-card-text class="px-5">
+          <v-alert
+            type="info" variant="tonal" density="compact" class="mb-4"
+            icon="mdi-information-outline"
+          >
+            ออกเป็น <strong>ใบเสร็จรับเงิน</strong> เท่านั้น — ร้านยังไม่ได้จดทะเบียน VAT จึงออกใบกำกับภาษีไม่ได้
+          </v-alert>
+
+          <v-alert
+            v-if="existingReceipt"
+            type="success" variant="tonal" density="compact" class="mb-4"
+            icon="mdi-check-circle-outline"
+          >
+            ออกใบเสร็จแล้ว เลขที่ <strong>{{ existingReceipt.receipt_no }}</strong> — กดพิมพ์อีกครั้งจะใช้เลขเดิม
+          </v-alert>
+          <v-alert
+            v-else
+            type="info" variant="tonal" density="compact" class="mb-4"
+            icon="mdi-counter"
+          >
+            เลขที่ใบเสร็จจะถูกออกอัตโนมัติแบบรันต่อเนื่อง (RC-ปีเดือน-ลำดับ) เมื่อกดพิมพ์
+          </v-alert>
+
+          <v-text-field
+            v-model="receiptForm.buyer_name"
+            label="ชื่อลูกค้า / Bill to (name)"
+            density="comfortable"
+            class="mb-1"
+            :readonly="!!existingReceipt"
+          />
+          <v-textarea
+            v-model="receiptForm.buyer_address"
+            label="ที่อยู่ / Address"
+            rows="2"
+            density="comfortable"
+            class="mb-1"
+            :readonly="!!existingReceipt"
+          />
+          <v-text-field
+            v-model="receiptForm.buyer_tax_id"
+            label="เลขประจำตัวผู้เสียภาษี / Tax ID (ถ้ามี)"
+            density="comfortable"
+            hint="กรอกได้หากลูกค้าต้องการใช้เป็นหลักฐานค่าใช้จ่าย — ไม่บังคับ"
+            persistent-hint
+            :readonly="!!existingReceipt"
+          />
+        </v-card-text>
+        <v-card-actions class="pa-5 pt-2">
+          <v-spacer />
+          <v-btn @click="receiptDialog = false" variant="text" class="text-none">Cancel</v-btn>
+          <v-btn
+            color="primary" prepend-icon="mdi-printer" class="text-none px-6"
+            :loading="receiptSaving"
+            @click="issueAndPrintReceipt"
+          >
+            {{ existingReceipt ? 'Print Receipt' : 'Issue & Print' }}
+          </v-btn>
+        </v-card-actions>
       </v-card>
     </v-dialog>
 
@@ -419,6 +497,19 @@ const deletingOrder = ref<any>(null)
 const uploadingOrder = ref<any>(null)
 const printingOrder = ref<any>(null)
 const labelRef = ref<HTMLElement | null>(null)
+
+// Receipt (ใบเสร็จรับเงิน) — issued from admin only. The shop is not VAT-registered,
+// so this is a plain receipt, NOT a tax invoice (ใบกำกับภาษี). The running number
+// and history are persisted server-side; the dialog issues (or re-fetches) it.
+const receiptDialog = ref(false)
+const receiptOrder = ref<any>(null)
+const receiptSaving = ref(false)
+const existingReceipt = ref<any>(null)   // set when this order already has a receipt
+const receiptForm = ref({
+  buyer_name: '',
+  buyer_address: '',
+  buyer_tax_id: '',
+})
 const slipFile = ref<File | null>(null)
 const slipViewUrl = ref('')
 
@@ -587,6 +678,169 @@ function doPrint() {
   win.document.close()
 }
 
+// --- Receipt (ใบเสร็จรับเงิน) ---
+
+async function openReceiptDialog(order: any) {
+  receiptOrder.value = order
+  existingReceipt.value = null
+  receiptForm.value = {
+    buyer_name: order?.customer?.name || '',
+    buyer_address: order?.customer?.address || '',
+    buyer_tax_id: '',
+  }
+  receiptDialog.value = true
+  // If a receipt was already issued for this order, prefill from it (and show
+  // its running number so it's clear re-printing won't allocate a new one).
+  try {
+    const { data } = await api.get(`/orders/${order.id}/receipt`)
+    existingReceipt.value = data
+    receiptForm.value = {
+      buyer_name: data.buyer_name || '',
+      buyer_address: data.buyer_address || '',
+      buyer_tax_id: data.buyer_tax_id || '',
+    }
+  } catch {
+    // 404 = not issued yet; that's fine.
+  }
+}
+
+// Issue (or re-fetch) the persisted receipt, then print it from the saved data.
+async function issueAndPrintReceipt() {
+  const order = receiptOrder.value
+  if (!order) return
+  receiptSaving.value = true
+  try {
+    const { data } = await api.post(`/orders/${order.id}/receipt`, receiptForm.value)
+    existingReceipt.value = data
+    printReceipt(data)
+  } finally {
+    receiptSaving.value = false
+  }
+}
+
+function esc(s: any) {
+  return String(s ?? '').replace(/[&<>"']/g, (c) => (
+    { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c] as string
+  ))
+}
+
+// Render + print a persisted receipt using its snapshot data (lines, number,
+// issue date) so the printed document always matches what was saved.
+function printReceipt(receipt: any) {
+  const issued = new Date(receipt.issued_at).toLocaleDateString('th-TH', {
+    year: 'numeric', month: 'long', day: 'numeric',
+  })
+
+  const rows = (receipt.lines || []).map((line: any, i: number) => `
+    <tr>
+      <td class="c">${i + 1}</td>
+      <td>${esc(line.name || '-')}${line.size ? ` <span class="muted">(${esc(line.size)})</span>` : ''}</td>
+      <td class="r">${formatCurrency(line.price)}</td>
+      <td class="c">${line.quantity}</td>
+      <td class="r">${formatCurrency(line.price * line.quantity)}</td>
+    </tr>`).join('')
+
+  const win = window.open('', '_blank', 'width=820,height=1000')
+  if (!win) return
+  win.document.write(`<!DOCTYPE html>
+<html lang="th"><head><meta charset="utf-8" /><title>ใบเสร็จรับเงิน ${esc(receipt.receipt_no)}</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Sarabun', 'Segoe UI', Tahoma, sans-serif; color: #1A1714; padding: 16mm; font-size: 13px; }
+  .head { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8mm; }
+  .brand-name { font-size: 18px; font-weight: 700; letter-spacing: 1px; }
+  .brand-detail { font-size: 11px; color: #666; margin-top: 2mm; line-height: 1.6; }
+  .doc-title { text-align: right; }
+  .doc-title h1 { font-size: 20px; font-weight: 700; }
+  .doc-title .en { font-size: 11px; color: #8C8478; letter-spacing: 1px; text-transform: uppercase; }
+  .doc-meta { font-size: 11px; color: #666; margin-top: 3mm; line-height: 1.7; }
+  .parties { display: flex; gap: 8mm; margin-bottom: 6mm; }
+  .party { flex: 1; background: #FAF8F5; border: 1px solid #E8E2D9; border-radius: 3mm; padding: 4mm; }
+  .party .lbl { font-size: 9px; font-weight: 700; letter-spacing: 1px; color: #8C8478; text-transform: uppercase; margin-bottom: 2mm; }
+  .party .nm { font-size: 14px; font-weight: 600; }
+  .party .ad { font-size: 12px; color: #444; margin-top: 1mm; line-height: 1.5; white-space: pre-wrap; }
+  table { width: 100%; border-collapse: collapse; margin-bottom: 6mm; }
+  th { background: #1A1714; color: #fff; font-size: 11px; font-weight: 600; padding: 2.5mm 3mm; text-align: left; }
+  td { padding: 2.5mm 3mm; border-bottom: 1px solid #E8E2D9; font-size: 12px; }
+  th.r, td.r { text-align: right; } th.c, td.c { text-align: center; }
+  .muted { color: #8C8478; font-size: 11px; }
+  .totals { display: flex; justify-content: flex-end; }
+  .totals table { width: 70mm; }
+  .totals td { border: none; padding: 1.5mm 3mm; }
+  .totals .grand td { border-top: 2px solid #1A1714; font-size: 15px; font-weight: 700; padding-top: 3mm; }
+  .note { margin-top: 8mm; font-size: 10px; color: #8C8478; line-height: 1.6; border-top: 1px dashed #ccc; padding-top: 4mm; }
+  .sign { display: flex; justify-content: space-between; margin-top: 14mm; }
+  .sign .box { text-align: center; font-size: 11px; color: #666; }
+  .sign .line { width: 55mm; border-top: 1px solid #999; margin: 0 auto 2mm; padding-top: 10mm; }
+  @page { size: A4; margin: 0; }
+  @media print { body { padding: 16mm; } }
+</style></head><body>
+  <div class="head">
+    <div>
+      <div class="brand-name">Bruno Collective</div>
+      <div class="brand-detail">
+        87/4-5 ถนนกลางเมือง ตำบลในเมือง<br />
+        อำเภอเมืองขอนแก่น ขอนแก่น 40000<br />
+        โทร. 0952964145
+      </div>
+    </div>
+    <div class="doc-title">
+      <h1>ใบเสร็จรับเงิน</h1>
+      <div class="en">Receipt</div>
+      <div class="doc-meta">
+        เลขที่ / No.: <b>${esc(receipt.receipt_no)}</b><br />
+        วันที่ / Date: ${esc(issued)}<br />
+        อ้างอิงออเดอร์ / Order: #${esc(receipt.order_id)}
+      </div>
+    </div>
+  </div>
+
+  <div class="parties">
+    <div class="party">
+      <div class="lbl">ลูกค้า / Bill To</div>
+      <div class="nm">${esc(receipt.buyer_name || '-')}</div>
+      <div class="ad">${esc(receipt.buyer_address || '-')}</div>
+      ${receipt.buyer_tax_id ? `<div class="ad">เลขประจำตัวผู้เสียภาษี / Tax ID: ${esc(receipt.buyer_tax_id)}</div>` : ''}
+    </div>
+  </div>
+
+  <table>
+    <thead>
+      <tr>
+        <th class="c" style="width:10mm">#</th>
+        <th>รายการ / Description</th>
+        <th class="r" style="width:28mm">ราคา/หน่วย</th>
+        <th class="c" style="width:16mm">จำนวน</th>
+        <th class="r" style="width:30mm">รวม</th>
+      </tr>
+    </thead>
+    <tbody>${rows}</tbody>
+  </table>
+
+  <div class="totals">
+    <table>
+      <tr class="grand">
+        <td>ยอดรวมทั้งสิ้น / Total</td>
+        <td class="r">${formatCurrency(receipt.total_amount)}</td>
+      </tr>
+    </table>
+  </div>
+
+  <div class="note">
+    เอกสารนี้เป็น <b>ใบเสร็จรับเงิน</b> เท่านั้น มิใช่ใบกำกับภาษี — ร้านค้ายังมิได้จดทะเบียนภาษีมูลค่าเพิ่ม (VAT)<br />
+    This is a receipt only, not a tax invoice. Bruno Collective is not VAT-registered.
+  </div>
+
+  <div class="sign">
+    <div class="box"><div class="line"></div>ผู้รับเงิน / Received by</div>
+    <div class="box"><div class="line"></div>ผู้รับสินค้า / Received by customer</div>
+  </div>
+
+  <script>window.onload=function(){window.print();window.onafterprint=function(){window.close();}}<\/script>
+</body></html>`)
+  win.document.close()
+}
+
 function printAllLabels() {
   const items = printableOrders.value
   if (!items.length) return
@@ -603,7 +857,7 @@ function printAllLabels() {
         <div class="label-from-name">Bruno Collective</div>
         <div class="label-from-detail">87/4-5 ถนน กลางเมือง ตำบลในเมือง</div>
         <div class="label-from-detail">อำเภอเมืองขอนแก่น ขอนแก่น 40000</div>
-        <div class="label-from-detail">Tel: 081-4469442</div>
+        <div class="label-from-detail">Tel: 0952964145</div>
       </div>
       <div class="label-divider"></div>
       <div class="label-section label-to">

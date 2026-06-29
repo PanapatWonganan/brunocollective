@@ -255,6 +255,8 @@ const navItems = [
   { title: 'Products', icon: 'mdi-package-variant', to: '/products' },
   { title: 'Customers', icon: 'mdi-account-group-outline', to: '/customers' },
   { title: 'Orders', icon: 'mdi-receipt-text-outline', to: '/orders' },
+  { title: 'Receipts', icon: 'mdi-file-document-outline', to: '/receipts' },
+  { title: 'Site Images', icon: 'mdi-image-multiple-outline', to: '/site-images' },
 ]
 
 const currentPageTitle = computed(() => route.name?.toString() || 'Dashboard')

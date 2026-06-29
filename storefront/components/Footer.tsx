@@ -10,13 +10,13 @@ export default function Footer() {
             <div className={styles.mark}>BC</div>
             <div className={styles.name}>Bruno Collective</div>
             <p className={styles.pitch}>
-              A heritage house, quietly making clothes for the long quiet of a
-              life lived deliberately. Since 1908.
+              A small Thai house, quietly making considered clothing from a love
+              of fine cloth and understated luxury. Designed &amp; made in Khon Kaen.
             </p>
           </div>
 
           <div>
-            <h5 className={styles.h5}>Maison</h5>
+            <h5 className={styles.h5}>The House</h5>
             <ul className={styles.ul}>
               <li><Link href="/#philosophy">Heritage</Link></li>
               <li><Link href="/#atelier">The Atelier</Link></li>
@@ -38,34 +38,32 @@ export default function Footer() {
           </div>
 
           <div className={styles.boutiques} id="boutiques">
-            <h5 className={styles.h5}>Boutiques</h5>
+            <h5 className={styles.h5}>Atelier</h5>
             <ul className={styles.ul}>
-              <li><span className={styles.city}>Milano</span><span className={styles.addr}>Via Gesù 6 · +39 02 760 0900</span></li>
-              <li><span className={styles.city}>Paris</span><span className={styles.addr}>14 Rue de Marignan · +33 1 53 75 02</span></li>
-              <li><span className={styles.city}>London</span><span className={styles.addr}>38 Mount Street, W1K</span></li>
-              <li><span className={styles.city}>New York</span><span className={styles.addr}>695 Madison Avenue, 10065</span></li>
+              <li><span className={styles.city}>Khon Kaen</span><span className={styles.addr}>ขอนแก่น · By appointment</span></li>
+              <li><span className={styles.city}>Online</span><span className={styles.addr}>Shipping across Thailand · จัดส่งทั่วไทย</span></li>
             </ul>
           </div>
 
           <div>
             <h5 className={styles.h5}>Correspondence</h5>
             <ul className={styles.ul}>
-              <li><a href="mailto:atelier@bruno.it">atelier@bruno.it</a></li>
-              <li><a href="tel:+390276000900">+39 02 760 0900</a></li>
+              <li><a href="mailto:hello@brunocollective.co">hello@brunocollective.co</a></li>
+              <li><Link href="/#contact">Private Appointment · นัดหมาย</Link></li>
               <li style={{ marginTop: 18 }}><Link href="/#contact">Press Enquiries</Link></li>
-              <li><Link href="/#contact">Private Sales</Link></li>
+              <li><Link href="/#contact">Wholesale</Link></li>
             </ul>
           </div>
         </div>
 
         <div className={styles.bottom}>
-          <div>© MMXXVI Bruno Collective S.p.A. — All rights reserved.</div>
+          <div>© 2026 Bruno Collective — All rights reserved.</div>
           <div className={styles.social}>
             <a href="#">Instagram</a>
             <a href="#">Journal</a>
-            <a href="#">Pinterest</a>
+            <a href="#">LINE</a>
           </div>
-          <div>Bellagio · Solomeo · Milano</div>
+          <div>Designed &amp; made in Khon Kaen, Thailand</div>
         </div>
       </div>
     </footer>

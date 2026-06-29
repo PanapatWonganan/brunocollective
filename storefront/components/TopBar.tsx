@@ -41,7 +41,7 @@ export default function TopBar() {
       </Link>
 
       <nav className={styles.right} aria-label="Secondary">
-        <Link href="/#boutiques">Boutiques</Link>
+        <Link href="/#boutiques">Visit</Link>
         <Link href="/#contact">Contact</Link>
         <Link href="/shop" className={styles.icons} aria-label="Account">
           <svg viewBox="0 0 24 24">

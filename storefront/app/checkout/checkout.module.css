@@ -21,8 +21,9 @@
 .payCopy{font-size:13px; color:var(--ink-faint); line-height:1.7; margin:0 0 20px; max-width:46ch}
 .bank{display:grid; gap:14px; margin:0}
 .bank div{display:flex; justify-content:space-between; gap:18px; align-items:baseline}
-.bank dt{font-size:10px; letter-spacing:.28em; text-transform:uppercase; color:var(--ink-faint); font-weight:500}
-.bank dd{margin:0; font-family:var(--serif); font-size:18px}
+.bank dt{font-size:11px; letter-spacing:.1em; color:var(--ink-faint); font-weight:500}
+.bank dd{margin:0; font-family:var(--serif); font-size:18px; text-align:right}
+.bankImage{display:block; width:100%; max-width:360px; margin:22px auto 0; border:1px solid var(--hairline); border-radius:4px}
 
 .fileInput{display:none}
 .slipBtn{

@@ -10,36 +10,35 @@ export default function Atelier() {
             <div className={s.atelierImg} />
           </Reveal>
           <Reveal delay={2}>
-            <span className="kicker">The Atelier — Solomeo, Umbria</span>
+            <span className="kicker">The Atelier — Khon Kaen, Thailand</span>
             <h2>
-              One hundred and
+              Finished
               <br />
-              seventeen <em>hours.</em>
+              by <em>hand.</em>
             </h2>
             <p>
-              Each overcoat begins with a single bolt of cloth and the steady
-              attention of a small group of cutters who have, between them, some
-              four hundred years of practice.
+              Each piece begins with a single length of cloth and the steady
+              attention of a small team of makers who care more about how a seam
+              sits than how fast it is sewn.
             </p>
             <p>
-              Linings are basted by hand. Buttonholes are worked closed — not
-              stitched on, never machined. Edges are pressed under the iron in
-              three separate passes, the way Tommaso&apos;s grandfather pressed
-              them.
+              Seams are pressed open. Buttons are sewn on by hand, not fired from
+              a machine. Hems are checked twice before a piece ever leaves the
+              studio — because quiet luxury is really just care you can feel.
             </p>
 
             <div className={s.specs}>
               <div>
-                <div className={s.k}>Provenance</div>
-                <div className={s.v}>Solomeo, IT</div>
+                <div className={s.k}>Made in</div>
+                <div className={s.v}>Khon Kaen, TH</div>
               </div>
               <div>
-                <div className={s.k}>Hand-finishing</div>
-                <div className={s.v}>117 hours</div>
+                <div className={s.k}>Finishing</div>
+                <div className={s.v}>By hand</div>
               </div>
               <div>
-                <div className={s.k}>Artisans</div>
-                <div className={s.v}>eighty-three</div>
+                <div className={s.k}>Runs</div>
+                <div className={s.v}>Limited</div>
               </div>
             </div>
 

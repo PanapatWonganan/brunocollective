@@ -6,7 +6,7 @@ import Atelier from "@/components/landing/Atelier";
 import Lookbook from "@/components/landing/Lookbook";
 import Journal from "@/components/landing/Journal";
 import Newsletter from "@/components/landing/Newsletter";
-import { getProducts } from "@/lib/api";
+import { getProducts, getSiteImages, type SiteImage } from "@/lib/api";
 import type { Product } from "@/lib/types";
 
 export default async function HomePage() {
@@ -19,15 +19,23 @@ export default async function HomePage() {
     products = [];
   }
 
+  // Editable hero/lookbook/journal images; empty map → components use defaults.
+  let siteImages: Record<string, SiteImage> = {};
+  try {
+    siteImages = await getSiteImages();
+  } catch {
+    siteImages = {};
+  }
+
   return (
     <main>
-      <Hero />
+      <Hero site={siteImages} />
       <MarqueeStrip />
       <Philosophy />
       <CollectionGrid products={products} />
       <Atelier />
-      <Lookbook />
-      <Journal />
+      <Lookbook site={siteImages} />
+      <Journal site={siteImages} />
       <Newsletter />
     </main>
   );

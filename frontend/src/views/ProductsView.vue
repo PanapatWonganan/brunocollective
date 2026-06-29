@@ -71,13 +71,18 @@
           <template v-slot:item.name="{ item }">
             <div class="d-flex align-center py-2">
               <v-avatar size="36" rounded="lg" color="primary" variant="tonal">
-                <v-icon icon="mdi-package-variant" size="18" />
+                <v-img v-if="item.image_url" :src="item.image_url" cover />
+                <v-icon v-else icon="mdi-package-variant" size="18" />
               </v-avatar>
               <div class="ml-3">
                 <div class="font-weight-medium">{{ item.name }}</div>
                 <div class="text-caption text-medium-emphasis">{{ item.sku || 'No SKU' }}</div>
               </div>
             </div>
+          </template>
+          <template v-slot:item.size="{ item }">
+            <v-chip v-if="item.size" variant="tonal" size="small" label color="secondary">{{ item.size }}</v-chip>
+            <span v-else class="text-medium-emphasis">—</span>
           </template>
           <template v-slot:item.price="{ item }">
             <span class="font-weight-medium">{{ formatCurrency(item.price) }}</span>
@@ -109,6 +114,15 @@
           <v-form ref="form">
             <v-text-field v-model="formData.name" label="Product Name" :rules="[v => !!v || 'Required']" class="mb-1" />
             <v-text-field v-model="formData.sku" label="SKU" class="mb-1" />
+            <v-combobox
+              v-model="formData.size"
+              :items="sizeOptions"
+              label="Size"
+              hint="e.g. S, M, L, XL for shirts / 40, 41, 42 for shoes — or type your own"
+              persistent-hint
+              clearable
+              class="mb-1"
+            />
             <v-textarea v-model="formData.description" label="Description" rows="2" class="mb-1" />
             <v-row>
               <v-col cols="6">
@@ -118,6 +132,31 @@
                 <v-text-field v-model.number="formData.stock" label="Stock Quantity" type="number" :rules="[v => v >= 0 || 'Invalid']" />
               </v-col>
             </v-row>
+
+            <!-- Product images -->
+            <div class="text-subtitle-2 font-weight-medium mb-2 mt-2">Product Images</div>
+            <div v-if="formData.images.length" class="d-flex flex-wrap ga-2 mb-3">
+              <div v-for="img in formData.images" :key="img" class="img-thumb">
+                <v-img :src="img" width="76" height="76" cover rounded="lg" />
+                <v-btn
+                  icon="mdi-close" size="x-small" color="error" variant="flat"
+                  class="img-thumb-del" :loading="deletingImg === img"
+                  @click="removeImage(img)"
+                />
+              </div>
+            </div>
+            <v-file-input
+              v-model="pendingFiles"
+              label="Add images"
+              prepend-icon="mdi-camera"
+              accept="image/*"
+              multiple
+              chips
+              show-size
+              density="comfortable"
+              hint="Upload one or more photos. The first becomes the main image."
+              persistent-hint
+            />
           </v-form>
         </v-card-text>
         <v-card-actions class="pa-5 pt-0">
@@ -156,16 +195,19 @@ import { ref, onMounted } from 'vue'
 import api from '@/services/api'
 
 interface Product {
-  id?: number; name: string; sku: string; description: string;
-  price: number; stock: number; image_url: string;
+  id?: number; name: string; sku: string; size: string; description: string;
+  price: number; stock: number; image_url: string; images: string[];
 }
 
 const headers = [
   { title: 'Product', key: 'name' },
+  { title: 'Size', key: 'size', align: 'center' as const },
   { title: 'Price', key: 'price', align: 'end' as const },
   { title: 'Stock', key: 'stock', align: 'center' as const },
   { title: '', key: 'actions', sortable: false, align: 'end' as const, width: '100px' },
 ]
+
+const sizeOptions = ['S', 'M', 'L', 'XL', 'XXL', 'Free Size', '38', '39', '40', '41', '42', '43', '44', '45']
 
 const products = ref<Product[]>([])
 const search = ref('')
@@ -176,8 +218,10 @@ const saving = ref(false)
 const editingProduct = ref<Product | null>(null)
 const deletingProduct = ref<Product | null>(null)
 const form = ref()
+const pendingFiles = ref<File[]>([])
+const deletingImg = ref<string | null>(null)
 
-const emptyForm = (): Product => ({ name: '', sku: '', description: '', price: 0, stock: 0, image_url: '' })
+const emptyForm = (): Product => ({ name: '', sku: '', size: '', description: '', price: 0, stock: 0, image_url: '', images: [] })
 const formData = ref<Product>(emptyForm())
 
 function formatCurrency(n: number) {
@@ -193,22 +237,56 @@ async function fetchProducts() {
 
 function openDialog(product?: Product) {
   editingProduct.value = product || null
-  formData.value = product ? { ...product } : emptyForm()
+  // Clone, ensuring images is always an array (backend may send null).
+  formData.value = product
+    ? { ...product, images: [...(product.images || [])] }
+    : emptyForm()
+  pendingFiles.value = []
   dialog.value = true
+}
+
+async function uploadPendingFiles(productId: number) {
+  if (!pendingFiles.value.length) return
+  const fd = new FormData()
+  pendingFiles.value.forEach(f => fd.append('images', f))
+  const { data } = await api.post(`/products/${productId}/images`, fd)
+  // Reflect the new gallery back into the form so thumbnails update.
+  formData.value.images = data.images || []
+  pendingFiles.value = []
 }
 
 async function saveProduct() {
   saving.value = true
   try {
+    let productId: number
     if (editingProduct.value) {
       await api.put(`/products/${editingProduct.value.id}`, formData.value)
+      productId = editingProduct.value.id!
     } else {
-      await api.post('/products', formData.value)
+      const { data } = await api.post('/products', formData.value)
+      productId = data.id
+      editingProduct.value = data
     }
+    await uploadPendingFiles(productId)
     dialog.value = false
     await fetchProducts()
   } finally {
     saving.value = false
+  }
+}
+
+async function removeImage(img: string) {
+  if (!editingProduct.value?.id) {
+    // Product not saved yet — nothing on the server to delete.
+    formData.value.images = formData.value.images.filter(i => i !== img)
+    return
+  }
+  deletingImg.value = img
+  try {
+    const { data } = await api.delete(`/products/${editingProduct.value.id}/images`, { data: { image: img } })
+    formData.value.images = data.images || []
+  } finally {
+    deletingImg.value = null
   }
 }
 
@@ -234,5 +312,13 @@ onMounted(fetchProducts)
 <style scoped>
 .mini-stat {
   border: 1px solid #E8E2D9 !important;
+}
+.img-thumb {
+  position: relative;
+}
+.img-thumb-del {
+  position: absolute;
+  top: -8px;
+  right: -8px;
 }
 </style>
