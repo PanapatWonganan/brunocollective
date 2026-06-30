@@ -9,6 +9,16 @@
       <div class="d-flex flex-wrap ga-2">
         <v-btn
           variant="tonal"
+          color="success"
+          prepend-icon="mdi-file-delimited-outline"
+          class="text-none"
+          @click="openExportDialog"
+        >
+          <span class="d-none d-sm-inline">Export CSV</span>
+          <span class="d-sm-none">Export</span>
+        </v-btn>
+        <v-btn
+          variant="tonal"
           color="secondary"
           prepend-icon="mdi-printer"
           class="text-none"
@@ -124,7 +134,7 @@
             <div class="text-subtitle-2 font-weight-medium">Order Items</div>
             <v-spacer />
             <v-btn variant="tonal" size="small" prepend-icon="mdi-plus" color="primary"
-              @click="orderForm.items.push({ product_id: 0, quantity: 1 })" class="text-none">
+              @click="orderForm.items.push({ product_id: 0, variant_id: null, quantity: 1 })" class="text-none">
               Add Item
             </v-btn>
           </div>
@@ -141,9 +151,10 @@
                     label="Product"
                     density="compact"
                     hide-details
+                    @update:model-value="item.variant_id = null"
                   >
                     <template v-slot:item="{ item: prod, props }">
-                      <v-list-item v-bind="props" :subtitle="`Stock: ${prod.raw.stock} | ${formatCurrency(prod.raw.price)}`" />
+                      <v-list-item v-bind="props" :subtitle="`Stock: ${prod.raw.total_stock ?? prod.raw.stock} | ${formatCurrency(prod.raw.price)}`" />
                     </template>
                   </v-select>
                 </v-col>
@@ -154,6 +165,18 @@
                   <v-btn icon="mdi-close" size="small" variant="text" color="error"
                     @click="orderForm.items.splice(i, 1)"
                     :disabled="orderForm.items.length === 1" />
+                </v-col>
+                <v-col v-if="variantsFor(item.product_id).length" cols="12" class="mt-2">
+                  <v-select
+                    v-model="item.variant_id"
+                    :items="variantsFor(item.product_id)"
+                    :item-title="variantLabel"
+                    item-value="id"
+                    label="Size / Color"
+                    density="compact"
+                    hide-details
+                    :rules="[() => item.variant_id != null || 'Choose a variant']"
+                  />
                 </v-col>
               </v-row>
             </v-card-text>
@@ -231,7 +254,12 @@
             </thead>
             <tbody>
               <tr v-for="item in selectedOrder.items" :key="item.id">
-                <td class="font-weight-medium">{{ item.product?.name }}</td>
+                <td class="font-weight-medium">
+                  {{ item.product?.name }}
+                  <span v-if="item.size || item.color" class="text-caption text-medium-emphasis">
+                    ({{ [item.size, item.color].filter(Boolean).join(' / ') }})
+                  </span>
+                </td>
                 <td class="text-end">{{ formatCurrency(item.price) }}</td>
                 <td class="text-center">{{ item.quantity }}</td>
                 <td class="text-end font-weight-medium">{{ formatCurrency(item.price * item.quantity) }}</td>
@@ -441,6 +469,45 @@
       </v-card>
     </v-dialog>
 
+    <!-- Export CSV Dialog -->
+    <v-dialog v-model="exportDialog" max-width="460">
+      <v-card>
+        <v-card-title class="pa-5 pb-2">
+          <span class="text-h6 font-weight-bold">Export Orders · CSV</span>
+        </v-card-title>
+        <v-card-text class="px-5">
+          <p class="text-body-2 text-medium-emphasis mb-4">
+            ดาวน์โหลดรายการออเดอร์ตามช่วงวันที่ เพื่อส่งให้บัญชี (เปิดด้วย Excel / Google Sheets)
+          </p>
+          <v-row>
+            <v-col cols="6">
+              <v-text-field v-model="exportForm.from" label="From" type="date" />
+            </v-col>
+            <v-col cols="6">
+              <v-text-field v-model="exportForm.to" label="To" type="date" />
+            </v-col>
+          </v-row>
+          <v-checkbox
+            v-model="exportForm.includeCancelled"
+            label="Include cancelled orders"
+            density="compact"
+            hide-details
+          />
+        </v-card-text>
+        <v-card-actions class="pa-5 pt-0">
+          <v-spacer />
+          <v-btn @click="exportDialog = false" variant="text" class="text-none">Cancel</v-btn>
+          <v-btn
+            color="success" variant="flat" prepend-icon="mdi-download" class="text-none px-6"
+            :loading="exporting"
+            @click="downloadExport"
+          >
+            Download
+          </v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
+
     <!-- Delete Confirm -->
     <v-dialog v-model="deleteDialog" max-width="420">
       <v-card class="text-center pa-2">
@@ -491,6 +558,42 @@ const uploadDialog = ref(false)
 const slipViewDialog = ref(false)
 const deleteDialog = ref(false)
 const printDialog = ref(false)
+const exportDialog = ref(false)
+const exporting = ref(false)
+
+// Default export range: first day of the current month → today.
+function isoDate(d: Date) {
+  return d.toISOString().slice(0, 10)
+}
+const exportForm = ref({
+  from: isoDate(new Date(new Date().getFullYear(), new Date().getMonth(), 1)),
+  to: isoDate(new Date()),
+  includeCancelled: false,
+})
+
+function openExportDialog() {
+  exportDialog.value = true
+}
+
+async function downloadExport() {
+  exporting.value = true
+  try {
+    const params: any = { from: exportForm.value.from, to: exportForm.value.to }
+    if (exportForm.value.includeCancelled) params.include_cancelled = '1'
+    const res = await api.get('/orders/export.csv', { params, responseType: 'blob' })
+    const url = URL.createObjectURL(res.data)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `orders_${exportForm.value.from}_to_${exportForm.value.to}.csv`
+    document.body.appendChild(a)
+    a.click()
+    a.remove()
+    URL.revokeObjectURL(url)
+    exportDialog.value = false
+  } finally {
+    exporting.value = false
+  }
+}
 
 const selectedOrder = ref<any>(null)
 const deletingOrder = ref<any>(null)
@@ -532,8 +635,19 @@ const slipPreview = computed(() => {
 const orderForm = ref({
   customer_id: 0,
   notes: '',
-  items: [{ product_id: 0, quantity: 1 }]
+  items: [{ product_id: 0, variant_id: null as number | null, quantity: 1 }]
 })
+
+// Variants of the selected product (empty for legacy/variant-less products).
+function variantsFor(productId: number): any[] {
+  const p = products.value.find((x: any) => x.id === productId)
+  return (p && p.variants) || []
+}
+
+function variantLabel(v: any): string {
+  const label = [v.size, v.color].filter(Boolean).join(' / ') || 'One size'
+  return `${label} — stock ${v.stock}`
+}
 
 function formatCurrency(n: number) {
   return new Intl.NumberFormat('th-TH', { style: 'currency', currency: 'THB' }).format(n)
@@ -570,7 +684,7 @@ async function fetchMasterData() {
 }
 
 function openCreateDialog() {
-  orderForm.value = { customer_id: 0, notes: '', items: [{ product_id: 0, quantity: 1 }] }
+  orderForm.value = { customer_id: 0, notes: '', items: [{ product_id: 0, variant_id: null, quantity: 1 }] }
   createSlipFile.value = null
   createDialog.value = true
 }
@@ -734,7 +848,7 @@ function printReceipt(receipt: any) {
   const rows = (receipt.lines || []).map((line: any, i: number) => `
     <tr>
       <td class="c">${i + 1}</td>
-      <td>${esc(line.name || '-')}${line.size ? ` <span class="muted">(${esc(line.size)})</span>` : ''}</td>
+      <td>${esc(line.name || '-')}${(line.size || line.color) ? ` <span class="muted">(${esc([line.size, line.color].filter(Boolean).join(' / '))})</span>` : ''}</td>
       <td class="r">${formatCurrency(line.price)}</td>
       <td class="c">${line.quantity}</td>
       <td class="r">${formatCurrency(line.price * line.quantity)}</td>

@@ -91,6 +91,9 @@ func main() {
 	// Orders
 	orderHandler := handlers.NewOrderHandler(cfg, telegramNotifier)
 	api.Get("/orders", orderHandler.List)
+	// Accounting export — must be registered before "/orders/:id" so the literal
+	// path isn't swallowed by the :id param route.
+	api.Get("/orders/export.csv", orderHandler.ExportCSV)
 	api.Get("/orders/:id", orderHandler.Get)
 	api.Post("/orders", orderHandler.Create)
 	api.Put("/orders/:id/status", orderHandler.UpdateStatus)
