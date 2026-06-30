@@ -72,7 +72,7 @@ export default async function ProductPage({ params }: Params) {
                 <dd>{product.sku}</dd>
               </div>
             )}
-            {product.size && (
+            {product.size && !(product.variants?.length) && (
               <div>
                 <dt>Size</dt>
                 <dd>{product.size}</dd>
@@ -81,9 +81,14 @@ export default async function ProductPage({ params }: Params) {
             <div>
               <dt>Availability</dt>
               <dd>
-                {product.stock > 0
-                  ? `${product.stock} in atelier stock`
-                  : "Currently sold out"}
+                {(() => {
+                  const stock = product.variants?.length
+                    ? product.total_stock
+                    : product.stock;
+                  return stock > 0
+                    ? `${stock} in atelier stock`
+                    : "Currently sold out";
+                })()}
               </dd>
             </div>
             <div>

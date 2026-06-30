@@ -12,6 +12,7 @@ import (
 type ReceiptLine struct {
 	Name     string  `json:"name"`
 	Size     string  `json:"size"`
+	Color    string  `json:"color"`
 	Price    float64 `json:"price"`
 	Quantity int     `json:"quantity"`
 }

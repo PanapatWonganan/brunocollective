@@ -23,6 +23,7 @@ func Connect(cfg *config.Config) {
 	err = DB.AutoMigrate(
 		&models.User{},
 		&models.Product{},
+		&models.ProductVariant{},
 		&models.Customer{},
 		&models.Order{},
 		&models.OrderItem{},

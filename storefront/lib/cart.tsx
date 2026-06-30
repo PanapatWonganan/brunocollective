@@ -8,17 +8,29 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import type { CartLine, Product } from "./types";
+import type { CartLine, Product, ProductVariant } from "./types";
 
 const STORAGE_KEY = "bc_cart";
+
+// A cart line is uniquely identified by its product AND chosen variant, so two
+// sizes/colors of the same garment are distinct lines.
+export function lineKey(productId: number, variantId: number | null): string {
+  return `${productId}:${variantId ?? 0}`;
+}
+
+// Stock available for a line: the variant's stock when a variant is chosen,
+// else the product-level (legacy) stock.
+function availableStock(product: Product, variant: ProductVariant | null): number {
+  return Math.max(variant ? variant.stock : product.stock, 0);
+}
 
 interface CartContextValue {
   lines: CartLine[];
   count: number;
   total: number;
-  add: (product: Product, quantity?: number) => void;
-  setQuantity: (productId: number, quantity: number) => void;
-  remove: (productId: number) => void;
+  add: (product: Product, variant: ProductVariant | null, quantity?: number) => void;
+  setQuantity: (key: string, quantity: number) => void;
+  remove: (key: string) => void;
   clear: () => void;
   open: boolean;
   setOpen: (open: boolean) => void;
@@ -35,7 +47,14 @@ export function CartProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
-      if (raw) setLines(JSON.parse(raw));
+      if (raw) {
+        // Tolerate carts saved before variants existed (no `variant` field).
+        const parsed: CartLine[] = JSON.parse(raw).map((l: CartLine) => ({
+          ...l,
+          variant: l.variant ?? null,
+        }));
+        setLines(parsed);
+      }
     } catch {
       /* ignore malformed cart */
     }
@@ -48,29 +67,37 @@ export function CartProvider({ children }: { children: ReactNode }) {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(lines));
   }, [lines, hydrated]);
 
-  function add(product: Product, quantity = 1) {
+  function add(product: Product, variant: ProductVariant | null, quantity = 1) {
+    const key = lineKey(product.id, variant ? variant.id : null);
+    const cap = availableStock(product, variant);
     setLines((prev) => {
-      const existing = prev.find((l) => l.product.id === product.id);
-      const cap = Math.max(product.stock, 0);
+      const existing = prev.find(
+        (l) => lineKey(l.product.id, l.variant ? l.variant.id : null) === key
+      );
       if (existing) {
         const next = Math.min(existing.quantity + quantity, cap);
         return prev.map((l) =>
-          l.product.id === product.id ? { ...l, quantity: next } : l
+          lineKey(l.product.id, l.variant ? l.variant.id : null) === key
+            ? { ...l, quantity: next }
+            : l
         );
       }
-      return [...prev, { product, quantity: Math.min(quantity, cap) }];
+      return [...prev, { product, variant, quantity: Math.min(quantity, cap) }];
     });
     setOpen(true);
   }
 
-  function setQuantity(productId: number, quantity: number) {
+  function setQuantity(key: string, quantity: number) {
     setLines((prev) =>
       prev
         .map((l) =>
-          l.product.id === productId
+          lineKey(l.product.id, l.variant ? l.variant.id : null) === key
             ? {
                 ...l,
-                quantity: Math.max(0, Math.min(quantity, l.product.stock)),
+                quantity: Math.max(
+                  0,
+                  Math.min(quantity, availableStock(l.product, l.variant))
+                ),
               }
             : l
         )
@@ -78,8 +105,12 @@ export function CartProvider({ children }: { children: ReactNode }) {
     );
   }
 
-  function remove(productId: number) {
-    setLines((prev) => prev.filter((l) => l.product.id !== productId));
+  function remove(key: string) {
+    setLines((prev) =>
+      prev.filter(
+        (l) => lineKey(l.product.id, l.variant ? l.variant.id : null) !== key
+      )
+    );
   }
 
   function clear() {

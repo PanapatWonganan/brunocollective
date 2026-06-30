@@ -30,7 +30,7 @@
             <v-icon icon="mdi-check-circle" color="success" class="mr-3" />
             <div>
               <div class="text-caption text-medium-emphasis">In Stock</div>
-              <div class="text-h6 font-weight-bold">{{ products.filter(p => p.stock > 5).length }}</div>
+              <div class="text-h6 font-weight-bold">{{ products.filter(p => totalStock(p) > 5).length }}</div>
             </div>
           </v-card-text>
         </v-card>
@@ -41,7 +41,7 @@
             <v-icon icon="mdi-alert" color="error" class="mr-3" />
             <div>
               <div class="text-caption text-medium-emphasis">Low Stock</div>
-              <div class="text-h6 font-weight-bold">{{ products.filter(p => p.stock <= 5).length }}</div>
+              <div class="text-h6 font-weight-bold">{{ products.filter(p => totalStock(p) <= 5).length }}</div>
             </div>
           </v-card-text>
         </v-card>
@@ -80,20 +80,26 @@
               </div>
             </div>
           </template>
-          <template v-slot:item.size="{ item }">
-            <v-chip v-if="item.size" variant="tonal" size="small" label color="secondary">{{ item.size }}</v-chip>
-            <span v-else class="text-medium-emphasis">—</span>
+          <template v-slot:item.variants="{ item }">
+            <div v-if="item.variants && item.variants.length" class="d-flex flex-wrap ga-1 py-2">
+              <v-chip v-for="(v, i) in item.variants" :key="i" variant="tonal" size="x-small" label color="secondary">
+                {{ [v.size, v.color].filter(Boolean).join(' · ') || 'One size' }} · {{ v.stock }}
+              </v-chip>
+            </div>
+            <span v-else class="text-medium-emphasis text-caption">
+              {{ item.size ? `${item.size} (legacy)` : '— no variants' }}
+            </span>
           </template>
           <template v-slot:item.price="{ item }">
             <span class="font-weight-medium">{{ formatCurrency(item.price) }}</span>
           </template>
-          <template v-slot:item.stock="{ item }">
+          <template v-slot:item.total_stock="{ item }">
             <v-chip
-              :color="item.stock === 0 ? 'error' : item.stock <= 5 ? 'warning' : 'success'"
+              :color="totalStock(item) === 0 ? 'error' : totalStock(item) <= 5 ? 'warning' : 'success'"
               variant="tonal" size="small" label
             >
-              <v-icon :icon="item.stock === 0 ? 'mdi-close-circle' : item.stock <= 5 ? 'mdi-alert-circle' : 'mdi-check-circle'" size="14" class="mr-1" />
-              {{ item.stock }}
+              <v-icon :icon="totalStock(item) === 0 ? 'mdi-close-circle' : totalStock(item) <= 5 ? 'mdi-alert-circle' : 'mdi-check-circle'" size="14" class="mr-1" />
+              {{ totalStock(item) }}
             </v-chip>
           </template>
           <template v-slot:item.actions="{ item }">
@@ -105,7 +111,7 @@
     </v-card>
 
     <!-- Create/Edit Dialog -->
-    <v-dialog v-model="dialog" max-width="520" persistent>
+    <v-dialog v-model="dialog" max-width="640" persistent>
       <v-card>
         <v-card-title class="pa-5 pb-2">
           <span class="text-h6 font-weight-bold">{{ editingProduct ? 'Edit Product' : 'New Product' }}</span>
@@ -113,25 +119,31 @@
         <v-card-text class="px-5">
           <v-form ref="form">
             <v-text-field v-model="formData.name" label="Product Name" :rules="[v => !!v || 'Required']" class="mb-1" />
-            <v-text-field v-model="formData.sku" label="SKU" class="mb-1" />
-            <v-combobox
-              v-model="formData.size"
-              :items="sizeOptions"
-              label="Size"
-              hint="e.g. S, M, L, XL for shirts / 40, 41, 42 for shoes — or type your own"
-              persistent-hint
-              clearable
-              class="mb-1"
-            />
+            <v-text-field v-model="formData.sku" label="Base SKU" hint="optional — variants can have their own SKU" class="mb-1" />
             <v-textarea v-model="formData.description" label="Description" rows="2" class="mb-1" />
-            <v-row>
-              <v-col cols="6">
-                <v-text-field v-model.number="formData.price" label="Price (THB)" type="number" prefix="฿" :rules="[v => v >= 0 || 'Invalid']" />
-              </v-col>
-              <v-col cols="6">
-                <v-text-field v-model.number="formData.stock" label="Stock Quantity" type="number" :rules="[v => v >= 0 || 'Invalid']" />
-              </v-col>
-            </v-row>
+            <v-text-field v-model.number="formData.price" label="Price (THB)" type="number" prefix="฿" :rules="[v => v >= 0 || 'Invalid']" class="mb-3" />
+
+            <!-- Variants (size + color + stock) -->
+            <div class="d-flex align-center mb-2">
+              <div class="text-subtitle-2 font-weight-medium">Variants (size / color)</div>
+              <v-spacer />
+              <v-btn size="small" variant="tonal" color="primary" prepend-icon="mdi-plus" class="text-none" @click="addVariant">
+                Add variant
+              </v-btn>
+            </div>
+            <div v-if="!formData.variants.length" class="text-caption text-medium-emphasis mb-3">
+              No variants yet. Add one per size/color combination — each holds its own stock.
+            </div>
+            <div v-for="(v, i) in formData.variants" :key="i" class="variant-row mb-2">
+              <v-combobox
+                v-model="v.size" :items="sizeOptions" label="Size" density="compact"
+                hide-details clearable class="variant-size"
+              />
+              <v-text-field v-model="v.color" label="Color" density="compact" hide-details class="variant-color" />
+              <v-text-field v-model="v.sku" label="SKU" density="compact" hide-details class="variant-sku" />
+              <v-text-field v-model.number="v.stock" label="Stock" type="number" density="compact" hide-details class="variant-stock" />
+              <v-btn icon="mdi-close" size="small" variant="text" color="error" @click="removeVariant(i)" />
+            </div>
 
             <!-- Product images -->
             <div class="text-subtitle-2 font-weight-medium mb-2 mt-2">Product Images</div>
@@ -194,20 +206,39 @@
 import { ref, onMounted } from 'vue'
 import api from '@/services/api'
 
+interface Variant {
+  id?: number; product_id?: number; size: string; color: string; sku: string; stock: number;
+}
+
 interface Product {
   id?: number; name: string; sku: string; size: string; description: string;
   price: number; stock: number; image_url: string; images: string[];
+  variants: Variant[]; total_stock?: number;
 }
 
 const headers = [
   { title: 'Product', key: 'name' },
-  { title: 'Size', key: 'size', align: 'center' as const },
+  { title: 'Variants', key: 'variants', sortable: false },
   { title: 'Price', key: 'price', align: 'end' as const },
-  { title: 'Stock', key: 'stock', align: 'center' as const },
+  { title: 'Total Stock', key: 'total_stock', align: 'center' as const },
   { title: '', key: 'actions', sortable: false, align: 'end' as const, width: '100px' },
 ]
 
 const sizeOptions = ['S', 'M', 'L', 'XL', 'XXL', 'Free Size', '38', '39', '40', '41', '42', '43', '44', '45']
+
+// Total stock for a product: sum of variant stock, else the legacy stock field.
+function totalStock(p: Product): number {
+  if (p.variants && p.variants.length) return p.variants.reduce((n, v) => n + (Number(v.stock) || 0), 0)
+  return Number(p.stock) || 0
+}
+
+// Short summary of variants for the list, e.g. "S·Black 5, M·White 3".
+function variantSummary(p: Product): string {
+  if (!p.variants || !p.variants.length) return p.size || '—'
+  return p.variants
+    .map(v => `${[v.size, v.color].filter(Boolean).join('·') || 'One size'} ${v.stock}`)
+    .join(', ')
+}
 
 const products = ref<Product[]>([])
 const search = ref('')
@@ -221,8 +252,15 @@ const form = ref()
 const pendingFiles = ref<File[]>([])
 const deletingImg = ref<string | null>(null)
 
-const emptyForm = (): Product => ({ name: '', sku: '', size: '', description: '', price: 0, stock: 0, image_url: '', images: [] })
+const emptyForm = (): Product => ({ name: '', sku: '', size: '', description: '', price: 0, stock: 0, image_url: '', images: [], variants: [] })
 const formData = ref<Product>(emptyForm())
+
+function addVariant() {
+  formData.value.variants.push({ size: '', color: '', sku: '', stock: 0 })
+}
+function removeVariant(index: number) {
+  formData.value.variants.splice(index, 1)
+}
 
 function formatCurrency(n: number) {
   return new Intl.NumberFormat('th-TH', { style: 'currency', currency: 'THB' }).format(n)
@@ -237,9 +275,9 @@ async function fetchProducts() {
 
 function openDialog(product?: Product) {
   editingProduct.value = product || null
-  // Clone, ensuring images is always an array (backend may send null).
+  // Clone, ensuring images/variants are always arrays (backend may send null).
   formData.value = product
-    ? { ...product, images: [...(product.images || [])] }
+    ? { ...product, images: [...(product.images || [])], variants: (product.variants || []).map(v => ({ ...v })) }
     : emptyForm()
   pendingFiles.value = []
   dialog.value = true
@@ -320,5 +358,18 @@ onMounted(fetchProducts)
   position: absolute;
   top: -8px;
   right: -8px;
+}
+.variant-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.variant-size { max-width: 130px; }
+.variant-color { max-width: 130px; }
+.variant-sku { flex: 1; min-width: 90px; }
+.variant-stock { max-width: 90px; }
+@media (max-width: 600px) {
+  .variant-row { flex-wrap: wrap; }
+  .variant-size, .variant-color, .variant-sku, .variant-stock { max-width: none; flex: 1 1 40%; }
 }
 </style>

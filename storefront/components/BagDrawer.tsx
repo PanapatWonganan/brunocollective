@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCart } from "@/lib/cart";
+import { useCart, lineKey } from "@/lib/cart";
 import { money, imageSrc } from "@/lib/format";
 import styles from "./BagDrawer.module.css";
 
@@ -37,46 +37,56 @@ export default function BagDrawer() {
         ) : (
           <>
             <div className={styles.lines}>
-              {lines.map((l) => (
-                <div key={l.product.id} className={styles.line}>
-                  <div
-                    className={styles.thumb}
-                    style={{
-                      backgroundImage: l.product.image_url
-                        ? `url("${imageSrc(l.product.image_url)}")`
-                        : undefined,
-                    }}
-                  />
-                  <div className={styles.lineBody}>
-                    <div className={styles.lineName}>{l.product.name}</div>
-                    <div className={styles.lineMeta}>{money(l.product.price)}</div>
-                    <div className={styles.qtyRow}>
-                      <div className={styles.stepper}>
+              {lines.map((l) => {
+                const key = lineKey(l.product.id, l.variant ? l.variant.id : null);
+                const cap = l.variant ? l.variant.stock : l.product.stock;
+                const variantLabel = l.variant
+                  ? [l.variant.size, l.variant.color].filter(Boolean).join(" / ")
+                  : "";
+                return (
+                  <div key={key} className={styles.line}>
+                    <div
+                      className={styles.thumb}
+                      style={{
+                        backgroundImage: l.product.image_url
+                          ? `url("${imageSrc(l.product.image_url)}")`
+                          : undefined,
+                      }}
+                    />
+                    <div className={styles.lineBody}>
+                      <div className={styles.lineName}>{l.product.name}</div>
+                      {variantLabel && (
+                        <div className={styles.lineMeta}>{variantLabel}</div>
+                      )}
+                      <div className={styles.lineMeta}>{money(l.product.price)}</div>
+                      <div className={styles.qtyRow}>
+                        <div className={styles.stepper}>
+                          <button
+                            onClick={() => setQuantity(key, l.quantity - 1)}
+                            aria-label="Decrease"
+                          >
+                            −
+                          </button>
+                          <span>{l.quantity}</span>
+                          <button
+                            onClick={() => setQuantity(key, l.quantity + 1)}
+                            aria-label="Increase"
+                            disabled={l.quantity >= cap}
+                          >
+                            +
+                          </button>
+                        </div>
                         <button
-                          onClick={() => setQuantity(l.product.id, l.quantity - 1)}
-                          aria-label="Decrease"
+                          className={styles.removeBtn}
+                          onClick={() => remove(key)}
                         >
-                          −
-                        </button>
-                        <span>{l.quantity}</span>
-                        <button
-                          onClick={() => setQuantity(l.product.id, l.quantity + 1)}
-                          aria-label="Increase"
-                          disabled={l.quantity >= l.product.stock}
-                        >
-                          +
+                          Remove
                         </button>
                       </div>
-                      <button
-                        className={styles.removeBtn}
-                        onClick={() => remove(l.product.id)}
-                      >
-                        Remove
-                      </button>
                     </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
 
             <footer className={styles.foot}>

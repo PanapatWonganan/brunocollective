@@ -56,7 +56,11 @@ export default function CheckoutPage() {
         email: form.email.trim() || undefined,
         address: form.address.trim(),
         notes: form.notes.trim() || undefined,
-        items: lines.map((l) => ({ product_id: l.product.id, quantity: l.quantity })),
+        items: lines.map((l) => ({
+          product_id: l.product.id,
+          variant_id: l.variant ? l.variant.id : null,
+          quantity: l.quantity,
+        })),
       },
       slip
     );
@@ -203,23 +207,30 @@ export default function CheckoutPage() {
         <aside className={styles.summary}>
           <h2 className={styles.sumTitle}>Your Bag</h2>
           <div className={styles.items}>
-            {lines.map((l) => (
-              <div key={l.product.id} className={styles.item}>
-                <div
-                  className={styles.thumb}
-                  style={{
-                    backgroundImage: l.product.image_url
-                      ? `url('${imageSrc(l.product.image_url)}')`
-                      : undefined,
-                  }}
-                />
-                <div className={styles.itemBody}>
-                  <div className={styles.itemName}>{l.product.name}</div>
-                  <div className={styles.itemMeta}>Qty {l.quantity}</div>
+            {lines.map((l) => {
+              const variantLabel = l.variant
+                ? [l.variant.size, l.variant.color].filter(Boolean).join(" / ")
+                : "";
+              return (
+                <div key={`${l.product.id}:${l.variant ? l.variant.id : 0}`} className={styles.item}>
+                  <div
+                    className={styles.thumb}
+                    style={{
+                      backgroundImage: l.product.image_url
+                        ? `url('${imageSrc(l.product.image_url)}')`
+                        : undefined,
+                    }}
+                  />
+                  <div className={styles.itemBody}>
+                    <div className={styles.itemName}>{l.product.name}</div>
+                    <div className={styles.itemMeta}>
+                      {variantLabel ? `${variantLabel} · ` : ""}Qty {l.quantity}
+                    </div>
+                  </div>
+                  <div className={styles.itemPrice}>{money(l.product.price * l.quantity)}</div>
                 </div>
-                <div className={styles.itemPrice}>{money(l.product.price * l.quantity)}</div>
-              </div>
-            ))}
+              );
+            })}
           </div>
           <div className={`${styles.sumRow} ${styles.sumTotal}`}>
             <span>Total</span>

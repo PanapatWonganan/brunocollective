@@ -51,12 +51,35 @@ type Product struct {
 	ID          uint        `json:"id" gorm:"primaryKey"`
 	Name        string      `json:"name" gorm:"not null"`
 	SKU         string      `json:"sku" gorm:"uniqueIndex"`
-	Size        string      `json:"size"`
+	Size        string      `json:"size"` // legacy: single-size garments without variants
 	Description string      `json:"description"`
 	Price       float64     `json:"price" gorm:"not null"`
-	Stock       int         `json:"stock" gorm:"default:0"`
+	Stock       int         `json:"stock" gorm:"default:0"` // legacy: used only when a product has no variants
 	ImageURL    string      `json:"image_url"`
 	Images      StringSlice `json:"images" gorm:"type:text"`
-	CreatedAt   time.Time   `json:"created_at"`
-	UpdatedAt   time.Time   `json:"updated_at"`
+
+	// Variants are the sellable size+color combinations. A product with no
+	// variants is treated as a single legacy unit (Size/Stock above).
+	Variants []ProductVariant `json:"variants" gorm:"foreignKey:ProductID"`
+
+	// TotalStock is derived (sum of variant stock, or legacy Stock when no
+	// variants). Not persisted — computed by handlers for list/shop display.
+	TotalStock int `json:"total_stock" gorm:"-"`
+
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+}
+
+// ComputeTotalStock sets TotalStock from variants, falling back to the legacy
+// Stock field when the product has no variants. Call after loading a product.
+func (p *Product) ComputeTotalStock() {
+	if len(p.Variants) == 0 {
+		p.TotalStock = p.Stock
+		return
+	}
+	total := 0
+	for _, v := range p.Variants {
+		total += v.Stock
+	}
+	p.TotalStock = total
 }

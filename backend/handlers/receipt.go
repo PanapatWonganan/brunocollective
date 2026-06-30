@@ -76,9 +76,16 @@ func (h *ReceiptHandler) Issue(c *fiber.Ctx) error {
 
 		lines := make(models.ReceiptLines, 0, len(order.Items))
 		for _, item := range order.Items {
+			// Prefer the order line's variant snapshot; fall back to the
+			// product's legacy size for older variant-less orders.
+			size := item.Size
+			if size == "" {
+				size = item.Product.Size
+			}
 			lines = append(lines, models.ReceiptLine{
 				Name:     item.Product.Name,
-				Size:     item.Product.Size,
+				Size:     size,
+				Color:    item.Color,
 				Price:    item.Price,
 				Quantity: item.Quantity,
 			})

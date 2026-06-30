@@ -39,39 +39,50 @@ export default function CollectionGrid({ products }: { products: Product[] }) {
           <p className={s.empty}>The atelier is between collections. Please return shortly.</p>
         ) : (
           <div className={s.grid}>
-            {shown.map((p, i) => (
-              <Reveal
-                as="figure"
-                key={p.id}
-                delay={([undefined, 2, 3][i % 3]) as 2 | 3 | undefined}
-                className={PLACEMENTS[i % PLACEMENTS.length]}
-              >
-                <Link href={`/product/${p.id}`} className={s.imgbox} aria-label={p.name}>
-                  <div
-                    className={s.img}
-                    style={{
-                      backgroundImage: p.image_url
-                        ? `url('${imageSrc(p.image_url)}')`
-                        : undefined,
-                    }}
-                  />
-                </Link>
-                <figcaption className={s.cap}>
-                  <div className={s.name}>
-                    <small>N° {NUMERALS[i]} — Bruno Collective</small>
-                    <Link href={`/product/${p.id}`}>{p.name}</Link>
-                  </div>
-                  <div className={s.price}>{money(p.price)}</div>
-                </figcaption>
-                <button
-                  className={s.add}
-                  onClick={() => add(p)}
-                  disabled={p.stock <= 0}
+            {shown.map((p, i) => {
+              const hasVariants = (p.variants?.length ?? 0) > 0;
+              const stock = hasVariants ? p.total_stock : p.stock;
+              const soldOut = stock <= 0;
+              return (
+                <Reveal
+                  as="figure"
+                  key={p.id}
+                  delay={([undefined, 2, 3][i % 3]) as 2 | 3 | undefined}
+                  className={PLACEMENTS[i % PLACEMENTS.length]}
                 >
-                  {p.stock <= 0 ? "Sold Out" : "Add to Bag"}
-                </button>
-              </Reveal>
-            ))}
+                  <Link href={`/product/${p.id}`} className={s.imgbox} aria-label={p.name}>
+                    <div
+                      className={s.img}
+                      style={{
+                        backgroundImage: p.image_url
+                          ? `url('${imageSrc(p.image_url)}')`
+                          : undefined,
+                      }}
+                    />
+                  </Link>
+                  <figcaption className={s.cap}>
+                    <div className={s.name}>
+                      <small>N° {NUMERALS[i]} — Bruno Collective</small>
+                      <Link href={`/product/${p.id}`}>{p.name}</Link>
+                    </div>
+                    <div className={s.price}>{money(p.price)}</div>
+                  </figcaption>
+                  {hasVariants ? (
+                    <Link href={`/product/${p.id}`} className={s.add} aria-disabled={soldOut}>
+                      {soldOut ? "Sold Out" : "Choose Options"}
+                    </Link>
+                  ) : (
+                    <button
+                      className={s.add}
+                      onClick={() => add(p, null)}
+                      disabled={soldOut}
+                    >
+                      {soldOut ? "Sold Out" : "Add to Bag"}
+                    </button>
+                  )}
+                </Reveal>
+              );
+            })}
           </div>
         )}
 

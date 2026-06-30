@@ -35,16 +35,23 @@ func NewShopHandler(cfg *config.Config, telegram *services.TelegramNotifier) *Sh
 func (h *ShopHandler) Products(c *fiber.Ctx) error {
 	var products []models.Product
 
-	query := database.DB
-	if c.Query("include_out") != "1" {
-		query = query.Where("stock > 0")
-	}
+	// Load everything with variants, then filter in Go so the in-stock test can
+	// consider both per-variant stock and the legacy Product.Stock fallback.
+	query := database.DB.Preload("Variants")
 	if search := c.Query("search"); search != "" {
 		query = query.Where("name LIKE ? OR sku LIKE ?", "%"+search+"%", "%"+search+"%")
 	}
-
 	query.Order("created_at DESC").Find(&products)
-	return c.JSON(products)
+
+	includeOut := c.Query("include_out") == "1"
+	out := make([]models.Product, 0, len(products))
+	for i := range products {
+		products[i].ComputeTotalStock()
+		if includeOut || products[i].TotalStock > 0 {
+			out = append(out, products[i])
+		}
+	}
+	return c.JSON(out)
 }
 
 // Product returns a single product for the detail page.
@@ -55,10 +62,11 @@ func (h *ShopHandler) Product(c *fiber.Ctx) error {
 	}
 
 	var product models.Product
-	if err := database.DB.First(&product, id).Error; err != nil {
+	if err := database.DB.Preload("Variants").First(&product, id).Error; err != nil {
 		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "product not found"})
 	}
 
+	product.ComputeTotalStock()
 	return c.JSON(product)
 }
 
@@ -168,28 +176,12 @@ func (h *ShopHandler) Checkout(c *fiber.Ctx) error {
 		var items []models.OrderItem
 
 		for _, item := range req.Items {
-			if item.Quantity <= 0 {
-				return fiber.NewError(fiber.StatusBadRequest, "quantity must be positive")
+			orderItem, price, err := buildOrderItem(tx, item)
+			if err != nil {
+				return err
 			}
-
-			var product models.Product
-			if err := tx.First(&product, item.ProductID).Error; err != nil {
-				return fiber.NewError(fiber.StatusBadRequest, "product not found")
-			}
-
-			if product.Stock < item.Quantity {
-				return fiber.NewError(fiber.StatusBadRequest,
-					"insufficient stock for "+product.Name)
-			}
-
-			tx.Model(&product).Update("stock", product.Stock-item.Quantity)
-
-			totalAmount += product.Price * float64(item.Quantity)
-			items = append(items, models.OrderItem{
-				ProductID: item.ProductID,
-				Quantity:  item.Quantity,
-				Price:     product.Price,
-			})
+			totalAmount += price * float64(item.Quantity)
+			items = append(items, orderItem)
 		}
 
 		order = models.Order{

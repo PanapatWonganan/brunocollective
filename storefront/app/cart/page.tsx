@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCart } from "@/lib/cart";
+import { useCart, lineKey } from "@/lib/cart";
 import { money, imageSrc } from "@/lib/format";
 import styles from "./cart.module.css";
 
@@ -25,42 +25,50 @@ export default function CartPage() {
       ) : (
         <div className={styles.layout}>
           <div className={styles.lines}>
-            {lines.map((l) => (
-              <div key={l.product.id} className={styles.line}>
-                <Link href={`/product/${l.product.id}`} className={styles.thumb}>
-                  <div
-                    style={{
-                      backgroundImage: l.product.image_url
-                        ? `url('${imageSrc(l.product.image_url)}')`
-                        : undefined,
-                    }}
-                  />
-                </Link>
-                <div className={styles.body}>
-                  <Link href={`/product/${l.product.id}`} className={styles.name}>
-                    {l.product.name}
+            {lines.map((l) => {
+              const key = lineKey(l.product.id, l.variant ? l.variant.id : null);
+              const cap = l.variant ? l.variant.stock : l.product.stock;
+              const variantLabel = l.variant
+                ? [l.variant.size, l.variant.color].filter(Boolean).join(" / ")
+                : "";
+              return (
+                <div key={key} className={styles.line}>
+                  <Link href={`/product/${l.product.id}`} className={styles.thumb}>
+                    <div
+                      style={{
+                        backgroundImage: l.product.image_url
+                          ? `url('${imageSrc(l.product.image_url)}')`
+                          : undefined,
+                      }}
+                    />
                   </Link>
-                  <div className={styles.unit}>{money(l.product.price)}</div>
-                  <div className={styles.controls}>
-                    <div className={styles.stepper}>
-                      <button onClick={() => setQuantity(l.product.id, l.quantity - 1)} aria-label="Decrease">−</button>
-                      <span>{l.quantity}</span>
-                      <button
-                        onClick={() => setQuantity(l.product.id, l.quantity + 1)}
-                        aria-label="Increase"
-                        disabled={l.quantity >= l.product.stock}
-                      >
-                        +
+                  <div className={styles.body}>
+                    <Link href={`/product/${l.product.id}`} className={styles.name}>
+                      {l.product.name}
+                    </Link>
+                    {variantLabel && <div className={styles.unit}>{variantLabel}</div>}
+                    <div className={styles.unit}>{money(l.product.price)}</div>
+                    <div className={styles.controls}>
+                      <div className={styles.stepper}>
+                        <button onClick={() => setQuantity(key, l.quantity - 1)} aria-label="Decrease">−</button>
+                        <span>{l.quantity}</span>
+                        <button
+                          onClick={() => setQuantity(key, l.quantity + 1)}
+                          aria-label="Increase"
+                          disabled={l.quantity >= cap}
+                        >
+                          +
+                        </button>
+                      </div>
+                      <button className={styles.remove} onClick={() => remove(key)}>
+                        Remove
                       </button>
                     </div>
-                    <button className={styles.remove} onClick={() => remove(l.product.id)}>
-                      Remove
-                    </button>
                   </div>
+                  <div className={styles.lineTotal}>{money(l.product.price * l.quantity)}</div>
                 </div>
-                <div className={styles.lineTotal}>{money(l.product.price * l.quantity)}</div>
-              </div>
-            ))}
+              );
+            })}
           </div>
 
           <aside className={styles.summary}>

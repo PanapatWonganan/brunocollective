@@ -24,4 +24,5 @@
   transition:opacity .3s var(--ease), letter-spacing .5s var(--ease);
 }
 .add:hover{opacity:.65; letter-spacing:.34em}
-.add:disabled{color:var(--ink-quiet); border-bottom-color:var(--hairline); cursor:not-allowed; letter-spacing:.28em}
+.add:disabled,
+.add[aria-disabled="true"]{color:var(--ink-quiet); border-bottom-color:var(--hairline); cursor:not-allowed; letter-spacing:.28em; pointer-events:none}

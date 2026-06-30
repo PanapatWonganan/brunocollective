@@ -8,8 +8,10 @@ import styles from "./ProductCard.module.css";
 
 export default function ProductCard({ product }: { product: Product }) {
   const { add } = useCart();
-  const soldOut = product.stock <= 0;
-  const low = !soldOut && product.stock <= 5;
+  const hasVariants = (product.variants?.length ?? 0) > 0;
+  const stock = hasVariants ? product.total_stock : product.stock;
+  const soldOut = stock <= 0;
+  const low = !soldOut && stock <= 5;
   const cover = product.image_url || product.images?.[0] || "";
 
   return (
@@ -22,7 +24,7 @@ export default function ProductCard({ product }: { product: Product }) {
           }}
         />
         {soldOut && <span className={styles.tag}>Sold Out</span>}
-        {low && <span className={styles.tag}>Only {product.stock} left</span>}
+        {low && <span className={styles.tag}>Only {stock} left</span>}
       </Link>
       <figcaption className={styles.cap}>
         <div className={styles.name}>
@@ -31,9 +33,15 @@ export default function ProductCard({ product }: { product: Product }) {
         </div>
         <div className={styles.price}>{money(product.price)}</div>
       </figcaption>
-      <button className={styles.add} onClick={() => add(product)} disabled={soldOut}>
-        {soldOut ? "Sold Out" : "Add to Bag"}
-      </button>
+      {hasVariants ? (
+        <Link href={`/product/${product.id}`} className={styles.add} aria-disabled={soldOut}>
+          {soldOut ? "Sold Out" : "Choose Options"}
+        </Link>
+      ) : (
+        <button className={styles.add} onClick={() => add(product, null)} disabled={soldOut}>
+          {soldOut ? "Sold Out" : "Add to Bag"}
+        </button>
+      )}
     </figure>
   );
 }

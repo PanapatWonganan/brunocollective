@@ -1,4 +1,26 @@
 .wrap{margin-top:8px}
+
+/* ── Size / color selectors ── */
+.options{margin-bottom:18px}
+.optLabel{
+  display:block; margin-bottom:10px;
+  font-size:10px; letter-spacing:.3em; text-transform:uppercase;
+  color:var(--ink-faint); font-weight:500;
+}
+.swatches{display:flex; flex-wrap:wrap; gap:8px}
+.swatch{
+  min-width:44px; padding:10px 14px;
+  border:1px solid var(--hairline); background:var(--paper);
+  font-size:11px; letter-spacing:.16em; text-transform:uppercase; color:var(--ink); font-weight:500;
+  transition:border-color .25s var(--ease), background .25s var(--ease), color .25s var(--ease);
+}
+.swatch:hover:not(:disabled){border-color:var(--ink)}
+.swatchOn{background:var(--ink); color:var(--ivory); border-color:var(--ink)}
+.swatch:disabled{
+  opacity:.4; cursor:not-allowed; text-decoration:line-through;
+  text-decoration-color:var(--ink-quiet);
+}
+
 .row{display:flex; gap:16px; align-items:stretch}
 .stepper{display:flex; align-items:center; gap:18px; border:1px solid var(--hairline); padding:0 18px}
 .stepper button{font-size:18px; color:var(--ink); line-height:1}

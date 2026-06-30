@@ -30,17 +30,24 @@ type OrderItem struct {
 	OrderID   uint    `json:"order_id" gorm:"not null"`
 	ProductID uint    `json:"product_id" gorm:"not null"`
 	Product   Product `json:"product" gorm:"foreignKey:ProductID"`
+	// VariantID is the chosen size+color variant (nullable — legacy items and
+	// variant-less products leave it null). Size/Color are snapshotted at order
+	// time so the line stays stable even if the variant later changes/deletes.
+	VariantID *uint   `json:"variant_id"`
+	Size      string  `json:"size"`
+	Color     string  `json:"color"`
 	Quantity  int     `json:"quantity" gorm:"not null"`
 	Price     float64 `json:"price" gorm:"not null"`
 }
 
 type CreateOrderRequest struct {
-	CustomerID uint               `json:"customer_id"`
-	Notes      string             `json:"notes"`
-	Items      []CreateOrderItem  `json:"items"`
+	CustomerID uint              `json:"customer_id"`
+	Notes      string            `json:"notes"`
+	Items      []CreateOrderItem `json:"items"`
 }
 
 type CreateOrderItem struct {
-	ProductID uint `json:"product_id"`
-	Quantity  int  `json:"quantity"`
+	ProductID uint  `json:"product_id"`
+	VariantID *uint `json:"variant_id"`
+	Quantity  int   `json:"quantity"`
 }

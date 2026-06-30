@@ -13,6 +13,7 @@ import (
 	"brunocollective_inventory/models"
 
 	"github.com/gofiber/fiber/v2"
+	"gorm.io/gorm"
 )
 
 type ProductHandler struct {
@@ -26,12 +27,15 @@ func NewProductHandler(cfg *config.Config) *ProductHandler {
 func (h *ProductHandler) List(c *fiber.Ctx) error {
 	var products []models.Product
 
-	query := database.DB
+	query := database.DB.Preload("Variants")
 	if search := c.Query("search"); search != "" {
 		query = query.Where("name LIKE ? OR sku LIKE ?", "%"+search+"%", "%"+search+"%")
 	}
 
 	query.Order("created_at DESC").Find(&products)
+	for i := range products {
+		products[i].ComputeTotalStock()
+	}
 	return c.JSON(products)
 }
 
@@ -42,10 +46,11 @@ func (h *ProductHandler) Get(c *fiber.Ctx) error {
 	}
 
 	var product models.Product
-	if err := database.DB.First(&product, id).Error; err != nil {
+	if err := database.DB.Preload("Variants").First(&product, id).Error; err != nil {
 		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "product not found"})
 	}
 
+	product.ComputeTotalStock()
 	return c.JSON(product)
 }
 
@@ -59,10 +64,12 @@ func (h *ProductHandler) Create(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "name is required"})
 	}
 
+	// GORM creates the nested Variants alongside the product (full-save association).
 	if err := database.DB.Create(&product).Error; err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to create product"})
 	}
 
+	product.ComputeTotalStock()
 	return c.Status(fiber.StatusCreated).JSON(product)
 }
 
@@ -82,8 +89,45 @@ func (h *ProductHandler) Update(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid request body"})
 	}
 
-	database.DB.Model(&existing).Updates(updates)
-	database.DB.First(&existing, id)
+	// Scalar fields: GORM Updates skips zero values, so use a map for the fields
+	// that legitimately may be set to a zero/empty value (e.g. clearing size, or
+	// stock going to 0). Images are managed via the dedicated upload endpoints.
+	err = database.DB.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Model(&existing).Updates(map[string]interface{}{
+			"name":        updates.Name,
+			"sku":         updates.SKU,
+			"size":        updates.Size,
+			"description": updates.Description,
+			"price":       updates.Price,
+			"stock":       updates.Stock,
+		}).Error; err != nil {
+			return err
+		}
+
+		// Replace the variant set: delete the old rows, recreate from the payload.
+		// A request that omits "variants" leaves variants untouched only if nil;
+		// an explicit empty array clears them (variant-less / legacy product).
+		if updates.Variants != nil {
+			if err := tx.Where("product_id = ?", existing.ID).Delete(&models.ProductVariant{}).Error; err != nil {
+				return err
+			}
+			for i := range updates.Variants {
+				v := updates.Variants[i]
+				v.ID = 0
+				v.ProductID = existing.ID
+				if err := tx.Create(&v).Error; err != nil {
+					return err
+				}
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to update product"})
+	}
+
+	database.DB.Preload("Variants").First(&existing, id)
+	existing.ComputeTotalStock()
 	return c.JSON(existing)
 }
 
@@ -101,6 +145,9 @@ func (h *ProductHandler) Delete(c *fiber.Ctx) error {
 	if err := database.DB.Delete(&models.Product{}, id).Error; err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to delete product"})
 	}
+
+	// Remove the product's variants too (no cascade in SQLite/GORM here).
+	database.DB.Where("product_id = ?", id).Delete(&models.ProductVariant{})
 
 	// Best-effort cleanup of the product's uploaded images.
 	for _, img := range product.Images {
