@@ -35,5 +35,47 @@ export interface CheckoutPayload {
   email?: string;
   address: string;
   notes?: string;
+  coupon_code?: string;
   items: { product_id: number; variant_id: number | null; quantity: number }[];
+}
+
+// One content block on a sale/landing page. `data` fields are agreed between
+// the admin builder and the renderer in app/s/[slug].
+export interface SalePageSection {
+  type: string;
+  enabled: boolean;
+  data: Record<string, any>;
+}
+
+// Funnel-style landing page served at /s/{slug}. Prices here are display-only —
+// the backend recomputes everything when the order is placed.
+export interface SalePage {
+  id: number;
+  slug: string;
+  title: string;
+  status: "draft" | "published";
+  product_id: number;
+  product: Product;
+  offer_price: number | null;
+  sections: SalePageSection[];
+  bump_enabled: boolean;
+  bump_product_id: number | null;
+  bump_product: Product | null;
+  bump_price: number;
+  bump_headline: string;
+  bump_description: string;
+  countdown_ends_at: string | null;
+  show_stock: boolean;
+  allow_coupon: boolean;
+}
+
+// Successful response from POST /api/shop/coupons/validate.
+export interface CouponPreview {
+  valid: boolean;
+  code: string;
+  name: string;
+  type: "percent" | "fixed";
+  value: number;
+  discount: number;
+  total: number;
 }

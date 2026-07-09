@@ -53,6 +53,15 @@ func main() {
 	app.Post("/api/shop/orders", shopHandler.Checkout)
 	app.Get("/api/shop/site-images", shopHandler.SiteImages)
 
+	// Public coupon preview — the storefront checks a code before checkout.
+	couponHandler := handlers.NewCouponHandler()
+	app.Post("/api/shop/coupons/validate", couponHandler.Validate)
+
+	// Public sale/landing pages — rendered by the storefront at /s/{slug}.
+	salePageHandler := handlers.NewSalePageHandler(cfg, telegramNotifier)
+	app.Get("/api/shop/sale-pages/:slug", salePageHandler.PublicGet)
+	app.Post("/api/shop/sale-pages/:slug/order", salePageHandler.PublicOrder)
+
 	// Protected routes
 	api := app.Group("/api", middleware.JWTAuth(cfg))
 
@@ -99,6 +108,27 @@ func main() {
 	api.Put("/orders/:id/status", orderHandler.UpdateStatus)
 	api.Post("/orders/:id/slip", orderHandler.UploadSlip)
 	api.Delete("/orders/:id", orderHandler.Delete)
+
+	// Coupons — literal routes before "/coupons/:id" so they aren't swallowed
+	// by the param route (same reason as orders/export.csv above).
+	api.Get("/coupons", couponHandler.List)
+	api.Post("/coupons", couponHandler.Create)
+	api.Post("/coupons/validate", couponHandler.Validate)
+	api.Get("/coupons/:id", couponHandler.Get)
+	api.Put("/coupons/:id", couponHandler.Update)
+	api.Delete("/coupons/:id", couponHandler.Delete)
+	api.Post("/coupons/:id/toggle", couponHandler.Toggle)
+	api.Get("/coupons/:id/redemptions", couponHandler.Redemptions)
+
+	// Sale pages (funnel builder) — "upload" before ":id" so it isn't swallowed.
+	api.Get("/sale-pages", salePageHandler.List)
+	api.Post("/sale-pages", salePageHandler.Create)
+	api.Post("/sale-pages/upload", salePageHandler.UploadImage)
+	api.Get("/sale-pages/:id", salePageHandler.Get)
+	api.Put("/sale-pages/:id", salePageHandler.Update)
+	api.Delete("/sale-pages/:id", salePageHandler.Delete)
+	api.Post("/sale-pages/:id/duplicate", salePageHandler.Duplicate)
+	api.Post("/sale-pages/:id/toggle", salePageHandler.TogglePublish)
 
 	// Receipts (ใบเสร็จรับเงิน) — running number, persisted history
 	receiptHandler := handlers.NewReceiptHandler()

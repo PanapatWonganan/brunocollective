@@ -65,8 +65,13 @@ type Receipt struct {
 	BuyerAddress string       `json:"buyer_address"`
 	BuyerTaxID   string       `json:"buyer_tax_id"`
 	Lines        ReceiptLines `json:"lines" gorm:"type:text"`
-	TotalAmount  float64      `json:"total_amount"`
-	IssuedAt     time.Time    `json:"issued_at"`
-	CreatedAt    time.Time    `json:"created_at"`
-	UpdatedAt    time.Time    `json:"updated_at"`
+	// Discount snapshot: Subtotal - DiscountAmount = TotalAmount. Legacy
+	// receipts (pre-coupon) have Subtotal 0 and no discount.
+	Subtotal       float64   `json:"subtotal"`
+	DiscountAmount float64   `json:"discount_amount"`
+	CouponCode     string    `json:"coupon_code"`
+	TotalAmount    float64   `json:"total_amount"`
+	IssuedAt       time.Time `json:"issued_at"`
+	CreatedAt      time.Time `json:"created_at"`
+	UpdatedAt      time.Time `json:"updated_at"`
 }

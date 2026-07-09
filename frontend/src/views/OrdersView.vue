@@ -182,7 +182,61 @@
             </v-card-text>
           </v-card>
 
+          <!-- Coupon -->
+          <div class="d-flex align-start mt-3">
+            <v-text-field
+              v-model="couponInput"
+              label="Coupon Code (optional)"
+              prepend-inner-icon="mdi-ticket-percent-outline"
+              density="comfortable"
+              hide-details
+              class="mr-2"
+              :disabled="!!appliedCoupon"
+              @keyup.enter="applyCoupon"
+            />
+            <v-btn
+              v-if="!appliedCoupon"
+              variant="tonal" color="secondary" class="text-none mt-1"
+              :loading="couponChecking"
+              :disabled="!couponInput.trim()"
+              @click="applyCoupon"
+            >Apply</v-btn>
+            <v-btn
+              v-else
+              variant="text" color="error" class="text-none mt-1"
+              @click="removeCoupon"
+            >Remove</v-btn>
+          </div>
+          <v-alert v-if="couponError" type="error" variant="tonal" density="compact" class="mt-2">
+            {{ couponError }}
+          </v-alert>
+          <v-alert v-if="appliedCoupon" type="success" variant="tonal" density="compact" class="mt-2">
+            <strong>{{ appliedCoupon.code }}</strong> — discount {{ formatCurrency(appliedCoupon.discount) }}
+          </v-alert>
+
+          <!-- Order summary -->
+          <v-card variant="tonal" color="primary" rounded="lg" class="mt-3">
+            <v-card-text class="pa-3">
+              <div class="d-flex justify-space-between text-body-2">
+                <span>Subtotal</span>
+                <span>{{ formatCurrency(createSubtotal) }}</span>
+              </div>
+              <div v-if="appliedCoupon" class="d-flex justify-space-between text-body-2">
+                <span>Discount ({{ appliedCoupon.code }})</span>
+                <span>-{{ formatCurrency(appliedCoupon.discount) }}</span>
+              </div>
+              <div class="d-flex justify-space-between font-weight-bold mt-1">
+                <span>Total</span>
+                <span>{{ formatCurrency(createTotal) }}</span>
+              </div>
+            </v-card-text>
+          </v-card>
+
           <v-textarea v-model="orderForm.notes" label="Notes (optional)" rows="2" class="mt-3" />
+
+          <v-alert v-if="createError" type="error" variant="tonal" density="compact" class="mb-2">
+            {{ createError }}
+          </v-alert>
 
           <v-file-input
             v-model="createSlipFile"
@@ -238,6 +292,12 @@
             </div>
             <v-spacer />
             <div class="text-right">
+              <div v-if="selectedOrder.discount_amount > 0" class="text-caption text-medium-emphasis">
+                <span class="text-decoration-line-through mr-1">{{ formatCurrency(selectedOrder.subtotal) }}</span>
+                <v-chip size="x-small" color="secondary" variant="tonal" prepend-icon="mdi-ticket-percent-outline">
+                  {{ selectedOrder.coupon_code }} -{{ formatCurrency(selectedOrder.discount_amount) }}
+                </v-chip>
+              </div>
               <div class="text-h6 font-weight-bold text-primary">{{ formatCurrency(selectedOrder.total_amount) }}</div>
               <div class="text-caption text-medium-emphasis">Total</div>
             </div>
@@ -638,6 +698,49 @@ const orderForm = ref({
   items: [{ product_id: 0, variant_id: null as number | null, quantity: 1 }]
 })
 
+// Coupon state for the create-order form. The discount shown here is a
+// preview; the backend revalidates and recomputes inside the order transaction.
+const couponInput = ref('')
+const couponChecking = ref(false)
+const couponError = ref('')
+const appliedCoupon = ref<any>(null)
+const createError = ref('')
+
+const createSubtotal = computed(() =>
+  orderForm.value.items.reduce((sum, item) => {
+    const p = products.value.find((x: any) => x.id === item.product_id)
+    return sum + (p ? p.price * (item.quantity || 0) : 0)
+  }, 0)
+)
+
+const createTotal = computed(() =>
+  Math.max(0, createSubtotal.value - (appliedCoupon.value?.discount || 0))
+)
+
+async function applyCoupon() {
+  couponError.value = ''
+  couponChecking.value = true
+  try {
+    const { data } = await api.post('/coupons/validate', {
+      code: couponInput.value.trim(),
+      subtotal: createSubtotal.value,
+      customer_id: orderForm.value.customer_id || 0,
+    })
+    appliedCoupon.value = data
+  } catch (err: any) {
+    appliedCoupon.value = null
+    couponError.value = err.response?.data?.error || 'Failed to validate coupon'
+  } finally {
+    couponChecking.value = false
+  }
+}
+
+function removeCoupon() {
+  appliedCoupon.value = null
+  couponInput.value = ''
+  couponError.value = ''
+}
+
 // Variants of the selected product (empty for legacy/variant-less products).
 function variantsFor(productId: number): any[] {
   const p = products.value.find((x: any) => x.id === productId)
@@ -686,22 +789,30 @@ async function fetchMasterData() {
 function openCreateDialog() {
   orderForm.value = { customer_id: 0, notes: '', items: [{ product_id: 0, variant_id: null, quantity: 1 }] }
   createSlipFile.value = null
+  removeCoupon()
+  createError.value = ''
   createDialog.value = true
 }
 
 async function createOrder() {
   saving.value = true
+  createError.value = ''
   try {
     const fd = new FormData()
     fd.append('customer_id', String(orderForm.value.customer_id))
     fd.append('notes', orderForm.value.notes)
     fd.append('items', JSON.stringify(orderForm.value.items))
+    if (appliedCoupon.value) {
+      fd.append('coupon_code', appliedCoupon.value.code)
+    }
     if (createSlipFile.value) {
       fd.append('slip', createSlipFile.value)
     }
     await api.post('/orders', fd)
     createDialog.value = false
     await Promise.all([fetchOrders(), fetchMasterData()])
+  } catch (err: any) {
+    createError.value = err.response?.data?.error || 'Failed to create order'
   } finally {
     saving.value = false
   }
@@ -933,6 +1044,15 @@ function printReceipt(receipt: any) {
 
   <div class="totals">
     <table>
+      ${receipt.discount_amount > 0 ? `
+      <tr>
+        <td>รวม / Subtotal</td>
+        <td class="r">${formatCurrency(receipt.subtotal)}</td>
+      </tr>
+      <tr>
+        <td>ส่วนลด${receipt.coupon_code ? ` (${esc(receipt.coupon_code)})` : ''} / Discount</td>
+        <td class="r">-${formatCurrency(receipt.discount_amount)}</td>
+      </tr>` : ''}
       <tr class="grand">
         <td>ยอดรวมทั้งสิ้น / Total</td>
         <td class="r">${formatCurrency(receipt.total_amount)}</td>

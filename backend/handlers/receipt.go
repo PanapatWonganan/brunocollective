@@ -107,15 +107,24 @@ func (h *ReceiptHandler) Issue(c *fiber.Ctx) error {
 			return err
 		}
 
+		// Legacy pre-coupon orders have Subtotal 0 — fall back to the total.
+		subtotal := order.Subtotal
+		if subtotal == 0 {
+			subtotal = order.TotalAmount
+		}
+
 		receipt = models.Receipt{
-			ReceiptNo:    receiptNo,
-			OrderID:      order.ID,
-			BuyerName:    buyerName,
-			BuyerAddress: buyerAddress,
-			BuyerTaxID:   strings.TrimSpace(body.BuyerTaxID),
-			Lines:        lines,
-			TotalAmount:  order.TotalAmount,
-			IssuedAt:     issuedAt,
+			ReceiptNo:      receiptNo,
+			OrderID:        order.ID,
+			BuyerName:      buyerName,
+			BuyerAddress:   buyerAddress,
+			BuyerTaxID:     strings.TrimSpace(body.BuyerTaxID),
+			Lines:          lines,
+			Subtotal:       subtotal,
+			DiscountAmount: order.DiscountAmount,
+			CouponCode:     order.CouponCode,
+			TotalAmount:    order.TotalAmount,
+			IssuedAt:       issuedAt,
 		}
 		return tx.Create(&receipt).Error
 	})

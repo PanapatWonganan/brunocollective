@@ -62,7 +62,34 @@
 .itemMeta{font-size:10px; letter-spacing:.2em; text-transform:uppercase; color:var(--ink-faint); margin-top:4px}
 .itemPrice{font-size:13px; white-space:nowrap}
 .sumRow{display:flex; justify-content:space-between; align-items:baseline; gap:18px}
-.sumTotal{border-top:1px solid var(--hairline); padding-top:20px; font-family:var(--serif); font-size:22px}
+.sumDiscount{color:var(--champagne)}
+.sumRow + .sumRow{margin-top:10px}
+.sumTotal{border-top:1px solid var(--hairline); padding-top:20px; margin-top:14px; font-family:var(--serif); font-size:22px}
+
+.coupon{margin-bottom:18px}
+.couponRow{display:flex; gap:8px}
+.couponRow input{
+  flex:1; min-width:0; padding:12px 14px;
+  background:var(--paper); border:1px solid var(--hairline);
+  font-size:12px; letter-spacing:.18em; text-transform:uppercase;
+  color:var(--ink); outline:none;
+}
+.couponRow input:focus{border-color:var(--champagne)}
+.couponRow button, .couponApplied button{
+  padding:12px 18px; background:none; border:1px solid var(--ink);
+  font-size:10px; letter-spacing:.28em; text-transform:uppercase; font-weight:500;
+  color:var(--ink); cursor:pointer; transition:all .3s var(--ease);
+}
+.couponRow button:hover:not(:disabled), .couponApplied button:hover{background:var(--ink); color:var(--ivory)}
+.couponRow button:disabled{border-color:var(--hairline); color:var(--ink-quiet); cursor:not-allowed}
+.couponApplied{
+  display:flex; justify-content:space-between; align-items:center; gap:12px;
+  padding:12px 14px; border:1px solid var(--champagne); background:var(--paper);
+  font-size:12px; letter-spacing:.08em;
+}
+.couponApplied button{border:none; padding:4px 6px; text-decoration:underline; text-underline-offset:3px}
+.couponApplied button:hover{background:none; color:var(--champagne)}
+.couponError{color:#9a3b3b; font-size:12px; letter-spacing:.02em; margin:8px 0 0}
 
 .confirm{max-width:560px; margin:clamp(40px,8vw,80px) 0; display:flex; flex-direction:column; gap:24px; align-items:flex-start}
 .confirmTitle{font-size:clamp(40px,6vw,76px); margin-top:8px}

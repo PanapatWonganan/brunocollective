@@ -3,8 +3,9 @@
 import { useRef, useState } from "react";
 import Link from "next/link";
 import { useCart } from "@/lib/cart";
-import { checkout } from "@/lib/api";
+import { checkout, validateCoupon } from "@/lib/api";
 import { money, imageSrc } from "@/lib/format";
+import type { CouponPreview } from "@/lib/types";
 import styles from "./checkout.module.css";
 
 export default function CheckoutPage() {
@@ -22,6 +23,37 @@ export default function CheckoutPage() {
   const [error, setError] = useState<string | null>(null);
   const [orderId, setOrderId] = useState<number | null>(null);
   const fileInput = useRef<HTMLInputElement>(null);
+
+  // Coupon — previewed against the cart subtotal; the backend revalidates
+  // (and enforces quotas atomically) when the order is placed.
+  const [couponCode, setCouponCode] = useState("");
+  const [coupon, setCoupon] = useState<CouponPreview | null>(null);
+  const [couponError, setCouponError] = useState<string | null>(null);
+  const [couponChecking, setCouponChecking] = useState(false);
+
+  const discount = coupon ? Math.min(coupon.discount, total) : 0;
+  const payable = total - discount;
+
+  async function onApplyCoupon() {
+    const code = couponCode.trim();
+    if (!code || couponChecking) return;
+    setCouponError(null);
+    setCouponChecking(true);
+    const res = await validateCoupon(code, total, form.phone.trim());
+    setCouponChecking(false);
+    if (res.ok && res.coupon) {
+      setCoupon(res.coupon);
+    } else {
+      setCoupon(null);
+      setCouponError(res.error || null);
+    }
+  }
+
+  function onRemoveCoupon() {
+    setCoupon(null);
+    setCouponCode("");
+    setCouponError(null);
+  }
 
   function update(field: keyof typeof form) {
     return (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
@@ -56,6 +88,7 @@ export default function CheckoutPage() {
         email: form.email.trim() || undefined,
         address: form.address.trim(),
         notes: form.notes.trim() || undefined,
+        coupon_code: coupon ? coupon.code : undefined,
         items: lines.map((l) => ({
           product_id: l.product.id,
           variant_id: l.variant ? l.variant.id : null,
@@ -232,9 +265,60 @@ export default function CheckoutPage() {
               );
             })}
           </div>
+          <div className={styles.coupon}>
+            {coupon ? (
+              <div className={styles.couponApplied}>
+                <span>
+                  {coupon.code} · ส่วนลด −{money(discount)}
+                </span>
+                <button type="button" onClick={onRemoveCoupon}>
+                  Remove
+                </button>
+              </div>
+            ) : (
+              <div className={styles.couponRow}>
+                <input
+                  value={couponCode}
+                  onChange={(e) => {
+                    setCouponCode(e.target.value.toUpperCase());
+                    setCouponError(null);
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      onApplyCoupon();
+                    }
+                  }}
+                  placeholder="Coupon Code · โค้ดส่วนลด"
+                  aria-label="Coupon code"
+                />
+                <button
+                  type="button"
+                  onClick={onApplyCoupon}
+                  disabled={couponChecking || !couponCode.trim()}
+                >
+                  {couponChecking ? "…" : "Apply"}
+                </button>
+              </div>
+            )}
+            {couponError && <p className={styles.couponError}>{couponError}</p>}
+          </div>
+
+          {coupon && (
+            <>
+              <div className={styles.sumRow}>
+                <span>Subtotal</span>
+                <span>{money(total)}</span>
+              </div>
+              <div className={`${styles.sumRow} ${styles.sumDiscount}`}>
+                <span>Discount ({coupon.code})</span>
+                <span>−{money(discount)}</span>
+              </div>
+            </>
+          )}
           <div className={`${styles.sumRow} ${styles.sumTotal}`}>
             <span>Total</span>
-            <span>{money(total)}</span>
+            <span>{money(payable)}</span>
           </div>
         </aside>
       </div>

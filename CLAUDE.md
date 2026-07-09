@@ -65,6 +65,8 @@ frontend/
 - **File uploads:** Slip images can be uploaded during order creation (multipart form) or separately via `POST /api/orders/:id/slip`. Stored in `backend/uploads/`, served as static files at `/uploads/`. 10MB body limit. Filenames: `slip_{orderID}_{timestamp}{ext}`.
 - **Order creation:** `POST /api/orders` accepts both JSON and multipart form data. When using multipart, `customer_id`, `notes`, and `items` (JSON string) are form fields, with optional `slip` file attachment.
 - **Stock management:** Creating an order deducts stock atomically in a DB transaction. Deleting an order restores stock via `gorm.Expr("stock + ?", qty)`.
+- **Coupons:** Percent/fixed discount codes with min-order, start/expiry window, total + per-customer usage limits (`handlers/coupon.go`). Codes are matched case-insensitively (stored uppercase). Validation + quota claim happen inside the order-creation transaction (`applyCouponToOrder`); the total-usage limit is enforced with a guarded UPDATE so concurrent checkouts can't oversubscribe. Deleting an order releases the coupon usage (like stock). Orders store `subtotal`, `discount_amount`, and a `coupon_code` snapshot; legacy orders have `subtotal = 0` — readers fall back to `total_amount`. Client-side discounts are previews only; the server recomputes from DB prices. Coupon validation error messages are Thai (shown to shoppers as-is).
+- **Sale pages (funnels):** ClickFunnels-style landing pages built in the admin ("Sale Pages" menu) and rendered by the storefront at `/s/{slug}` (`app/s/[slug]`). Content is an ordered JSON `sections` array (hero, pain, story, showcase, offer stack, testimonials, guarantee, faq) whose field shapes are agreed between `SalePagesView.vue` and `SalePageClient.tsx` — the backend just stores them. Offer price and order-bump price override catalog prices and are resolved server-side in `POST /api/shop/sale-pages/:slug/order` (client prices are display-only). A countdown is a hard deadline: expired pages reject orders. Draft pages 404 publicly; `?preview=1` shows drafts and skips the view counter. Stats (views, orders_count, bump_count) update in the order transaction; orders carry `sale_page_id` for attribution.
 - **Default admin:** On first run, seeds `admin` / `admin123`.
 - **Frontend proxy:** Vite dev server proxies `/api` and `/uploads` to `http://localhost:8080`.
 - **Handler dependency injection:** Handlers receive config and services via constructor (e.g., `NewOrderHandler(cfg, telegramNotifier)`).
@@ -116,6 +118,19 @@ Both `OrdersView.vue` and `CustomersView.vue` generate 100mm x 150mm shipping la
 | GET/DELETE | `/api/orders/:id` | Yes | Get / Delete order |
 | PUT | `/api/orders/:id/status` | Yes | Update order status |
 | POST | `/api/orders/:id/slip` | Yes | Upload payment slip |
+| GET/POST | `/api/coupons` | Yes | List / Create coupon |
+| POST | `/api/coupons/validate` | Yes | Preview a coupon against a cart (admin order form) |
+| GET/PUT/DELETE | `/api/coupons/:id` | Yes | Get / Update / Delete coupon |
+| POST | `/api/coupons/:id/toggle` | Yes | Pause/resume coupon |
+| GET | `/api/coupons/:id/redemptions` | Yes | Coupon usage history |
+| POST | `/api/shop/coupons/validate` | No | Storefront coupon preview (code + subtotal + phone) |
+| GET/POST | `/api/sale-pages` | Yes | List / Create sale page |
+| POST | `/api/sale-pages/upload` | Yes | Upload a section image, returns `{url}` |
+| GET/PUT/DELETE | `/api/sale-pages/:id` | Yes | Get / Update / Delete sale page |
+| POST | `/api/sale-pages/:id/toggle` | Yes | Publish/unpublish |
+| POST | `/api/sale-pages/:id/duplicate` | Yes | Clone page as draft (`-copy` slug) |
+| GET | `/api/shop/sale-pages/:slug` | No | Public page data (counts a view; `?preview=1` shows drafts, no count) |
+| POST | `/api/shop/sale-pages/:slug/order` | No | Place order from sale page (multipart, slip required, bump + coupon) |
 | POST | `/api/daily-summary` | Yes | Manually trigger daily Telegram summary |
 
 ## Environment Variables

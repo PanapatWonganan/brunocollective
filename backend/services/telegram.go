@@ -49,10 +49,28 @@ func (t *TelegramNotifier) NotifyNewOrder(order *models.Order) {
 	stock := getStockSummary(order.Items)
 	today := getTodaySummary()
 
+	coupon := ""
+	if order.CouponCode != "" {
+		coupon = fmt.Sprintf("\U0001F39F Coupon: %s (-%.2f THB)\n",
+			html.EscapeString(order.CouponCode), order.DiscountAmount)
+	}
+
+	// Mark orders that came through a sale/landing page so campaign
+	// performance is visible right in the notification.
+	source := ""
+	if order.SalePageID != nil {
+		var page models.SalePage
+		if err := database.DB.First(&page, *order.SalePageID).Error; err == nil {
+			source = fmt.Sprintf("\U0001F680 Sale Page: %s (/s/%s)\n",
+				html.EscapeString(page.Title), html.EscapeString(page.Slug))
+		}
+	}
+
 	msg := fmt.Sprintf(""+
 		"\U0001F4E6 <b>New Order #%d</b>\n"+
 		"-------------------------------\n"+
 		"Customer: %s\n"+
+		"%s%s"+
 		"Total: %.2f THB\n"+
 		"Items:\n%s\n"+
 		"-------------------------------\n"+
@@ -61,6 +79,8 @@ func (t *TelegramNotifier) NotifyNewOrder(order *models.Order) {
 		"%s",
 		order.ID,
 		html.EscapeString(order.Customer.Name),
+		source,
+		coupon,
 		order.TotalAmount,
 		items,
 		stock,

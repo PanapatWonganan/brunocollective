@@ -13,10 +13,22 @@ const (
 )
 
 type Order struct {
-	ID          uint        `json:"id" gorm:"primaryKey"`
-	CustomerID  uint        `json:"customer_id" gorm:"not null"`
-	Customer    Customer    `json:"customer" gorm:"foreignKey:CustomerID"`
-	Status      OrderStatus `json:"status" gorm:"default:pending"`
+	ID         uint        `json:"id" gorm:"primaryKey"`
+	CustomerID uint        `json:"customer_id" gorm:"not null"`
+	Customer   Customer    `json:"customer" gorm:"foreignKey:CustomerID"`
+	Status     OrderStatus `json:"status" gorm:"default:pending"`
+	// Subtotal is the item total before discount; TotalAmount is the amount the
+	// customer pays (Subtotal - DiscountAmount). Legacy pre-coupon orders have
+	// Subtotal 0 — readers should fall back to TotalAmount when Subtotal is 0.
+	Subtotal       float64 `json:"subtotal"`
+	DiscountAmount float64 `json:"discount_amount"`
+	// CouponCode is snapshotted so the order keeps showing the code even if the
+	// coupon is later edited or deleted.
+	CouponID   *uint  `json:"coupon_id"`
+	CouponCode string `json:"coupon_code"`
+	// SalePageID marks orders placed through a sale/landing page (/s/{slug})
+	// so per-campaign conversion can be tracked. Nil for normal orders.
+	SalePageID  *uint       `json:"sale_page_id"`
 	TotalAmount float64     `json:"total_amount"`
 	SlipImage   string      `json:"slip_image"`
 	Notes       string      `json:"notes"`
@@ -43,6 +55,7 @@ type OrderItem struct {
 type CreateOrderRequest struct {
 	CustomerID uint              `json:"customer_id"`
 	Notes      string            `json:"notes"`
+	CouponCode string            `json:"coupon_code"`
 	Items      []CreateOrderItem `json:"items"`
 }
 

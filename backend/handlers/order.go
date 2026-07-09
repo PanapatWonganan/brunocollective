@@ -44,9 +44,11 @@ func (h *OrderHandler) List(c *fiber.Ctx) error {
 
 // ExportCSV returns orders within a date range as a CSV file for accounting.
 // One row per order. Query params:
-//   from, to            — inclusive date range, YYYY-MM-DD (server local time).
-//                         Defaults: from = start of current month, to = today.
-//   include_cancelled=1 — include cancelled orders (excluded by default).
+//
+//	from, to            — inclusive date range, YYYY-MM-DD (server local time).
+//	                      Defaults: from = start of current month, to = today.
+//	include_cancelled=1 — include cancelled orders (excluded by default).
+//
 // The file is UTF-8 with a BOM so Excel renders Thai text correctly.
 func (h *OrderHandler) ExportCSV(c *fiber.Ctx) error {
 	loc := time.Now().Location()
@@ -88,7 +90,8 @@ func (h *OrderHandler) ExportCSV(c *fiber.Ctx) error {
 	w := csv.NewWriter(&buf)
 	w.Write([]string{
 		"Order No", "Date", "Time", "Receipt No", "Customer", "Phone",
-		"Address", "Tax ID", "Items", "Item Count", "Status", "Total (THB)",
+		"Address", "Tax ID", "Items", "Item Count", "Status",
+		"Subtotal (THB)", "Coupon", "Discount (THB)", "Total (THB)",
 	})
 
 	// Map order -> receipt number (orders without a receipt show blank).
@@ -116,6 +119,12 @@ func (h *OrderHandler) ExportCSV(c *fiber.Ctx) error {
 			itemCount += it.Quantity
 		}
 
+		// Legacy pre-coupon orders have Subtotal 0 — fall back to the total.
+		subtotal := o.Subtotal
+		if subtotal == 0 {
+			subtotal = o.TotalAmount
+		}
+
 		w.Write([]string{
 			strconv.FormatUint(uint64(o.ID), 10),
 			o.CreatedAt.In(loc).Format("2006-01-02"),
@@ -128,6 +137,9 @@ func (h *OrderHandler) ExportCSV(c *fiber.Ctx) error {
 			strings.Join(parts, "; "),
 			strconv.Itoa(itemCount),
 			string(o.Status),
+			strconv.FormatFloat(subtotal, 'f', 2, 64),
+			o.CouponCode,
+			strconv.FormatFloat(o.DiscountAmount, 'f', 2, 64),
 			strconv.FormatFloat(o.TotalAmount, 'f', 2, 64),
 		})
 	}
@@ -166,6 +178,7 @@ func (h *OrderHandler) Create(c *fiber.Ctx) error {
 		customerID, _ := strconv.Atoi(c.FormValue("customer_id"))
 		req.CustomerID = uint(customerID)
 		req.Notes = c.FormValue("notes")
+		req.CouponCode = c.FormValue("coupon_code")
 		itemsJSON := c.FormValue("items")
 		if itemsJSON != "" {
 			json.Unmarshal([]byte(itemsJSON), &req.Items)
@@ -205,7 +218,7 @@ func (h *OrderHandler) Create(c *fiber.Ctx) error {
 		var items []models.OrderItem
 
 		for _, item := range req.Items {
-			orderItem, price, err := buildOrderItem(tx, item)
+			orderItem, price, err := buildOrderItem(tx, item, nil)
 			if err != nil {
 				return err
 			}
@@ -216,13 +229,19 @@ func (h *OrderHandler) Create(c *fiber.Ctx) error {
 		order = models.Order{
 			CustomerID:  req.CustomerID,
 			Status:      models.StatusPending,
+			Subtotal:    totalAmount,
 			TotalAmount: totalAmount,
 			Notes:       req.Notes,
 			SlipImage:   slipFilename,
 			Items:       items,
 		}
 
-		return tx.Create(&order).Error
+		if err := tx.Create(&order).Error; err != nil {
+			return err
+		}
+		// Apply the coupon (no-op when no code) — validates, claims a usage
+		// slot atomically, and stamps the discount onto the order.
+		return applyCouponToOrder(tx, &order, req.CouponCode, totalAmount)
 	})
 
 	if err != nil {
@@ -256,8 +275,10 @@ func fileRename(oldPath, newPath string) error {
 // variant when VariantID is set, else from the legacy Product.Stock), and
 // returns the OrderItem with a size/color snapshot plus the unit price. It runs
 // inside the caller's transaction so a later failure rolls back the deduction.
-// Shared by the admin order handler and the public storefront checkout.
-func buildOrderItem(tx *gorm.DB, item models.CreateOrderItem) (models.OrderItem, float64, error) {
+// Shared by the admin order handler, the public storefront checkout, and sale
+// pages. priceOverride replaces the catalog price (sale-page offer/bump
+// pricing) — pass nil to sell at the product's normal price.
+func buildOrderItem(tx *gorm.DB, item models.CreateOrderItem, priceOverride *float64) (models.OrderItem, float64, error) {
 	if item.Quantity <= 0 {
 		return models.OrderItem{}, 0, fiber.NewError(fiber.StatusBadRequest, "quantity must be positive")
 	}
@@ -267,10 +288,15 @@ func buildOrderItem(tx *gorm.DB, item models.CreateOrderItem) (models.OrderItem,
 		return models.OrderItem{}, 0, fiber.NewError(fiber.StatusBadRequest, fmt.Sprintf("product %d not found", item.ProductID))
 	}
 
+	price := product.Price
+	if priceOverride != nil {
+		price = *priceOverride
+	}
+
 	orderItem := models.OrderItem{
 		ProductID: item.ProductID,
 		Quantity:  item.Quantity,
-		Price:     product.Price,
+		Price:     price,
 	}
 
 	if item.VariantID != nil {
@@ -299,7 +325,7 @@ func buildOrderItem(tx *gorm.DB, item models.CreateOrderItem) (models.OrderItem,
 		orderItem.Size = product.Size
 	}
 
-	return orderItem, product.Price, nil
+	return orderItem, price, nil
 }
 
 func (h *OrderHandler) UpdateStatus(c *fiber.Ctx) error {
@@ -381,6 +407,10 @@ func (h *OrderHandler) Delete(c *fiber.Ctx) error {
 			}
 		}
 		tx.Where("order_id = ?", id).Delete(&models.OrderItem{})
+		// Return the coupon usage too, mirroring the stock restoration.
+		if err := releaseCouponForOrder(tx, uint(id)); err != nil {
+			return err
+		}
 		return tx.Delete(&models.Order{}, id).Error
 	})
 

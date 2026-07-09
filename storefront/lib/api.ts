@@ -1,4 +1,4 @@
-import type { Product, CheckoutPayload } from "./types";
+import type { Product, CheckoutPayload, CouponPreview, SalePage } from "./types";
 
 // On the server we hit the backend directly; in the browser we use same-origin
 // paths that Next rewrites (see next.config.ts) to the backend.
@@ -73,6 +73,7 @@ export async function checkout(
   form.set("address", payload.address);
   if (payload.email) form.set("email", payload.email);
   if (payload.notes) form.set("notes", payload.notes);
+  if (payload.coupon_code) form.set("coupon_code", payload.coupon_code);
   form.set("items", JSON.stringify(payload.items));
   form.set("slip", slip);
 
@@ -83,4 +84,93 @@ export async function checkout(
     return { ok: false, error: data?.error || "Order failed" };
   }
   return { ok: true, orderId: data?.id };
+}
+
+// Sale/landing page for /s/{slug}. Fetched fresh every request — countdowns
+// and draft previews must not be cached. Preview mode shows drafts and skips
+// the view counter.
+export async function getSalePage(
+  slug: string,
+  preview = false
+): Promise<SalePage | null> {
+  const res = await fetch(
+    `${BASE}/api/shop/sale-pages/${encodeURIComponent(slug)}${preview ? "?preview=1" : ""}`,
+    { cache: "no-store" }
+  );
+  if (!res.ok) return null;
+  return res.json();
+}
+
+export interface SalePageOrderPayload {
+  name: string;
+  phone: string;
+  email?: string;
+  address: string;
+  notes?: string;
+  quantity: number;
+  variantId: number | null;
+  bump: boolean;
+  bumpVariantId: number | null;
+  couponCode?: string;
+}
+
+// Places an order from a sale page. Multipart so the payment slip attaches;
+// the backend prices the items from the page config, never from the client.
+export async function salePageOrder(
+  slug: string,
+  payload: SalePageOrderPayload,
+  slip: File
+): Promise<CheckoutResult> {
+  const form = new FormData();
+  form.set("name", payload.name);
+  form.set("phone", payload.phone);
+  form.set("address", payload.address);
+  if (payload.email) form.set("email", payload.email);
+  if (payload.notes) form.set("notes", payload.notes);
+  form.set("quantity", String(payload.quantity));
+  if (payload.variantId) form.set("variant_id", String(payload.variantId));
+  if (payload.bump) form.set("bump", "1");
+  if (payload.bumpVariantId) form.set("bump_variant_id", String(payload.bumpVariantId));
+  if (payload.couponCode) form.set("coupon_code", payload.couponCode);
+  form.set("slip", slip);
+
+  const res = await fetch(`/api/shop/sale-pages/${encodeURIComponent(slug)}/order`, {
+    method: "POST",
+    body: form,
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    return { ok: false, error: data?.error || "สั่งซื้อไม่สำเร็จ กรุณาลองใหม่" };
+  }
+  return { ok: true, orderId: data?.id };
+}
+
+export interface CouponCheckResult {
+  ok: boolean;
+  coupon?: CouponPreview;
+  error?: string;
+}
+
+// Previews a coupon against the current cart subtotal. The backend rechecks
+// everything at checkout, so this is purely for immediate shopper feedback.
+// Errors come back in Thai, written for shoppers — show them as-is.
+export async function validateCoupon(
+  code: string,
+  subtotal: number,
+  phone?: string
+): Promise<CouponCheckResult> {
+  try {
+    const res = await fetch(`/api/shop/coupons/validate`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ code, subtotal, phone: phone || "" }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      return { ok: false, error: data?.error || "ใช้โค้ดไม่สำเร็จ กรุณาลองใหม่" };
+    }
+    return { ok: true, coupon: data };
+  } catch {
+    return { ok: false, error: "ใช้โค้ดไม่สำเร็จ กรุณาลองใหม่" };
+  }
 }

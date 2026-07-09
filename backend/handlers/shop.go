@@ -86,12 +86,13 @@ func (h *ShopHandler) SiteImages(c *fiber.Ctx) error {
 
 // ShopCheckoutRequest is the public order payload posted from the storefront.
 type ShopCheckoutRequest struct {
-	Name    string                   `json:"name"`
-	Phone   string                   `json:"phone"`
-	Email   string                   `json:"email"`
-	Address string                   `json:"address"`
-	Notes   string                   `json:"notes"`
-	Items   []models.CreateOrderItem `json:"items"`
+	Name       string                   `json:"name"`
+	Phone      string                   `json:"phone"`
+	Email      string                   `json:"email"`
+	Address    string                   `json:"address"`
+	Notes      string                   `json:"notes"`
+	CouponCode string                   `json:"coupon_code"`
+	Items      []models.CreateOrderItem `json:"items"`
 }
 
 // Checkout creates an order from the public storefront. It finds or creates a
@@ -109,6 +110,7 @@ func (h *ShopHandler) Checkout(c *fiber.Ctx) error {
 		req.Email = c.FormValue("email")
 		req.Address = c.FormValue("address")
 		req.Notes = c.FormValue("notes")
+		req.CouponCode = c.FormValue("coupon_code")
 		if itemsJSON := c.FormValue("items"); itemsJSON != "" {
 			json.Unmarshal([]byte(itemsJSON), &req.Items)
 		}
@@ -148,35 +150,16 @@ func (h *ShopHandler) Checkout(c *fiber.Ctx) error {
 
 	var order models.Order
 	err := database.DB.Transaction(func(tx *gorm.DB) error {
-		// Find or create the customer by phone.
-		var customer models.Customer
-		if err := tx.Where("phone = ?", req.Phone).First(&customer).Error; err != nil {
-			if err != gorm.ErrRecordNotFound {
-				return err
-			}
-			customer = models.Customer{
-				Name:    req.Name,
-				Phone:   req.Phone,
-				Email:   req.Email,
-				Address: req.Address,
-			}
-			if err := tx.Create(&customer).Error; err != nil {
-				return err
-			}
-		} else {
-			// Keep the customer's contact details fresh from the latest order.
-			tx.Model(&customer).Updates(models.Customer{
-				Name:    req.Name,
-				Email:   req.Email,
-				Address: req.Address,
-			})
+		customer, err := findOrCreateCustomerByPhone(tx, req.Name, req.Phone, req.Email, req.Address)
+		if err != nil {
+			return err
 		}
 
 		var totalAmount float64
 		var items []models.OrderItem
 
 		for _, item := range req.Items {
-			orderItem, price, err := buildOrderItem(tx, item)
+			orderItem, price, err := buildOrderItem(tx, item, nil)
 			if err != nil {
 				return err
 			}
@@ -187,12 +170,19 @@ func (h *ShopHandler) Checkout(c *fiber.Ctx) error {
 		order = models.Order{
 			CustomerID:  customer.ID,
 			Status:      models.StatusPending,
+			Subtotal:    totalAmount,
 			TotalAmount: totalAmount,
 			Notes:       req.Notes,
 			SlipImage:   slipFilename,
 			Items:       items,
 		}
-		return tx.Create(&order).Error
+		if err := tx.Create(&order).Error; err != nil {
+			return err
+		}
+		// Validate + claim the coupon inside the same transaction so the
+		// usage quota can't be oversubscribed by concurrent checkouts. A
+		// failed coupon rolls back the whole order (stock included).
+		return applyCouponToOrder(tx, &order, req.CouponCode, totalAmount)
 	})
 
 	if err != nil {
@@ -223,4 +213,29 @@ func (h *ShopHandler) Checkout(c *fiber.Ctx) error {
 	h.Telegram.NotifyNewOrder(&order)
 
 	return c.Status(fiber.StatusCreated).JSON(order)
+}
+
+// findOrCreateCustomerByPhone matches an existing customer by phone or creates
+// a new one, refreshing the contact details from the latest order. Runs inside
+// the caller's transaction. Shared by the storefront checkout and sale pages.
+func findOrCreateCustomerByPhone(tx *gorm.DB, name, phone, email, address string) (models.Customer, error) {
+	var customer models.Customer
+	if err := tx.Where("phone = ?", phone).First(&customer).Error; err != nil {
+		if err != gorm.ErrRecordNotFound {
+			return customer, err
+		}
+		customer = models.Customer{
+			Name:    name,
+			Phone:   phone,
+			Email:   email,
+			Address: address,
+		}
+		return customer, tx.Create(&customer).Error
+	}
+	// Keep the customer's contact details fresh from the latest order.
+	return customer, tx.Model(&customer).Updates(models.Customer{
+		Name:    name,
+		Email:   email,
+		Address: address,
+	}).Error
 }
