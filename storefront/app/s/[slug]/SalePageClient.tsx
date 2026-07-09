@@ -361,6 +361,14 @@ export default function SalePageClient({ page, isPreview }: Props) {
                         <span className={`${styles.bumpBox} ${bump ? styles.bumpBoxOn : ""}`}>
                           {bump ? "✓" : ""}
                         </span>
+                        {bumpProduct.image_url && (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
+                            className={styles.bumpThumb}
+                            src={imageSrc(bumpProduct.image_url)}
+                            alt={bumpProduct.name}
+                          />
+                        )}
                         <div className={styles.bumpText}>
                           <div className={styles.bumpHead}>
                             ✦ {page.bump_headline || `เพิ่ม ${bumpProduct.name} ในราคาพิเศษ`}
@@ -518,8 +526,16 @@ interface SectionProps {
 function Section({ section, page, unitPrice, catalogPrice, hasDiscountedOffer, countdown, onCta }: SectionProps) {
   const d = section.data || {};
 
+  // Sections fall back to the product's own images when none are configured,
+  // so a freshly built page is never a wall of text.
+  const productImages: string[] = [
+    ...(page.product.image_url ? [page.product.image_url] : []),
+    ...(page.product.images || []),
+  ].filter((v, i, a) => v && a.indexOf(v) === i);
+
   switch (section.type) {
-    case "hero":
+    case "hero": {
+      const heroImage = d.image_url || productImages[0] || "";
       return (
         <section className={styles.hero}>
           <div className={`wrap ${styles.heroInner}`}>
@@ -542,13 +558,14 @@ function Section({ section, page, unitPrice, catalogPrice, hasDiscountedOffer, c
             <button type="button" className={styles.heroCta} onClick={onCta}>
               {d.cta_text || "สั่งซื้อตอนนี้"} <span className="arrow">→</span>
             </button>
-            {d.image_url && (
+            {heroImage && (
               // eslint-disable-next-line @next/next/no-img-element
-              <img className={styles.heroImage} src={imageSrc(d.image_url)} alt={d.headline || page.product.name} />
+              <img className={styles.heroImage} src={imageSrc(heroImage)} alt={d.headline || page.product.name} />
             )}
           </div>
         </section>
       );
+    }
 
     case "pain": {
       const items: string[] = (d.items || []).filter((x: string) => x && x.trim());
@@ -587,7 +604,8 @@ function Section({ section, page, unitPrice, catalogPrice, hasDiscountedOffer, c
     }
 
     case "showcase": {
-      const images: string[] = (d.images || []).filter((x: string) => x && x.trim());
+      let images: string[] = (d.images || []).filter((x: string) => x && x.trim());
+      if (!images.length) images = productImages;
       if (!images.length) return null;
       return (
         <section className={styles.block}>

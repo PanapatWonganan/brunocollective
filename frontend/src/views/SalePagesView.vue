@@ -186,9 +186,11 @@
 
             <!-- ============ SECTIONS TAB ============ -->
             <v-window-item value="sections">
-              <div class="text-caption text-medium-emphasis my-3">
-                Toggle blocks on/off and reorder them. The order form is always at the bottom of the page.
-              </div>
+              <v-alert type="info" variant="tonal" density="compact" class="my-3">
+                เปิดสวิตช์ท้ายแถวเพื่อใช้บล็อกนั้น แล้วกดแถวเพื่อกรอกเนื้อหา — เช่น อยากใส่รีวิวลูกค้า ให้เปิด
+                <strong>Social Proof — testimonials</strong> · ถ้าไม่ใส่รูปเอง ระบบจะดึงรูปสินค้ามาแสดงให้อัตโนมัติ
+                · ฟอร์มสั่งซื้ออยู่ท้ายเพจเสมอ
+              </v-alert>
               <v-expansion-panels variant="accordion" class="mb-3">
                 <v-expansion-panel v-for="(section, i) in form.sections" :key="section.type">
                   <v-expansion-panel-title>
@@ -214,7 +216,7 @@
                       <v-textarea v-model="section.data.headline" label="Headline" rows="2"
                         placeholder="เสื้อที่คุณจะใส่ไปอีกสิบปี" />
                       <v-textarea v-model="section.data.subheadline" label="Sub-headline" rows="2" />
-                      <image-field v-model="section.data.image_url" label="Hero Image" @upload="uploadImage" />
+                      <image-field v-model="section.data.image_url" label="Hero Image" :suggestions="productImages" @upload="uploadImage" />
                       <v-text-field v-model="section.data.cta_text" label="CTA Button Text" placeholder="สั่งซื้อตอนนี้" />
                     </template>
 
@@ -234,14 +236,14 @@
                     <template v-else-if="section.type === 'story'">
                       <v-text-field v-model="section.data.title" label="Title" />
                       <v-textarea v-model="section.data.body" label="Story (blank line = new paragraph)" rows="5" />
-                      <image-field v-model="section.data.image_url" label="Story Image" @upload="uploadImage" />
+                      <image-field v-model="section.data.image_url" label="Story Image" :suggestions="productImages" @upload="uploadImage" />
                     </template>
 
                     <!-- SHOWCASE -->
                     <template v-else-if="section.type === 'showcase'">
                       <v-text-field v-model="section.data.title" label="Title" />
                       <div v-for="(_, j) in section.data.images" :key="j" class="d-flex align-center">
-                        <image-field v-model="section.data.images[j]" :label="`Image ${j + 1}`" class="flex-grow-1 mr-2" @upload="uploadImage" />
+                        <image-field v-model="section.data.images[j]" :label="`Image ${j + 1}`" :suggestions="productImages" class="flex-grow-1 mr-2" @upload="uploadImage" />
                         <v-btn icon="mdi-close" size="x-small" variant="text" color="error"
                           @click="section.data.images.splice(j, 1)" />
                       </div>
@@ -355,17 +357,23 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, defineComponent, h } from 'vue'
+import { ref, computed, watch, onMounted, defineComponent, h } from 'vue'
 import { useDisplay } from 'vuetify'
 import { VTextField } from 'vuetify/components/VTextField'
 import { VBtn } from 'vuetify/components/VBtn'
 import api from '@/services/api'
 
-// Small inline component: URL text field + upload button. Emits 'upload' with
-// (file, setUrl) so the parent owns the API call.
+// Small inline component: URL text field + upload button + clickable
+// thumbnails of the selected product's existing images ("suggestions"), so
+// pages can be built from photos already in the system without re-uploading.
+// Emits 'upload' with (file, setUrl) so the parent owns the API call.
 const ImageField = defineComponent({
   name: 'ImageField',
-  props: { modelValue: { type: String, default: '' }, label: { type: String, default: 'Image' } },
+  props: {
+    modelValue: { type: String, default: '' },
+    label: { type: String, default: 'Image' },
+    suggestions: { type: Array as () => string[], default: () => [] },
+  },
   emits: ['update:modelValue', 'upload'],
   setup(props, { emit }) {
     const uploading = ref(false)
@@ -385,22 +393,41 @@ const ImageField = defineComponent({
       input.click()
     }
     return () =>
-      h('div', { class: 'd-flex align-center mb-2' }, [
-        h(VTextField, {
-          modelValue: props.modelValue,
-          label: props.label,
-          placeholder: '/uploads/… or https://…',
-          hideDetails: true,
-          class: 'mr-2',
-          'onUpdate:modelValue': (v: string) => emit('update:modelValue', v),
-        }),
-        h(VBtn, {
-          class: 'text-none',
-          variant: 'tonal',
-          color: 'secondary',
-          loading: uploading.value,
-          onClick: pick,
-        }, () => 'Upload'),
+      h('div', { class: 'mb-2' }, [
+        h('div', { class: 'd-flex align-center' }, [
+          h(VTextField, {
+            modelValue: props.modelValue,
+            label: props.label,
+            placeholder: '/uploads/… or https://…',
+            hideDetails: true,
+            class: 'mr-2',
+            'onUpdate:modelValue': (v: string) => emit('update:modelValue', v),
+          }),
+          h(VBtn, {
+            class: 'text-none',
+            variant: 'tonal',
+            color: 'secondary',
+            loading: uploading.value,
+            onClick: pick,
+          }, () => 'Upload'),
+        ]),
+        props.suggestions.length
+          ? h('div', { class: 'd-flex align-center flex-wrap ga-2 mt-2' }, [
+              h('span', { class: 'text-caption text-medium-emphasis' }, 'รูปจากสินค้า:'),
+              ...props.suggestions.map((url) =>
+                h('img', {
+                  src: url,
+                  style: {
+                    width: '44px', height: '56px', objectFit: 'cover', cursor: 'pointer',
+                    borderRadius: '6px',
+                    border: props.modelValue === url ? '2px solid #C4A24D' : '1px solid rgba(0,0,0,.15)',
+                  },
+                  title: 'คลิกเพื่อใช้รูปนี้',
+                  onClick: () => emit('update:modelValue', url),
+                })
+              ),
+            ])
+          : null,
       ])
   },
 })
@@ -488,6 +515,31 @@ const countdownInput = computed({
 
 const selectedProduct = computed(() => products.value.find((p: any) => p.id === form.value.product_id))
 const bumpProduct = computed(() => products.value.find((p: any) => p.id === form.value.bump_product_id))
+
+// All images of the selected main product — offered as one-click suggestions
+// on every image field in the section editor.
+const productImages = computed<string[]>(() => {
+  const p = selectedProduct.value
+  if (!p) return []
+  return [...new Set([p.image_url, ...(p.images || [])].filter(Boolean))]
+})
+
+// When a product is picked, pre-fill empty image slots from its gallery so the
+// page has visuals immediately (the storefront falls back to product images
+// anyway — this makes the same thing visible in the editor).
+watch(() => form.value.product_id, () => {
+  const imgs = productImages.value
+  if (!imgs.length) return
+  for (const section of form.value.sections) {
+    if (section.type === 'hero' && !section.data.image_url) {
+      section.data.image_url = imgs[0]
+    }
+    if (section.type === 'showcase') {
+      const existing = (section.data.images || []).filter((x: string) => x && x.trim())
+      if (!existing.length) section.data.images = [...imgs]
+    }
+  }
+})
 
 function formatCurrency(n: number) {
   return new Intl.NumberFormat('th-TH', { style: 'currency', currency: 'THB', maximumFractionDigits: 0 }).format(n)

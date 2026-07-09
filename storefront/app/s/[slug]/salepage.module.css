@@ -227,6 +227,7 @@
   transition:background .25s var(--ease);
 }
 .bumpBoxOn{background:var(--champagne)}
+.bumpThumb{flex:none; width:64px; height:80px; object-fit:cover; border:1px solid var(--hairline-soft)}
 .bumpText{flex:1}
 .bumpHead{font-family:var(--serif); font-size:18px; line-height:1.35}
 .bumpDesc{font-size:13px; line-height:1.7; color:var(--ink-faint); margin-top:6px}
