@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
+import Reveal from "@/components/Reveal";
 import type { SalePage, SalePageSection, ProductVariant } from "@/lib/types";
 import type { CouponPreview } from "@/lib/types";
 import { salePageOrder, validateCoupon } from "@/lib/api";
@@ -33,10 +34,43 @@ function useCountdown(endsAt: string | null) {
 
 const pad2 = (n: number) => String(n).padStart(2, "0");
 
+// Italicise the final word of a headline — the site's signature serif-em
+// accent, applied automatically so the owner just types plain text.
+function emphasize(text: string) {
+  const words = text.trim().split(/\s+/);
+  if (words.length < 2) return <em>{text}</em>;
+  const last = words.pop();
+  return (
+    <>
+      {words.join(" ")} <em>{last}</em>
+    </>
+  );
+}
+
+// English kickers per section — the small editorial label above each title.
+const SECTION_KICKERS: Record<string, string> = {
+  pain: "The Problem",
+  story: "Our Story",
+  showcase: "The Details",
+  offer: "The Offer",
+  testimonials: "Loved by Customers",
+  guarantee: "Our Promise",
+  faq: "Questions",
+};
+
 export default function SalePageClient({ page, isPreview }: Props) {
   const product = page.product;
   const variants = (product.variants || []).filter(Boolean);
   const hasVariants = variants.length > 0;
+
+  const productImages: string[] = useMemo(
+    () =>
+      [
+        ...(product.image_url ? [product.image_url] : []),
+        ...(product.images || []),
+      ].filter((v, i, a) => v && a.indexOf(v) === i),
+    [product]
+  );
 
   const [variantId, setVariantId] = useState<number | null>(null);
   const [quantity, setQuantity] = useState(1);
@@ -51,6 +85,27 @@ export default function SalePageClient({ page, isPreview }: Props) {
   const [orderId, setOrderId] = useState<number | null>(null);
   const fileInput = useRef<HTMLInputElement>(null);
   const orderRef = useRef<HTMLDivElement>(null);
+
+  // Sticky buy bar: shown once the visitor scrolls past the hero, hidden again
+  // while the order form itself is on screen (no duplicate CTA).
+  const [pastHero, setPastHero] = useState(false);
+  const [orderVisible, setOrderVisible] = useState(false);
+  useEffect(() => {
+    const onScroll = () => setPastHero(window.scrollY > window.innerHeight * 0.6);
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+  useEffect(() => {
+    const el = orderRef.current;
+    if (!el) return;
+    const io = new IntersectionObserver(
+      (entries) => setOrderVisible(entries[0]?.isIntersecting ?? false),
+      { threshold: 0.05 }
+    );
+    io.observe(el);
+    return () => io.disconnect();
+  }, [orderId]);
 
   // Coupon
   const [couponCode, setCouponCode] = useState("");
@@ -209,6 +264,15 @@ export default function SalePageClient({ page, isPreview }: Props) {
   }
 
   const enabledSections = (page.sections || []).filter((s) => s.enabled);
+  const heroSection = enabledSections.find((s) => s.type === "hero");
+  const contentSections = enabledSections.filter((s) => s.type !== "hero");
+  const hasTestimonials = contentSections.some(
+    (s) => s.type === "testimonials" && (s.data?.items || []).some((x: any) => x?.quote?.trim())
+  );
+
+  const heroData = heroSection?.data || {};
+  const heroImage = heroData.image_url || productImages[0] || "";
+  const marqueeText = `${product.name} · Limited Release · Quietly Made in Khon Kaen · `;
 
   return (
     <main className={styles.page}>
@@ -218,15 +282,88 @@ export default function SalePageClient({ page, isPreview }: Props) {
         </div>
       )}
 
-      {enabledSections.map((section, i) => (
+      {/* ============ HERO — full-bleed editorial ============ */}
+      {heroSection && (
+        <section className={`${styles.hero} ${heroImage ? "" : styles.heroPlain}`}>
+          {heroImage && (
+            <div
+              className={styles.heroBg}
+              style={{ backgroundImage: `url('${imageSrc(heroImage)}')` }}
+              aria-hidden
+            />
+          )}
+          {heroImage && <div className={styles.heroScrim} aria-hidden />}
+          <div className={styles.heroInner}>
+            <Reveal as="span" className={`kicker ${styles.heroKicker}`}>
+              {heroData.kicker || "Limited Release"}
+            </Reveal>
+            <Reveal delay={2}>
+              <h1 className={`display ${styles.heroTitle}`}>
+                {emphasize(heroData.headline || product.name)}
+              </h1>
+            </Reveal>
+            {heroData.subheadline && (
+              <Reveal delay={3}>
+                <p className={styles.heroSub}>{heroData.subheadline}</p>
+              </Reveal>
+            )}
+            <Reveal delay={3}>
+              <div className={styles.heroPriceRow}>
+                {hasDiscountedOffer && (
+                  <span className={styles.heroPriceWas}>{money(catalogPrice)}</span>
+                )}
+                <span className={styles.heroPrice}>{money(unitPrice)}</span>
+                {hasDiscountedOffer && (
+                  <span className={styles.saveTag}>
+                    ประหยัด {money(catalogPrice - unitPrice)}
+                  </span>
+                )}
+              </div>
+            </Reveal>
+            {countdown.active && countdown.parts && (
+              <Reveal delay={4}>
+                <div className={styles.heroCountdown}>
+                  <span className={styles.countdownLabel}>ข้อเสนอสิ้นสุดใน</span>
+                  <span className={styles.countdownDigits}>
+                    {countdown.parts.d > 0 && `${countdown.parts.d} วัน `}
+                    {pad2(countdown.parts.h)}:{pad2(countdown.parts.m)}:{pad2(countdown.parts.s)}
+                  </span>
+                </div>
+              </Reveal>
+            )}
+            <Reveal delay={4}>
+              <button type="button" className={styles.heroCta} onClick={scrollToOrder}>
+                {heroData.cta_text || "สั่งซื้อตอนนี้"} <span className="arrow">→</span>
+              </button>
+            </Reveal>
+          </div>
+          <div className={styles.heroMeta}>
+            <span className="label">{heroData.kicker || "Limited Release"}</span>
+            <span className={styles.heroMetaBrand}>
+              <span className={`serif ${styles.heroMetaNum}`}>Bruno</span>
+              <span className="label">Collective</span>
+            </span>
+            <span className="label">Made in Khon Kaen · งานตัดเย็บมือ</span>
+          </div>
+        </section>
+      )}
+
+      {/* Marquee — the site's signature moving strip */}
+      <div className={styles.marquee} aria-hidden>
+        <div className={styles.marqueeTrack}>
+          <span>{marqueeText.repeat(4)}</span>
+          <span>{marqueeText.repeat(4)}</span>
+        </div>
+      </div>
+
+      {contentSections.map((section, i) => (
         <Section
           key={`${section.type}-${i}`}
           section={section}
           page={page}
+          index={i + 1}
           unitPrice={unitPrice}
-          catalogPrice={catalogPrice}
-          hasDiscountedOffer={hasDiscountedOffer}
-          countdown={countdown}
+          productImages={productImages}
           onCta={scrollToOrder}
         />
       ))}
@@ -235,8 +372,11 @@ export default function SalePageClient({ page, isPreview }: Props) {
       <section className={styles.orderSection} ref={orderRef} id="order">
         <div className={styles.orderInner}>
           <div className={styles.orderHead}>
-            <span className="kicker">Reserve Yours</span>
-            <h2 className={`display ${styles.orderTitle}`}>สั่งซื้อ {product.name}</h2>
+            <Reveal as="span" className="kicker">Reserve Yours</Reveal>
+            <Reveal delay={2}>
+              <h2 className={`display ${styles.orderTitle}`}>{emphasize(`สั่งซื้อ ${product.name}`)}</h2>
+            </Reveal>
+            {hasTestimonials && <div className={styles.stars} aria-label="5 stars">★★★★★</div>}
             <div className={styles.orderPrice}>
               {hasDiscountedOffer && (
                 <span className={styles.priceWas}>{money(catalogPrice)}</span>
@@ -357,6 +497,7 @@ export default function SalePageClient({ page, isPreview }: Props) {
                       className={`${styles.bump} ${bump ? styles.bumpOn : ""}`}
                       onClick={() => setBump(!bump)}
                     >
+                      <div className={styles.bumpTag}>ข้อเสนอพิเศษ — ครั้งเดียวเท่านั้น</div>
                       <div className={styles.bumpCheckRow}>
                         <span className={`${styles.bumpBox} ${bump ? styles.bumpBoxOn : ""}`}>
                           {bump ? "✓" : ""}
@@ -434,14 +575,20 @@ export default function SalePageClient({ page, isPreview }: Props) {
 
                   {/* Summary */}
                   <div className={styles.summaryBox}>
-                    <div className={styles.sumRow}>
-                      <span>
-                        {product.name}
-                        {selectedVariant &&
-                          ` (${[selectedVariant.size, selectedVariant.color].filter(Boolean).join(" / ")})`}
-                        {" "}× {quantity}
-                      </span>
-                      <span>{money(mainTotal)}</span>
+                    <div className={styles.sumItemRow}>
+                      {productImages[0] && (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img className={styles.sumThumb} src={imageSrc(productImages[0])} alt={product.name} />
+                      )}
+                      <div className={styles.sumItemBody}>
+                        <div className={styles.sumItemName}>{product.name}</div>
+                        <div className={styles.sumItemMeta}>
+                          {selectedVariant &&
+                            `${[selectedVariant.size, selectedVariant.color].filter(Boolean).join(" / ")} · `}
+                          จำนวน {quantity}
+                        </div>
+                      </div>
+                      <span className={styles.sumItemPrice}>{money(mainTotal)}</span>
                     </div>
                     {bump && page.bump_enabled && bumpProduct && (
                       <div className={styles.sumRow}>
@@ -503,82 +650,95 @@ export default function SalePageClient({ page, isPreview }: Props) {
                   </p>
                 </div>
               )}
+
+              {/* Trust strip — quiet reassurance under the form */}
+              <div className={styles.trust}>
+                <span>✦ ชำระตรงเข้าบัญชีบริษัท</span>
+                <span>✦ ทีมงานยืนยันออเดอร์ทุกวัน</span>
+                <span>✦ จัดส่งทั่วประเทศ</span>
+              </div>
             </form>
           )}
         </div>
       </section>
+
+      {/* ============ STICKY BUY BAR ============ */}
+      {!offerEnded && (
+        <div
+          className={`${styles.stickyBar} ${pastHero && !orderVisible ? styles.stickyBarOn : ""}`}
+          aria-hidden={!(pastHero && !orderVisible)}
+        >
+          {productImages[0] && (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img className={styles.stickyThumb} src={imageSrc(productImages[0])} alt="" />
+          )}
+          <div className={styles.stickyInfo}>
+            <span className={styles.stickyName}>{product.name}</span>
+            <span className={styles.stickyPrice}>
+              {hasDiscountedOffer && <s>{money(catalogPrice)}</s>} {money(unitPrice)}
+              {countdown.active && countdown.parts && (
+                <span className={styles.stickyTimer}>
+                  · เหลือ {countdown.parts.d > 0 ? `${countdown.parts.d} วัน ` : ""}
+                  {pad2(countdown.parts.h)}:{pad2(countdown.parts.m)}:{pad2(countdown.parts.s)}
+                </span>
+              )}
+            </span>
+          </div>
+          <button type="button" className={styles.stickyCta} onClick={scrollToOrder}>
+            สั่งซื้อ <span className="arrow">→</span>
+          </button>
+        </div>
+      )}
     </main>
   );
 }
 
-// ---- Section renderer ----
+// ---- Section renderer (numbered editorial blocks) ----
 
 interface SectionProps {
   section: SalePageSection;
   page: SalePage;
+  index: number;
   unitPrice: number;
-  catalogPrice: number;
-  hasDiscountedOffer: boolean;
-  countdown: ReturnType<typeof useCountdown>;
+  productImages: string[];
   onCta: () => void;
 }
 
-function Section({ section, page, unitPrice, catalogPrice, hasDiscountedOffer, countdown, onCta }: SectionProps) {
-  const d = section.data || {};
+// Shared numbered section header — mirrors the landing page's `.sec-head`.
+function SecHead({ index, kicker, title }: { index: number; kicker: string; title: string }) {
+  return (
+    <div className="sec-head">
+      <Reveal as="span" className="num">{pad2(index)}</Reveal>
+      <div className="right">
+        <Reveal>
+          <span className="kicker">{kicker}</span>
+          <h2>{emphasize(title)}</h2>
+        </Reveal>
+      </div>
+    </div>
+  );
+}
 
-  // Sections fall back to the product's own images when none are configured,
-  // so a freshly built page is never a wall of text.
-  const productImages: string[] = [
-    ...(page.product.image_url ? [page.product.image_url] : []),
-    ...(page.product.images || []),
-  ].filter((v, i, a) => v && a.indexOf(v) === i);
+function Section({ section, page, index, unitPrice, productImages, onCta }: SectionProps) {
+  const d = section.data || {};
+  const kicker = SECTION_KICKERS[section.type] || "";
 
   switch (section.type) {
-    case "hero": {
-      const heroImage = d.image_url || productImages[0] || "";
-      return (
-        <section className={styles.hero}>
-          <div className={`wrap ${styles.heroInner}`}>
-            <span className="kicker">{d.kicker || "Limited Release"}</span>
-            <h1 className={`display ${styles.heroTitle}`}>{d.headline || page.product.name}</h1>
-            {d.subheadline && <p className={styles.heroSub}>{d.subheadline}</p>}
-            <div className={styles.heroPriceRow}>
-              {hasDiscountedOffer && <span className={styles.priceWas}>{money(catalogPrice)}</span>}
-              <span className={styles.heroPrice}>{money(unitPrice)}</span>
-            </div>
-            {countdown.active && countdown.parts && (
-              <div className={styles.countdownRow}>
-                <span className={styles.countdownLabel}>ข้อเสนอสิ้นสุดใน</span>
-                <span className={styles.countdownDigits}>
-                  {countdown.parts.d > 0 && `${countdown.parts.d} วัน `}
-                  {pad2(countdown.parts.h)}:{pad2(countdown.parts.m)}:{pad2(countdown.parts.s)}
-                </span>
-              </div>
-            )}
-            <button type="button" className={styles.heroCta} onClick={onCta}>
-              {d.cta_text || "สั่งซื้อตอนนี้"} <span className="arrow">→</span>
-            </button>
-            {heroImage && (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img className={styles.heroImage} src={imageSrc(heroImage)} alt={d.headline || page.product.name} />
-            )}
-          </div>
-        </section>
-      );
-    }
-
     case "pain": {
       const items: string[] = (d.items || []).filter((x: string) => x && x.trim());
       if (!items.length) return null;
       return (
         <section className={styles.block}>
-          <div className={`wrap ${styles.narrow}`}>
-            {d.title && <h2 className={`display ${styles.blockTitle}`}>{d.title}</h2>}
-            <ul className={styles.painList}>
+          <div className="wrap">
+            <SecHead index={index} kicker={kicker} title={d.title || "คุณเคยเจอแบบนี้ไหม?"} />
+            <div className={styles.painGrid}>
               {items.map((item, i) => (
-                <li key={i}><span className={styles.painMark}>✦</span>{item}</li>
+                <Reveal key={i} delay={(Math.min(i, 2) + 2) as 2 | 3 | 4} className={styles.painCard}>
+                  <span className={styles.painNum}>{pad2(i + 1)}</span>
+                  <p>{item}</p>
+                </Reveal>
               ))}
-            </ul>
+            </div>
           </div>
         </section>
       );
@@ -586,17 +746,29 @@ function Section({ section, page, unitPrice, catalogPrice, hasDiscountedOffer, c
 
     case "story": {
       const paragraphs = String(d.body || "").split(/\n\s*\n/).filter((p: string) => p.trim());
-      if (!paragraphs.length && !d.image_url) return null;
+      const img = d.image_url || productImages[1] || productImages[0];
+      if (!paragraphs.length && !img) return null;
       return (
         <section className={`${styles.block} ${styles.blockIvory}`}>
-          <div className={`wrap ${styles.storyGrid}`}>
-            {d.image_url && (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img className={styles.storyImage} src={imageSrc(d.image_url)} alt={d.title || "Story"} />
-            )}
-            <div className={styles.storyText}>
-              {d.title && <h2 className={`display ${styles.blockTitle}`}>{d.title}</h2>}
-              {paragraphs.map((p: string, i: number) => <p key={i}>{p}</p>)}
+          <div className="wrap">
+            <SecHead index={index} kicker={kicker} title={d.title || "เรื่องราวของเรา"} />
+            <div className={styles.storyGrid}>
+              {img && (
+                <Reveal as="figure" className={styles.storyFigure}>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img className={styles.storyImage} src={imageSrc(img)} alt={d.title || "Story"} />
+                  <figcaption className="label label--quiet">Bruno Collective — Atelier</figcaption>
+                </Reveal>
+              )}
+              <div className={styles.storyText}>
+                {paragraphs.map((p: string, i: number) =>
+                  i === 0 ? (
+                    <Reveal as="p" key={i} className={styles.storyLead}>{p}</Reveal>
+                  ) : (
+                    <Reveal as="p" key={i} delay={2}>{p}</Reveal>
+                  )
+                )}
+              </div>
             </div>
           </div>
         </section>
@@ -610,11 +782,18 @@ function Section({ section, page, unitPrice, catalogPrice, hasDiscountedOffer, c
       return (
         <section className={styles.block}>
           <div className="wrap">
-            {d.title && <h2 className={`display ${styles.blockTitle} ${styles.centered}`}>{d.title}</h2>}
+            <SecHead index={index} kicker={kicker} title={d.title || "รายละเอียดที่มองเห็นได้"} />
             <div className={styles.showcaseGrid}>
               {images.map((img, i) => (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img key={i} className={styles.showcaseImage} src={imageSrc(img)} alt={`${page.product.name} ${i + 1}`} />
+                <Reveal
+                  key={i}
+                  as="figure"
+                  delay={((i % 3) + 2) as 2 | 3 | 4}
+                  className={`${styles.showcaseItem} ${i % 3 === 0 ? styles.showcaseTall : ""}`}
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img className={styles.showcaseImage} src={imageSrc(img)} alt={`${page.product.name} ${i + 1}`} />
+                </Reveal>
               ))}
             </div>
             {d.caption && <p className={styles.showcaseCaption}>{d.caption}</p>}
@@ -631,31 +810,33 @@ function Section({ section, page, unitPrice, catalogPrice, hasDiscountedOffer, c
       const totalValue = items.reduce((sum, x) => sum + (Number(x.value) || 0), 0);
       return (
         <section className={`${styles.block} ${styles.blockIvory}`}>
-          <div className={`wrap ${styles.narrow}`}>
-            <h2 className={`display ${styles.blockTitle} ${styles.centered}`}>{d.title || "สิ่งที่คุณจะได้รับ"}</h2>
-            <div className={styles.offerBox}>
-              {items.map((item, i) => (
-                <div key={i} className={styles.offerRow}>
-                  <span className={styles.offerName}>✦ {item.name}</span>
-                  {Number(item.value) > 0 && (
-                    <span className={styles.offerValue}>มูลค่า {money(Number(item.value))}</span>
+          <div className="wrap">
+            <SecHead index={index} kicker={kicker} title={d.title || "สิ่งที่คุณจะได้รับ"} />
+            <div className={styles.offerWrap}>
+              <Reveal className={styles.offerBox}>
+                <div className={styles.offerSeal} aria-hidden>✦</div>
+                {items.map((item, i) => (
+                  <div key={i} className={styles.offerRow}>
+                    <span className={styles.offerCheck}>✓</span>
+                    <span className={styles.offerName}>{item.name}</span>
+                    {Number(item.value) > 0 && (
+                      <span className={styles.offerValue}>มูลค่า {money(Number(item.value))}</span>
+                    )}
+                  </div>
+                ))}
+                <div className={styles.offerTotalRow}>
+                  {totalValue > unitPrice && (
+                    <span className={styles.offerTotalWas}>มูลค่ารวม {money(totalValue)}</span>
                   )}
+                  <span className={styles.offerTotalNow}>
+                    วันนี้เพียง <b>{money(unitPrice)}</b>
+                  </span>
                 </div>
-              ))}
-              <div className={styles.offerTotalRow}>
-                {totalValue > unitPrice && (
-                  <span className={styles.offerTotalWas}>มูลค่ารวม {money(totalValue)}</span>
-                )}
-                <span className={styles.offerTotalNow}>
-                  วันนี้เพียง <b>{money(unitPrice)}</b>
-                </span>
-              </div>
-              {d.note && <p className={styles.offerNote}>{d.note}</p>}
-            </div>
-            <div className={styles.centered}>
-              <button type="button" className={styles.heroCta} onClick={onCta}>
-                รับข้อเสนอนี้ <span className="arrow">→</span>
-              </button>
+                {d.note && <p className={styles.offerNote}>{d.note}</p>}
+                <button type="button" className={styles.heroCta} onClick={onCta}>
+                  รับข้อเสนอนี้ <span className="arrow">→</span>
+                </button>
+              </Reveal>
             </div>
           </div>
         </section>
@@ -670,14 +851,26 @@ function Section({ section, page, unitPrice, catalogPrice, hasDiscountedOffer, c
       return (
         <section className={styles.block}>
           <div className="wrap">
-            <h2 className={`display ${styles.blockTitle} ${styles.centered}`}>{d.title || "เสียงจากลูกค้า"}</h2>
+            <SecHead index={index} kicker={kicker} title={d.title || "เสียงจากลูกค้า"} />
             <div className={styles.quoteGrid}>
               {items.map((item, i) => (
-                <figure key={i} className={styles.quote}>
-                  <blockquote>“{item.quote}”</blockquote>
+                <Reveal
+                  key={i}
+                  as="figure"
+                  delay={((i % 3) + 2) as 2 | 3 | 4}
+                  className={`${styles.quote} ${i % 2 === 1 ? styles.quoteOffset : ""}`}
+                >
+                  <span className={styles.quoteMark} aria-hidden>“</span>
+                  <div className={styles.stars} aria-label="5 stars">★★★★★</div>
+                  <blockquote>{item.quote}</blockquote>
                   {item.name && <figcaption>— {item.name}</figcaption>}
-                </figure>
+                </Reveal>
               ))}
+            </div>
+            <div className={styles.blockCtaRow}>
+              <button type="button" className="qlink" onClick={onCta}>
+                ร่วมเป็นหนึ่งในนั้น — สั่งซื้อเลย <span className="arrow">→</span>
+              </button>
             </div>
           </div>
         </section>
@@ -688,10 +881,13 @@ function Section({ section, page, unitPrice, catalogPrice, hasDiscountedOffer, c
       if (!d.body) return null;
       return (
         <section className={`${styles.block} ${styles.blockIvory}`}>
-          <div className={`wrap ${styles.narrow} ${styles.centered}`}>
-            <div className={styles.guaranteeSeal}>✦</div>
-            <h2 className={`display ${styles.blockTitle}`}>{d.title || "การรับประกันจากเรา"}</h2>
-            <p className={styles.guaranteeBody}>{d.body}</p>
+          <div className={`wrap ${styles.guaranteeWrap}`}>
+            <Reveal>
+              <div className={styles.guaranteeSeal}>✦</div>
+              <span className="kicker">{kicker}</span>
+              <h2 className={`display ${styles.guaranteeTitle}`}>{emphasize(d.title || "การรับประกันจากเรา")}</h2>
+              <p className={styles.guaranteeBody}>{d.body}</p>
+            </Reveal>
           </div>
         </section>
       );
@@ -703,14 +899,16 @@ function Section({ section, page, unitPrice, catalogPrice, hasDiscountedOffer, c
       if (!items.length) return null;
       return (
         <section className={styles.block}>
-          <div className={`wrap ${styles.narrow}`}>
-            <h2 className={`display ${styles.blockTitle} ${styles.centered}`}>{d.title || "คำถามที่พบบ่อย"}</h2>
+          <div className="wrap">
+            <SecHead index={index} kicker={kicker} title={d.title || "คำถามที่พบบ่อย"} />
             <div className={styles.faqList}>
               {items.map((item, i) => (
-                <details key={i} className={styles.faqItem}>
-                  <summary>{item.q}</summary>
-                  <p>{item.a}</p>
-                </details>
+                <Reveal key={i}>
+                  <details className={styles.faqItem}>
+                    <summary>{item.q}</summary>
+                    <p>{item.a}</p>
+                  </details>
+                </Reveal>
               ))}
             </div>
           </div>
