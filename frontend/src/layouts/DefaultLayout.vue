@@ -350,6 +350,7 @@ const navItems = [
   { title: 'Products', icon: 'mdi-package-variant', to: '/products' },
   { title: 'Customers', icon: 'mdi-account-group-outline', to: '/customers' },
   { title: 'Orders', icon: 'mdi-receipt-text-outline', to: '/orders' },
+  { title: 'Chats', icon: 'mdi-chat-outline', to: '/chats' },
   { title: 'Coupons', icon: 'mdi-ticket-percent-outline', to: '/coupons' },
   { title: 'Sale Pages', icon: 'mdi-rocket-launch-outline', to: '/sale-pages' },
   { title: 'Receipts', icon: 'mdi-file-document-outline', to: '/receipts' },

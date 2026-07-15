@@ -14,6 +14,8 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cors"
 	"github.com/gofiber/fiber/v2/middleware/logger"
+	"github.com/gofiber/websocket/v2"
+	"github.com/golang-jwt/jwt/v5"
 )
 
 func main() {
@@ -42,6 +44,10 @@ func main() {
 	// Telegram Notifier
 	telegramNotifier := services.NewTelegramNotifier(cfg)
 
+	// LINE chat (inbox) + realtime hub for the admin UI
+	lineClient := services.NewLineClient(cfg)
+	chatHub := services.NewChatHub()
+
 	// Public routes
 	authHandler := handlers.NewAuthHandler(cfg)
 	app.Post("/api/login", authHandler.Login)
@@ -61,6 +67,42 @@ func main() {
 	salePageHandler := handlers.NewSalePageHandler(cfg, telegramNotifier)
 	app.Get("/api/shop/sale-pages/:slug", salePageHandler.PublicGet)
 	app.Post("/api/shop/sale-pages/:slug/order", salePageHandler.PublicOrder)
+
+	// Platform webhooks (no auth — verified by platform signature).
+	webhookHandler := handlers.NewWebhookHandler(cfg, lineClient, chatHub)
+	app.Post("/api/webhooks/line", webhookHandler.LineWebhook)
+
+	// Admin chat WebSocket — JWT passed as ?token= because browsers can't set
+	// headers on WebSocket connects.
+	app.Use("/api/ws/chat", func(c *fiber.Ctx) error {
+		if !websocket.IsWebSocketUpgrade(c) {
+			return fiber.ErrUpgradeRequired
+		}
+		tokenStr := c.Query("token")
+		token, err := jwt.Parse(tokenStr, func(t *jwt.Token) (interface{}, error) {
+			if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
+				return nil, fiber.ErrUnauthorized
+			}
+			return []byte(cfg.JWTSecret), nil
+		})
+		if err != nil || !token.Valid {
+			return fiber.ErrUnauthorized
+		}
+		return c.Next()
+	})
+	app.Get("/api/ws/chat", websocket.New(func(conn *websocket.Conn) {
+		chatHub.Register(conn)
+		defer func() {
+			chatHub.Unregister(conn)
+			conn.Close()
+		}()
+		// Read loop only detects disconnects — admins receive, they don't send.
+		for {
+			if _, _, err := conn.ReadMessage(); err != nil {
+				return
+			}
+		}
+	}))
 
 	// Protected routes
 	api := app.Group("/api", middleware.JWTAuth(cfg))
@@ -137,6 +179,14 @@ func main() {
 	api.Delete("/sale-pages/:id", salePageHandler.Delete)
 	api.Post("/sale-pages/:id/duplicate", salePageHandler.Duplicate)
 	api.Post("/sale-pages/:id/toggle", salePageHandler.TogglePublish)
+
+	// Chat inbox (LINE now, FB/IG later)
+	chatHandler := handlers.NewChatHandler(cfg, lineClient, chatHub)
+	api.Get("/chats", chatHandler.List)
+	api.Get("/chats/:id/messages", chatHandler.Messages)
+	api.Post("/chats/:id/reply", chatHandler.Reply)
+	api.Post("/chats/:id/read", chatHandler.MarkRead)
+	api.Put("/chats/:id/customer", chatHandler.LinkCustomer)
 
 	// Receipts (ใบเสร็จรับเงิน) — running number, persisted history
 	receiptHandler := handlers.NewReceiptHandler()

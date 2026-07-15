@@ -67,15 +67,19 @@ frontend/
 - **Stock management:** Creating an order deducts stock atomically in a DB transaction. Deleting an order restores stock via `gorm.Expr("stock + ?", qty)`.
 - **Coupons:** Percent/fixed discount codes with min-order, start/expiry window, total + per-customer usage limits (`handlers/coupon.go`). Codes are matched case-insensitively (stored uppercase). Validation + quota claim happen inside the order-creation transaction (`applyCouponToOrder`); the total-usage limit is enforced with a guarded UPDATE so concurrent checkouts can't oversubscribe. Deleting an order releases the coupon usage (like stock). Orders store `subtotal`, `discount_amount`, and a `coupon_code` snapshot; legacy orders have `subtotal = 0` — readers fall back to `total_amount`. Client-side discounts are previews only; the server recomputes from DB prices. Coupon validation error messages are Thai (shown to shoppers as-is).
 - **Sale pages (funnels):** ClickFunnels-style landing pages built in the admin ("Sale Pages" menu) and rendered by the storefront at `/s/{slug}` (`app/s/[slug]`). Content is an ordered JSON `sections` array (hero, pain, story, showcase, offer stack, testimonials, guarantee, faq) whose field shapes are agreed between `SalePagesView.vue` and `SalePageClient.tsx` — the backend just stores them. Offer price and order-bump price override catalog prices and are resolved server-side in `POST /api/shop/sale-pages/:slug/order` (client prices are display-only). A countdown is a hard deadline: expired pages reject orders. Draft pages 404 publicly; `?preview=1` shows drafts and skips the view counter. Stats (views, orders_count, bump_count) update in the order transaction; orders carry `sale_page_id` for attribution.
+- **Analytics:** `handlers/analytics.go` powers the 4 dashboard tabs (`frontend/src/views/dashboard/`). Products carry `cost` (unit cost; 0 = unknown, surfaced as `cost_coverage`) and `category`; orders carry `channel` (stamped server-side: storefront checkout → `storefront`, sale-page order → `sale-page`; the admin order form sends a chosen channel). SQLite gotchas: `MIN`/`MAX` on datetime columns lose the column type and won't scan into `time.Time` — load rows and aggregate in Go; new columns are NULL on legacy rows, so `CASE WHEN col = ''` needs `COALESCE(col, '')`.
+- **Chat inbox:** `Conversation`/`ChatMessage` (`models/chat.go`) are platform-agnostic (platform + external_id unique). LINE is wired: webhook `POST /api/webhooks/line` verifies `X-Line-Signature` (HMAC-SHA256, base64) and always 200s valid events; message ids dedupe redeliveries; media is downloaded to `uploads/chat_*`. Admin replies use the LINE Push API (`services/line.go`) and are saved only when the push succeeds. Realtime: `services/chathub.go` broadcasts to admin WebSockets at `/api/ws/chat?token=<JWT>` (query param — browsers can't set WS headers); `ChatView.vue` falls back to 20s polling when the socket is down. Facebook/Instagram reuse the same models later.
+- **Notifications:** `GET /api/notifications` (handlers/notification.go) aggregates pending orders + low/out-of-stock (variant-aware) for the bell dropdown in `DefaultLayout.vue` (refetch on open + 90s poll).
 - **Default admin:** On first run, seeds `admin` / `admin123`.
 - **Frontend proxy:** Vite dev server proxies `/api` and `/uploads` to `http://localhost:8080`.
 - **Handler dependency injection:** Handlers receive config and services via constructor (e.g., `NewOrderHandler(cfg, telegramNotifier)`).
-- **Graceful degradation:** Telegram notifications are skipped silently when `TELEGRAM_BOT_TOKEN` or `TELEGRAM_CHAT_ID` are not set. All notification calls use goroutines to avoid blocking the HTTP response.
+- **Graceful degradation:** Telegram notifications are skipped silently when `TELEGRAM_BOT_TOKEN` or `TELEGRAM_CHAT_ID` are not set; LINE chat behaves the same when `LINE_CHANNEL_SECRET` / `LINE_CHANNEL_ACCESS_TOKEN` are not set (webhook 200s and ignores, replies return a Thai error). All notification calls use goroutines to avoid blocking the HTTP response.
 
 ## Frontend Patterns
 
 - **Path alias:** `@` maps to `frontend/src/` in both Vite and TypeScript configs.
-- **Vuetify theme:** Brown/gold palette — primary `#1A1714` (dark brown), secondary `#C4A24D` (gold), background `#F7F3EE` (warm cream). Component defaults set globally in `plugins/vuetify.ts` (rounded cards, outlined inputs).
+- **Vuetify theme:** White/neutral surfaces with brand accents — primary `#1A1714` (dark brown) and secondary `#C4A24D` (gold) are reserved for the sidebar, buttons, and active states; background `#F6F7F9`, text `#111827`/`#6B7280`, borders `#E5E7EB`. Status colors: success `#15803D`, warning `#B45309`, error `#DC2626`, info `#2A78D6`. Component defaults set globally in `plugins/vuetify.ts` (rounded cards, outlined inputs).
+- **Chart colors:** Charts use a CVD-validated categorical palette in fixed order: `#2a78d6` (blue) → `#1baf7a` (mint) → `#eda100` (yellow) → `#008300` (green) → `#4a3aa7` (violet) → `#e34948` (red). Color follows the entity, never the rank: Facebook=blue, LINE=green, Instagram=violet, TikTok=black, storefront=yellow, sale-page=red; order statuses pending=amber/confirmed=blue/shipped=violet/delivered=green/cancelled=red. The owner finds low-chroma warm tones hard to distinguish — don't add new charts in the old brown/gold ramp.
 - **State management:** Only auth uses Pinia (`stores/auth.ts`). All other views manage state locally with Composition API `ref`/`reactive` — no global stores for products, customers, or orders.
 - **API calls:** All views call `api` (Axios instance from `services/api.ts`) directly. No dedicated service layer per resource — fetch/create/update/delete logic lives inside each view's `<script setup>`.
 - **Router guard:** `router/index.ts` checks `localStorage.getItem('token')` before each navigation. Routes with `meta: { public: true }` skip the check (only Login).
@@ -132,6 +136,18 @@ Both `OrdersView.vue` and `CustomersView.vue` generate 100mm x 150mm shipping la
 | GET | `/api/shop/sale-pages/:slug` | No | Public page data (counts a view; `?preview=1` shows drafts, no count) |
 | POST | `/api/shop/sale-pages/:slug/order` | No | Place order from sale page (multipart, slip required, bump + coupon) |
 | POST | `/api/daily-summary` | Yes | Manually trigger daily Telegram summary |
+| GET | `/api/analytics/overview` | Yes | Period KPIs + prev-period compare, channel/category/coupon/sale-page splits (`?days=`) |
+| GET | `/api/analytics/inventory` | Yes | Sell-through, stock aging, size curve, stock cover (`?category=`) |
+| GET | `/api/analytics/customers` | Yes | RFM segments, repeat rate, new-vs-returning, top spenders |
+| GET | `/api/analytics/products` | Yes | ABC classification + bought-together pairs |
+| GET | `/api/notifications` | Yes | Bell-menu alerts (pending orders, low/out-of-stock) |
+| GET | `/api/chats` | Yes | Conversation list (most recent first) |
+| GET | `/api/chats/:id/messages` | Yes | Conversation + messages oldest-first |
+| POST | `/api/chats/:id/reply` | Yes | Push a text reply to the platform, then record it |
+| POST | `/api/chats/:id/read` | Yes | Zero the unread counter |
+| PUT | `/api/chats/:id/customer` | Yes | Link/unlink a customer record |
+| POST | `/api/webhooks/line` | Signature | LINE Messaging API webhook (HMAC-verified) |
+| GET | `/api/ws/chat` | JWT query | Admin realtime WebSocket (`?token=<JWT>`) |
 
 ## Environment Variables
 
@@ -143,6 +159,8 @@ All optional, with defaults:
 - `TELEGRAM_BOT_TOKEN` — Telegram Bot API token from @BotFather (default: empty, disables notifications)
 - `TELEGRAM_CHAT_ID` — Telegram group/chat ID to send notifications to (default: empty, disables notifications)
 - `BASE_URL` — Public base URL for image links in Telegram notifications (default: `http://localhost:8080`)
+- `LINE_CHANNEL_SECRET` — LINE Messaging API channel secret, used to verify webhook signatures (default: empty, disables LINE chat)
+- `LINE_CHANNEL_ACCESS_TOKEN` — LINE Messaging API long-lived access token for push replies/profile/media (default: empty, disables LINE chat)
 
 ## Deployment
 

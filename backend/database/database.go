@@ -32,6 +32,8 @@ func Connect(cfg *config.Config) {
 		&models.Coupon{},
 		&models.CouponRedemption{},
 		&models.SalePage{},
+		&models.Conversation{},
+		&models.ChatMessage{},
 	)
 	if err != nil {
 		log.Fatal("Failed to migrate database:", err)

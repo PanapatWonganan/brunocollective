@@ -15,7 +15,8 @@ export default defineConfig(({ command }) => ({
   server: {
     port: 5173,
     proxy: {
-      '/api': 'http://localhost:8080',
+      // ws: true lets the chat WebSocket (/api/ws/chat) tunnel through too.
+      '/api': { target: 'http://localhost:8080', ws: true },
       '/uploads': 'http://localhost:8080'
     }
   }
