@@ -69,8 +69,11 @@ func main() {
 	app.Get("/api/shop/sale-pages/:slug", salePageHandler.PublicGet)
 	app.Post("/api/shop/sale-pages/:slug/order", salePageHandler.PublicOrder)
 
+	// Comment auto-reply engine (Phase 3) — shared with the Meta webhook.
+	autoReplyHandler := handlers.NewAutoReplyHandler(metaClient)
+
 	// Platform webhooks (no auth — verified by platform signature).
-	webhookHandler := handlers.NewWebhookHandler(cfg, lineClient, metaClient, chatHub)
+	webhookHandler := handlers.NewWebhookHandler(cfg, lineClient, metaClient, chatHub, autoReplyHandler)
 	app.Post("/api/webhooks/line", webhookHandler.LineWebhook)
 	// One Meta endpoint serves both Facebook Messenger and Instagram DM.
 	app.Get("/api/webhooks/meta", webhookHandler.MetaWebhookVerify)
@@ -195,6 +198,14 @@ func main() {
 	api.Put("/chats/:id/status", chatHandler.UpdateStatus)
 	api.Put("/chats/:id/tags", chatHandler.UpdateTags)
 	api.Put("/chats/:id/customer", chatHandler.LinkCustomer)
+
+	// Comment auto-reply rules — "logs" before ":id" so it isn't swallowed.
+	api.Get("/auto-replies", autoReplyHandler.List)
+	api.Get("/auto-replies/logs", autoReplyHandler.Logs)
+	api.Post("/auto-replies", autoReplyHandler.Create)
+	api.Put("/auto-replies/:id", autoReplyHandler.Update)
+	api.Delete("/auto-replies/:id", autoReplyHandler.Delete)
+	api.Post("/auto-replies/:id/toggle", autoReplyHandler.Toggle)
 
 	// Canned replies (ข้อความสำเร็จรูปในแชท)
 	api.Get("/canned-replies", chatHandler.CannedList)

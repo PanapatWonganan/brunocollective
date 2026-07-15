@@ -35,6 +35,8 @@ func Connect(cfg *config.Config) {
 		&models.Conversation{},
 		&models.ChatMessage{},
 		&models.CannedReply{},
+		&models.AutoReplyRule{},
+		&models.AutoReplyLog{},
 	)
 	if err != nil {
 		log.Fatal("Failed to migrate database:", err)

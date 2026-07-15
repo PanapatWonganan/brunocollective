@@ -20,6 +20,7 @@ const router = createRouter({
         { path: 'customers', name: 'Customers', component: () => import('@/views/CustomersView.vue') },
         { path: 'orders', name: 'Orders', component: () => import('@/views/OrdersView.vue') },
         { path: 'chats', name: 'Chats', component: () => import('@/views/ChatView.vue') },
+        { path: 'auto-replies', name: 'Auto Reply', component: () => import('@/views/AutoRepliesView.vue') },
         { path: 'coupons', name: 'Coupons', component: () => import('@/views/CouponsView.vue') },
         { path: 'sale-pages', name: 'Sale Pages', component: () => import('@/views/SalePagesView.vue') },
         { path: 'site-images', name: 'SiteImages', component: () => import('@/views/SiteImagesView.vue') },

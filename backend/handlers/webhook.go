@@ -21,14 +21,15 @@ import (
 // WebhookHandler receives platform callbacks (LINE, Facebook Messenger,
 // Instagram DM) and turns them into Conversation/ChatMessage rows.
 type WebhookHandler struct {
-	Config *config.Config
-	Line   *services.LineClient
-	Meta   *services.MetaClient
-	Hub    *services.ChatHub
+	Config    *config.Config
+	Line      *services.LineClient
+	Meta      *services.MetaClient
+	Hub       *services.ChatHub
+	AutoReply *AutoReplyHandler
 }
 
-func NewWebhookHandler(cfg *config.Config, line *services.LineClient, meta *services.MetaClient, hub *services.ChatHub) *WebhookHandler {
-	return &WebhookHandler{Config: cfg, Line: line, Meta: meta, Hub: hub}
+func NewWebhookHandler(cfg *config.Config, line *services.LineClient, meta *services.MetaClient, hub *services.ChatHub, autoReply *AutoReplyHandler) *WebhookHandler {
+	return &WebhookHandler{Config: cfg, Line: line, Meta: meta, Hub: hub, AutoReply: autoReply}
 }
 
 // lineEvent is the subset of LINE webhook event fields we consume.
@@ -283,7 +284,9 @@ func (h *WebhookHandler) MetaWebhook(c *fiber.Ctx) error {
 	var payload struct {
 		Object string `json:"object"`
 		Entry  []struct {
+			ID        string          `json:"id"` // page id / IG account id
 			Messaging []metaMessaging `json:"messaging"`
+			Changes   []metaChange    `json:"changes"`
 		} `json:"entry"`
 	}
 	if err := json.Unmarshal(body, &payload); err != nil {
@@ -304,8 +307,70 @@ func (h *WebhookHandler) MetaWebhook(c *fiber.Ctx) error {
 		for _, ev := range entry.Messaging {
 			h.handleMetaMessage(platform, ev)
 		}
+		for _, ch := range entry.Changes {
+			h.handleMetaChange(platform, entry.ID, ch)
+		}
 	}
 	return c.SendStatus(fiber.StatusOK)
+}
+
+// metaChange is one entry.changes item — FB page feed events (field
+// "feed") and Instagram comment events (field "comments").
+type metaChange struct {
+	Field string `json:"field"`
+	Value struct {
+		// Facebook feed fields
+		Item      string `json:"item"` // "comment", "post", "reaction", …
+		Verb      string `json:"verb"` // "add", "edited", "remove"
+		CommentID string `json:"comment_id"`
+		Message   string `json:"message"`
+		// Instagram comment fields
+		ID   string `json:"id"`   // IG comment id
+		Text string `json:"text"` // IG comment text
+		From struct {
+			ID       string `json:"id"`
+			Name     string `json:"name"`     // FB
+			Username string `json:"username"` // IG
+		} `json:"from"`
+	} `json:"value"`
+}
+
+// handleMetaChange normalizes FB/IG comment events and hands them to the
+// auto-reply engine. accountID is the page/IG account id from the entry —
+// comments authored by the page itself are skipped (prevents reply loops).
+func (h *WebhookHandler) handleMetaChange(platform, accountID string, ch metaChange) {
+	ev := CommentEvent{Platform: platform}
+
+	switch {
+	case platform == "facebook" && ch.Field == "feed":
+		// Only newly added comments — not posts, reactions, edits, deletes.
+		if ch.Value.Item != "comment" || ch.Value.Verb != "add" {
+			return
+		}
+		ev.CommentID = ch.Value.CommentID
+		ev.Text = ch.Value.Message
+		ev.FromID = ch.Value.From.ID
+		ev.FromName = ch.Value.From.Name
+	case platform == "instagram" && ch.Field == "comments":
+		ev.CommentID = ch.Value.ID
+		ev.Text = ch.Value.Text
+		ev.FromID = ch.Value.From.ID
+		ev.FromName = ch.Value.From.Username
+	default:
+		return
+	}
+
+	if ev.CommentID == "" {
+		return
+	}
+	// Never react to the page's own comments (including our own replies —
+	// they arrive as webhook events too). This is the loop guard.
+	if ev.FromID == "" || ev.FromID == accountID {
+		return
+	}
+
+	// Answer the webhook fast; actions run in the background.
+	go h.AutoReply.HandleComment(ev)
 }
 
 func (h *WebhookHandler) handleMetaMessage(platform string, ev metaMessaging) {
