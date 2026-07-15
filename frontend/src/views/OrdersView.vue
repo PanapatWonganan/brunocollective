@@ -130,6 +130,16 @@
             class="mb-2"
           />
 
+          <v-select
+            v-model="orderForm.channel"
+            :items="channelOptions"
+            item-title="label"
+            item-value="value"
+            label="ช่องทางการขาย (Channel)"
+            prepend-inner-icon="mdi-storefront-outline"
+            class="mb-2"
+          />
+
           <div class="d-flex align-center mb-3">
             <div class="text-subtitle-2 font-weight-medium">Order Items</div>
             <v-spacer />
@@ -289,6 +299,9 @@
             <div>
               <div class="font-weight-medium">{{ selectedOrder.customer?.name }}</div>
               <div class="text-caption text-medium-emphasis">Customer</div>
+              <v-chip v-if="selectedOrder.channel" size="x-small" variant="tonal" color="secondary" class="mt-1">
+                {{ channelLabel(selectedOrder.channel) }}
+              </v-chip>
             </div>
             <v-spacer />
             <div class="text-right">
@@ -695,8 +708,28 @@ const slipPreview = computed(() => {
 const orderForm = ref({
   customer_id: 0,
   notes: '',
+  channel: '',
   items: [{ product_id: 0, variant_id: null as number | null, quantity: 1 }]
 })
+
+// Where the sale came from — stamped on the order for channel analytics.
+// Storefront/sale-page orders get their channel stamped server-side.
+const channelOptions = [
+  { label: 'Facebook', value: 'facebook' },
+  { label: 'LINE', value: 'line' },
+  { label: 'Instagram', value: 'instagram' },
+  { label: 'TikTok', value: 'tiktok' },
+  { label: 'หน้าร้าน / Walk-in', value: 'walk-in' },
+  { label: 'อื่นๆ', value: 'other' },
+]
+
+function channelLabel(value: string): string {
+  const found = channelOptions.find(c => c.value === value)
+  if (found) return found.label
+  if (value === 'storefront') return 'หน้าเว็บร้าน'
+  if (value === 'sale-page') return 'Sale Page'
+  return value
+}
 
 // Coupon state for the create-order form. The discount shown here is a
 // preview; the backend revalidates and recomputes inside the order transaction.
@@ -787,7 +820,7 @@ async function fetchMasterData() {
 }
 
 function openCreateDialog() {
-  orderForm.value = { customer_id: 0, notes: '', items: [{ product_id: 0, variant_id: null, quantity: 1 }] }
+  orderForm.value = { customer_id: 0, notes: '', channel: '', items: [{ product_id: 0, variant_id: null, quantity: 1 }] }
   createSlipFile.value = null
   removeCoupon()
   createError.value = ''
@@ -801,6 +834,7 @@ async function createOrder() {
     const fd = new FormData()
     fd.append('customer_id', String(orderForm.value.customer_id))
     fd.append('notes', orderForm.value.notes)
+    fd.append('channel', orderForm.value.channel)
     fd.append('items', JSON.stringify(orderForm.value.items))
     if (appliedCoupon.value) {
       fd.append('coupon_code', appliedCoupon.value.code)

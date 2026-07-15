@@ -134,15 +134,48 @@
           <div class="text-caption" style="color: #8C8478;">{{ greeting }}</div>
         </div>
         <v-spacer />
-        <v-btn icon variant="text" class="mr-1">
-          <v-badge :content="pendingCount" :model-value="pendingCount > 0" color="secondary" floating>
-            <v-icon icon="mdi-bell-outline" />
-          </v-badge>
-        </v-btn>
+        <v-menu v-model="notifyMenu" :close-on-content-click="false" location="bottom end" width="360">
+          <template v-slot:activator="{ props }">
+            <v-btn icon variant="text" class="mr-1" v-bind="props">
+              <v-badge :content="notifications.length" :model-value="notifications.length > 0" color="error" floating>
+                <v-icon icon="mdi-bell-outline" />
+              </v-badge>
+            </v-btn>
+          </template>
+          <v-card rounded="lg">
+            <v-card-title class="d-flex align-center px-4 pt-3 pb-2">
+              <span class="text-subtitle-1 font-weight-bold">การแจ้งเตือน</span>
+              <v-spacer />
+              <v-btn icon="mdi-refresh" size="x-small" variant="text" :loading="notifyLoading" @click="fetchNotifications" />
+            </v-card-title>
+            <v-divider />
+            <v-list v-if="notifications.length" density="compact" max-height="380" class="py-0">
+              <v-list-item
+                v-for="(n, i) in notifications" :key="i"
+                @click="openNotification(n)"
+                class="py-2"
+              >
+                <template v-slot:prepend>
+                  <v-avatar size="32" :color="severityColor(n.severity)" variant="tonal">
+                    <v-icon :icon="severityIcon(n)" size="16" />
+                  </v-avatar>
+                </template>
+                <v-list-item-title class="text-body-2 font-weight-medium">{{ n.title }}</v-list-item-title>
+                <v-list-item-subtitle v-if="n.detail || n.created_at" class="text-caption">
+                  {{ n.detail }}<span v-if="n.created_at"> · {{ timeAgo(n.created_at) }}</span>
+                </v-list-item-subtitle>
+              </v-list-item>
+            </v-list>
+            <div v-else class="text-center pa-8 text-medium-emphasis">
+              <v-icon icon="mdi-bell-check-outline" size="32" class="mb-2" color="grey-lighten-1" />
+              <div class="text-body-2">ไม่มีการแจ้งเตือน</div>
+            </div>
+          </v-card>
+        </v-menu>
       </div>
     </v-app-bar>
 
-    <v-main style="background: #F7F3EE;">
+    <v-main style="background: #F6F7F9;">
       <v-container fluid :class="mobile ? 'pa-4' : 'pa-6'">
         <router-view />
       </v-container>
@@ -203,18 +236,65 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue'
-import { useRoute } from 'vue-router'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { useDisplay } from 'vuetify'
 import { useAuthStore } from '@/stores/auth'
 import api from '@/services/api'
 
 const auth = useAuthStore()
 const route = useRoute()
+const router = useRouter()
 const { mobile } = useDisplay()
 const drawer = ref(!mobile.value)
 const collapsed = ref(false)
-const pendingCount = ref(0)
+
+// ── Notifications (bell menu) ──
+interface Notification {
+  type: string; severity: string; title: string; detail: string;
+  link: string; created_at?: string;
+}
+const notifyMenu = ref(false)
+const notifyLoading = ref(false)
+const notifications = ref<Notification[]>([])
+let notifyTimer: ReturnType<typeof setInterval> | null = null
+
+async function fetchNotifications() {
+  notifyLoading.value = true
+  try {
+    const { data } = await api.get('/notifications')
+    notifications.value = data.items || []
+  } catch {} finally {
+    notifyLoading.value = false
+  }
+}
+
+// Refresh when the menu opens so the list is never stale on click.
+watch(notifyMenu, open => { if (open) fetchNotifications() })
+
+function openNotification(n: Notification) {
+  notifyMenu.value = false
+  if (n.link && n.link !== route.path) router.push(n.link)
+}
+
+function severityColor(sev: string) {
+  return ({ info: 'info', warning: 'warning', error: 'error' } as Record<string, string>)[sev] || 'grey'
+}
+
+function severityIcon(n: Notification) {
+  if (n.type === 'order') return 'mdi-receipt-text-outline'
+  if (n.severity === 'error') return 'mdi-close-circle-outline'
+  return 'mdi-alert-outline'
+}
+
+function timeAgo(iso: string) {
+  const mins = Math.floor((Date.now() - new Date(iso).getTime()) / 60000)
+  if (mins < 1) return 'เมื่อครู่'
+  if (mins < 60) return `${mins} นาทีก่อน`
+  const hours = Math.floor(mins / 60)
+  if (hours < 24) return `${hours} ชม.ก่อน`
+  return `${Math.floor(hours / 24)} วันก่อน`
+}
 
 // Close the overlay drawer after navigating on mobile
 watch(() => route.path, () => {
@@ -290,11 +370,13 @@ function isActive(to: string) {
   return route.path.startsWith(to)
 }
 
-onMounted(async () => {
-  try {
-    const { data } = await api.get('/dashboard')
-    pendingCount.value = data.pending_order_count || 0
-  } catch {}
+onMounted(() => {
+  fetchNotifications()
+  notifyTimer = setInterval(fetchNotifications, 90_000)
+})
+
+onUnmounted(() => {
+  if (notifyTimer) clearInterval(notifyTimer)
 })
 </script>
 

@@ -28,7 +28,12 @@ type Order struct {
 	CouponCode string `json:"coupon_code"`
 	// SalePageID marks orders placed through a sale/landing page (/s/{slug})
 	// so per-campaign conversion can be tracked. Nil for normal orders.
-	SalePageID  *uint       `json:"sale_page_id"`
+	SalePageID *uint `json:"sale_page_id"`
+	// Channel is where the sale came from (facebook, line, instagram, tiktok,
+	// walk-in, storefront, sale-page, …). Admin-created orders send it from the
+	// order form; storefront/sale-page checkouts stamp it server-side. Empty on
+	// legacy orders = unknown.
+	Channel     string      `json:"channel"`
 	TotalAmount float64     `json:"total_amount"`
 	SlipImage   string      `json:"slip_image"`
 	Notes       string      `json:"notes"`
@@ -56,6 +61,7 @@ type CreateOrderRequest struct {
 	CustomerID uint              `json:"customer_id"`
 	Notes      string            `json:"notes"`
 	CouponCode string            `json:"coupon_code"`
+	Channel    string            `json:"channel"`
 	Items      []CreateOrderItem `json:"items"`
 }
 

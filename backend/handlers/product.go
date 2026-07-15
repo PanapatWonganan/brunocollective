@@ -98,7 +98,9 @@ func (h *ProductHandler) Update(c *fiber.Ctx) error {
 			"sku":         updates.SKU,
 			"size":        updates.Size,
 			"description": updates.Description,
+			"category":    updates.Category,
 			"price":       updates.Price,
+			"cost":        updates.Cost,
 			"stock":       updates.Stock,
 		}).Error; err != nil {
 			return err

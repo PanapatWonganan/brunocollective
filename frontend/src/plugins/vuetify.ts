@@ -12,18 +12,20 @@ export default createVuetify({
     themes: {
       light: {
         colors: {
+          // Brand stays on primary/secondary (sidebar, buttons, active tabs).
+          // Neutrals + status colors are high-contrast on white for readability.
           primary: '#1A1714',
           'primary-darken-1': '#0F0E0C',
           secondary: '#C4A24D',
           accent: '#C4A24D',
-          success: '#5D7A5F',
-          warning: '#D4A843',
-          error: '#9B3B3B',
-          info: '#6B7B8D',
-          background: '#F7F3EE',
+          success: '#15803D',
+          warning: '#B45309',
+          error: '#DC2626',
+          info: '#2A78D6',
+          background: '#F6F7F9',
           surface: '#FFFFFF',
-          'on-background': '#1A1714',
-          'on-surface': '#3D3830',
+          'on-background': '#111827',
+          'on-surface': '#1F2937',
         }
       }
     }

@@ -173,6 +173,7 @@ func (h *ShopHandler) Checkout(c *fiber.Ctx) error {
 			Subtotal:    totalAmount,
 			TotalAmount: totalAmount,
 			Notes:       req.Notes,
+			Channel:     "storefront",
 			SlipImage:   slipFilename,
 			Items:       items,
 		}

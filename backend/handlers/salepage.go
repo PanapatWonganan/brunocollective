@@ -414,6 +414,7 @@ func (h *SalePageHandler) PublicOrder(c *fiber.Ctx) error {
 			Subtotal:    totalAmount,
 			TotalAmount: totalAmount,
 			Notes:       req.Notes,
+			Channel:     "sale-page",
 			SlipImage:   slipFilename,
 			SalePageID:  &page.ID,
 			Items:       items,

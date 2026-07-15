@@ -179,6 +179,7 @@ func (h *OrderHandler) Create(c *fiber.Ctx) error {
 		req.CustomerID = uint(customerID)
 		req.Notes = c.FormValue("notes")
 		req.CouponCode = c.FormValue("coupon_code")
+		req.Channel = c.FormValue("channel")
 		itemsJSON := c.FormValue("items")
 		if itemsJSON != "" {
 			json.Unmarshal([]byte(itemsJSON), &req.Items)
@@ -232,6 +233,7 @@ func (h *OrderHandler) Create(c *fiber.Ctx) error {
 			Subtotal:    totalAmount,
 			TotalAmount: totalAmount,
 			Notes:       req.Notes,
+			Channel:     req.Channel,
 			SlipImage:   slipFilename,
 			Items:       items,
 		}

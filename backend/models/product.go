@@ -48,15 +48,22 @@ func (s *StringSlice) Scan(value interface{}) error {
 }
 
 type Product struct {
-	ID          uint        `json:"id" gorm:"primaryKey"`
-	Name        string      `json:"name" gorm:"not null"`
-	SKU         string      `json:"sku" gorm:"uniqueIndex"`
-	Size        string      `json:"size"` // legacy: single-size garments without variants
-	Description string      `json:"description"`
-	Price       float64     `json:"price" gorm:"not null"`
-	Stock       int         `json:"stock" gorm:"default:0"` // legacy: used only when a product has no variants
-	ImageURL    string      `json:"image_url"`
-	Images      StringSlice `json:"images" gorm:"type:text"`
+	ID          uint   `json:"id" gorm:"primaryKey"`
+	Name        string `json:"name" gorm:"not null"`
+	SKU         string `json:"sku" gorm:"uniqueIndex"`
+	Size        string `json:"size"` // legacy: single-size garments without variants
+	Description string `json:"description"`
+	// Category groups products for analytics (เสื้อยืด, กางเกง, เดรส, …).
+	// Free-form text; empty = uncategorized.
+	Category string  `json:"category"`
+	Price    float64 `json:"price" gorm:"not null"`
+	// Cost is the unit cost (ต้นทุนต่อชิ้น) used for gross-profit and stock-value
+	// analytics. 0 = unknown; analytics treat it as "no cost data" rather than
+	// 100% margin.
+	Cost     float64     `json:"cost"`
+	Stock    int         `json:"stock" gorm:"default:0"` // legacy: used only when a product has no variants
+	ImageURL string      `json:"image_url"`
+	Images   StringSlice `json:"images" gorm:"type:text"`
 
 	// Variants are the sellable size+color combinations. A product with no
 	// variants is treated as a single legacy unit (Size/Stock above).

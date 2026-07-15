@@ -76,7 +76,9 @@
               </v-avatar>
               <div class="ml-3">
                 <div class="font-weight-medium">{{ item.name }}</div>
-                <div class="text-caption text-medium-emphasis">{{ item.sku || 'No SKU' }}</div>
+                <div class="text-caption text-medium-emphasis">
+                  {{ item.sku || 'No SKU' }}<span v-if="item.category"> · {{ item.category }}</span>
+                </div>
               </div>
             </div>
           </template>
@@ -121,7 +123,23 @@
             <v-text-field v-model="formData.name" label="Product Name" :rules="[v => !!v || 'Required']" class="mb-1" />
             <v-text-field v-model="formData.sku" label="Base SKU" hint="optional — variants can have their own SKU" class="mb-1" />
             <v-textarea v-model="formData.description" label="Description" rows="2" class="mb-1" />
-            <v-text-field v-model.number="formData.price" label="Price (THB)" type="number" prefix="฿" :rules="[v => v >= 0 || 'Invalid']" class="mb-3" />
+            <v-combobox
+              v-model="formData.category"
+              :items="categoryOptions"
+              label="หมวดสินค้า (Category)"
+              hint="ใช้จัดกลุ่มใน analytics — พิมพ์เพิ่มเองได้"
+              persistent-hint
+              class="mb-2"
+            />
+            <div class="d-flex ga-2">
+              <v-text-field v-model.number="formData.price" label="Price (THB)" type="number" prefix="฿" :rules="[v => v >= 0 || 'Invalid']" class="mb-3" />
+              <v-text-field
+                v-model.number="formData.cost"
+                label="ต้นทุน/ชิ้น (Cost)" type="number" prefix="฿"
+                hint="ใช้คำนวณกำไร" persistent-hint
+                :rules="[v => v >= 0 || 'Invalid']" class="mb-3"
+              />
+            </div>
 
             <!-- Variants (size + color + stock) -->
             <div class="d-flex align-center mb-2">
@@ -212,7 +230,8 @@ interface Variant {
 
 interface Product {
   id?: number; name: string; sku: string; size: string; description: string;
-  price: number; stock: number; image_url: string; images: string[];
+  category: string; price: number; cost: number; stock: number;
+  image_url: string; images: string[];
   variants: Variant[]; total_stock?: number;
 }
 
@@ -225,6 +244,8 @@ const headers = [
 ]
 
 const sizeOptions = ['S', 'M', 'L', 'XL', 'XXL', 'Free Size', '38', '39', '40', '41', '42', '43', '44', '45']
+
+const categoryOptions = ['เสื้อยืด', 'เสื้อเชิ้ต', 'เสื้อกันหนาว', 'กางเกง', 'กระโปรง', 'เดรส', 'รองเท้า', 'กระเป๋า', 'เครื่องประดับ', 'อื่นๆ']
 
 // Total stock for a product: sum of variant stock, else the legacy stock field.
 function totalStock(p: Product): number {
@@ -252,7 +273,7 @@ const form = ref()
 const pendingFiles = ref<File[]>([])
 const deletingImg = ref<string | null>(null)
 
-const emptyForm = (): Product => ({ name: '', sku: '', size: '', description: '', price: 0, stock: 0, image_url: '', images: [], variants: [] })
+const emptyForm = (): Product => ({ name: '', sku: '', size: '', description: '', category: '', price: 0, cost: 0, stock: 0, image_url: '', images: [], variants: [] })
 const formData = ref<Product>(emptyForm())
 
 function addVariant() {

@@ -72,6 +72,14 @@ func main() {
 	dashboardHandler := handlers.NewDashboardHandler()
 	api.Get("/dashboard", dashboardHandler.Stats)
 	api.Get("/dashboard/charts", dashboardHandler.Charts)
+	api.Get("/notifications", dashboardHandler.Notifications)
+
+	// Analytics (dashboard tabs: overview / inventory / customers / products)
+	analyticsHandler := handlers.NewAnalyticsHandler()
+	api.Get("/analytics/overview", analyticsHandler.Overview)
+	api.Get("/analytics/inventory", analyticsHandler.Inventory)
+	api.Get("/analytics/customers", analyticsHandler.Customers)
+	api.Get("/analytics/products", analyticsHandler.Products)
 
 	// Products
 	productHandler := handlers.NewProductHandler(cfg)
