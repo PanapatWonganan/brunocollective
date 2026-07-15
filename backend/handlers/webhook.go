@@ -129,13 +129,30 @@ func (h *WebhookHandler) handleLineMessage(ev lineEvent) {
 	if msg.Type == "image" && preview == "" {
 		preview = "[รูปภาพ]"
 	}
-	database.DB.Model(conv).Updates(map[string]interface{}{
-		"last_message_text": preview,
-		"last_message_at":   time.Now(),
-		"unread_count":      gorm.Expr("unread_count + 1"),
-	})
+	touchConversation(conv, preview, "in")
 
 	h.Hub.Broadcast(fiber.Map{"type": "message", "conversation_id": conv.ID, "message": msg})
+}
+
+// touchConversation refreshes a thread's list-row fields after a new
+// message. Inbound messages reopen done threads and start the waiting
+// timer (kept from the oldest unanswered message); outbound ones clear it.
+func touchConversation(conv *models.Conversation, preview, direction string) {
+	updates := map[string]interface{}{
+		"last_message_text": preview,
+		"last_message_at":   time.Now(),
+		"last_direction":    direction,
+	}
+	if direction == "in" {
+		updates["unread_count"] = gorm.Expr("unread_count + 1")
+		updates["status"] = "open"
+		if conv.WaitingSince == nil {
+			updates["waiting_since"] = time.Now()
+		}
+	} else {
+		updates["waiting_since"] = nil
+	}
+	database.DB.Model(conv).Updates(updates)
 }
 
 // findOrCreateConversation returns the thread for a platform user, creating
@@ -359,14 +376,7 @@ func (h *WebhookHandler) handleMetaMessage(platform string, ev metaMessaging) {
 	if msg.Type == "image" && preview == "" {
 		preview = "[รูปภาพ]"
 	}
-	updates := map[string]interface{}{
-		"last_message_text": preview,
-		"last_message_at":   time.Now(),
-	}
-	if direction == "in" {
-		updates["unread_count"] = gorm.Expr("unread_count + 1")
-	}
-	database.DB.Model(conv).Updates(updates)
+	touchConversation(conv, preview, direction)
 
 	h.Hub.Broadcast(fiber.Map{"type": "message", "conversation_id": conv.ID, "message": msg})
 }

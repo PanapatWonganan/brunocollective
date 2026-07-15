@@ -24,6 +24,20 @@ type Conversation struct {
 	LastMessageText string    `json:"last_message_text"`
 	LastMessageAt   time.Time `json:"last_message_at"`
 
+	// Status is the manual workflow state: "open" (default) or "done"
+	// (closed by the admin). An inbound message reopens a done thread.
+	Status string `json:"status" gorm:"default:open"`
+	// LastDirection ("in"/"out") splits open threads into "waiting for our
+	// reply" vs "we replied last" without scanning messages.
+	LastDirection string `json:"last_direction"`
+	// WaitingSince is when the oldest unanswered inbound message arrived —
+	// set on the first inbound after our last reply, cleared when we reply.
+	// Drives the "รอตอบมานาน" indicator.
+	WaitingSince *time.Time `json:"waiting_since"`
+	// Tags are admin labels ("รอโอน", "CF แล้ว", …), stored like
+	// Product.Images (JSON TEXT).
+	Tags StringSlice `json:"tags" gorm:"type:text"`
+
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
 }
@@ -41,4 +55,14 @@ type ChatMessage struct {
 	// redeliveries.
 	ExternalID string    `json:"external_id" gorm:"index"`
 	CreatedAt  time.Time `json:"created_at"`
+}
+
+// CannedReply is a saved response template the admin can insert in chat
+// ("ค่าส่ง", "เลขบัญชี", "ไซส์ชาร์ต", …).
+type CannedReply struct {
+	ID        uint      `json:"id" gorm:"primaryKey"`
+	Title     string    `json:"title" gorm:"not null"`
+	Text      string    `json:"text" gorm:"not null"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
 }

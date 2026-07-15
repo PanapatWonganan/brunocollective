@@ -37,7 +37,13 @@
                     ]"
                     @click="navigate"
                   >
-                    <v-icon :icon="item.icon" :size="collapsed ? 22 : 20" />
+                    <v-badge
+                      :model-value="item.to === '/chats' && chatWaiting > 0"
+                      :content="chatWaiting" color="error"
+                      :offset-x="collapsed ? 2 : -2" offset-y="-2"
+                    >
+                      <v-icon :icon="item.icon" :size="collapsed ? 22 : 20" />
+                    </v-badge>
                     <span v-if="!collapsed" class="nav-btn-label">{{ item.title }}</span>
                   </div>
                 </router-link>
@@ -259,11 +265,15 @@ const notifyLoading = ref(false)
 const notifications = ref<Notification[]>([])
 let notifyTimer: ReturnType<typeof setInterval> | null = null
 
+const chatWaiting = ref(0)
+
 async function fetchNotifications() {
   notifyLoading.value = true
   try {
     const { data } = await api.get('/notifications')
     notifications.value = data.items || []
+    const { data: chat } = await api.get('/chats/summary')
+    chatWaiting.value = chat.waiting || 0
   } catch {} finally {
     notifyLoading.value = false
   }

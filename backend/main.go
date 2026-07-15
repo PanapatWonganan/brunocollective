@@ -184,13 +184,23 @@ func main() {
 	api.Post("/sale-pages/:id/duplicate", salePageHandler.Duplicate)
 	api.Post("/sale-pages/:id/toggle", salePageHandler.TogglePublish)
 
-	// Chat inbox (LINE now, FB/IG later)
+	// Chat inbox (LINE + Facebook + Instagram). "summary" before ":id" so it
+	// isn't swallowed by the param route.
 	chatHandler := handlers.NewChatHandler(cfg, lineClient, metaClient, chatHub)
 	api.Get("/chats", chatHandler.List)
+	api.Get("/chats/summary", chatHandler.Summary)
 	api.Get("/chats/:id/messages", chatHandler.Messages)
 	api.Post("/chats/:id/reply", chatHandler.Reply)
 	api.Post("/chats/:id/read", chatHandler.MarkRead)
+	api.Put("/chats/:id/status", chatHandler.UpdateStatus)
+	api.Put("/chats/:id/tags", chatHandler.UpdateTags)
 	api.Put("/chats/:id/customer", chatHandler.LinkCustomer)
+
+	// Canned replies (ข้อความสำเร็จรูปในแชท)
+	api.Get("/canned-replies", chatHandler.CannedList)
+	api.Post("/canned-replies", chatHandler.CannedCreate)
+	api.Put("/canned-replies/:id", chatHandler.CannedUpdate)
+	api.Delete("/canned-replies/:id", chatHandler.CannedDelete)
 
 	// Receipts (ใบเสร็จรับเงิน) — running number, persisted history
 	receiptHandler := handlers.NewReceiptHandler()
