@@ -44,8 +44,9 @@ func main() {
 	// Telegram Notifier
 	telegramNotifier := services.NewTelegramNotifier(cfg)
 
-	// LINE chat (inbox) + realtime hub for the admin UI
+	// Chat inbox platforms + realtime hub for the admin UI
 	lineClient := services.NewLineClient(cfg)
+	metaClient := services.NewMetaClient(cfg)
 	chatHub := services.NewChatHub()
 
 	// Public routes
@@ -69,8 +70,11 @@ func main() {
 	app.Post("/api/shop/sale-pages/:slug/order", salePageHandler.PublicOrder)
 
 	// Platform webhooks (no auth — verified by platform signature).
-	webhookHandler := handlers.NewWebhookHandler(cfg, lineClient, chatHub)
+	webhookHandler := handlers.NewWebhookHandler(cfg, lineClient, metaClient, chatHub)
 	app.Post("/api/webhooks/line", webhookHandler.LineWebhook)
+	// One Meta endpoint serves both Facebook Messenger and Instagram DM.
+	app.Get("/api/webhooks/meta", webhookHandler.MetaWebhookVerify)
+	app.Post("/api/webhooks/meta", webhookHandler.MetaWebhook)
 
 	// Admin chat WebSocket — JWT passed as ?token= because browsers can't set
 	// headers on WebSocket connects.
@@ -181,7 +185,7 @@ func main() {
 	api.Post("/sale-pages/:id/toggle", salePageHandler.TogglePublish)
 
 	// Chat inbox (LINE now, FB/IG later)
-	chatHandler := handlers.NewChatHandler(cfg, lineClient, chatHub)
+	chatHandler := handlers.NewChatHandler(cfg, lineClient, metaClient, chatHub)
 	api.Get("/chats", chatHandler.List)
 	api.Get("/chats/:id/messages", chatHandler.Messages)
 	api.Post("/chats/:id/reply", chatHandler.Reply)

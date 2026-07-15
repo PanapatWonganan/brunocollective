@@ -18,11 +18,12 @@ import (
 type ChatHandler struct {
 	Config *config.Config
 	Line   *services.LineClient
+	Meta   *services.MetaClient
 	Hub    *services.ChatHub
 }
 
-func NewChatHandler(cfg *config.Config, line *services.LineClient, hub *services.ChatHub) *ChatHandler {
-	return &ChatHandler{Config: cfg, Line: line, Hub: hub}
+func NewChatHandler(cfg *config.Config, line *services.LineClient, meta *services.MetaClient, hub *services.ChatHub) *ChatHandler {
+	return &ChatHandler{Config: cfg, Line: line, Meta: meta, Hub: hub}
 }
 
 // List returns all conversations, most recently active first.
@@ -66,11 +67,20 @@ func (h *ChatHandler) Reply(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "conversation not found"})
 	}
 
+	// externalMsgID (Meta only) is stored so the echo event that follows the
+	// send is deduped instead of double-inserting the reply.
+	var externalMsgID string
 	switch conv.Platform {
 	case "line":
 		if err := h.Line.PushText(conv.ExternalID, body.Text); err != nil {
 			return c.Status(fiber.StatusBadGateway).JSON(fiber.Map{"error": err.Error()})
 		}
+	case "facebook", "instagram":
+		mid, err := h.Meta.SendText(conv.ExternalID, body.Text)
+		if err != nil {
+			return c.Status(fiber.StatusBadGateway).JSON(fiber.Map{"error": err.Error()})
+		}
+		externalMsgID = mid
 	default:
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "platform ยังไม่รองรับการตอบกลับ: " + conv.Platform})
 	}
@@ -80,6 +90,7 @@ func (h *ChatHandler) Reply(c *fiber.Ctx) error {
 		Direction:      "out",
 		Type:           "text",
 		Text:           body.Text,
+		ExternalID:     externalMsgID,
 	}
 	database.DB.Create(&msg)
 	database.DB.Model(&conv).Updates(map[string]interface{}{

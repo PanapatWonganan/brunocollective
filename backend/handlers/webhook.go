@@ -18,16 +18,17 @@ import (
 	"gorm.io/gorm"
 )
 
-// WebhookHandler receives platform callbacks (LINE now; Facebook/Instagram
-// later) and turns them into Conversation/ChatMessage rows.
+// WebhookHandler receives platform callbacks (LINE, Facebook Messenger,
+// Instagram DM) and turns them into Conversation/ChatMessage rows.
 type WebhookHandler struct {
 	Config *config.Config
 	Line   *services.LineClient
+	Meta   *services.MetaClient
 	Hub    *services.ChatHub
 }
 
-func NewWebhookHandler(cfg *config.Config, line *services.LineClient, hub *services.ChatHub) *WebhookHandler {
-	return &WebhookHandler{Config: cfg, Line: line, Hub: hub}
+func NewWebhookHandler(cfg *config.Config, line *services.LineClient, meta *services.MetaClient, hub *services.ChatHub) *WebhookHandler {
+	return &WebhookHandler{Config: cfg, Line: line, Meta: meta, Hub: hub}
 }
 
 // lineEvent is the subset of LINE webhook event fields we consume.
@@ -152,14 +153,28 @@ func (h *WebhookHandler) findOrCreateConversation(platform, externalID string) (
 	conv = models.Conversation{
 		Platform:      platform,
 		ExternalID:    externalID,
-		DisplayName:   "LINE User",
 		LastMessageAt: time.Now(),
 	}
-	if profile, err := h.Line.GetProfile(externalID); err == nil {
-		if profile.DisplayName != "" {
-			conv.DisplayName = profile.DisplayName
+	switch platform {
+	case "line":
+		conv.DisplayName = "LINE User"
+		if profile, err := h.Line.GetProfile(externalID); err == nil {
+			if profile.DisplayName != "" {
+				conv.DisplayName = profile.DisplayName
+			}
+			conv.AvatarURL = profile.PictureURL
 		}
-		conv.AvatarURL = profile.PictureURL
+	case "facebook", "instagram":
+		conv.DisplayName = map[string]string{"facebook": "Facebook User", "instagram": "Instagram User"}[platform]
+		if profile, err := h.Meta.GetProfile(externalID); err == nil {
+			switch {
+			case profile.Name != "":
+				conv.DisplayName = profile.Name
+			case profile.Username != "":
+				conv.DisplayName = "@" + profile.Username
+			}
+			conv.AvatarURL = profile.ProfilePic
+		}
 	}
 	if err := database.DB.Create(&conv).Error; err != nil {
 		return nil, err
@@ -174,6 +189,12 @@ func (h *WebhookHandler) saveLineImage(convID uint, messageID string) (string, e
 	if err != nil {
 		return "", err
 	}
+	return h.saveChatMedia(convID, data, contentType)
+}
+
+// saveChatMedia persists downloaded chat media under uploads/ and returns
+// its public /uploads/ URL.
+func (h *WebhookHandler) saveChatMedia(convID uint, data []byte, contentType string) (string, error) {
 	ext := ".jpg"
 	switch {
 	case strings.Contains(contentType, "png"):
@@ -188,4 +209,164 @@ func (h *WebhookHandler) saveLineImage(convID uint, messageID string) (string, e
 		return "", err
 	}
 	return "/uploads/" + filename, nil
+}
+
+// ---------------------------------------------------------------------------
+// Meta (Facebook Messenger + Instagram DM)
+// ---------------------------------------------------------------------------
+
+// metaMessaging is one messaging event inside a Meta webhook entry. The same
+// shape serves both `object: "page"` (Messenger) and `object: "instagram"`.
+type metaMessaging struct {
+	Sender struct {
+		ID string `json:"id"`
+	} `json:"sender"`
+	Recipient struct {
+		ID string `json:"id"`
+	} `json:"recipient"`
+	Timestamp int64 `json:"timestamp"`
+	Message   struct {
+		MID         string `json:"mid"`
+		Text        string `json:"text"`
+		IsEcho      bool   `json:"is_echo"`
+		Attachments []struct {
+			Type    string `json:"type"`
+			Payload struct {
+				URL string `json:"url"`
+			} `json:"payload"`
+		} `json:"attachments"`
+	} `json:"message"`
+}
+
+// MetaWebhookVerify answers Meta's GET subscribe handshake by echoing
+// hub.challenge when the verify token matches.
+func (h *WebhookHandler) MetaWebhookVerify(c *fiber.Ctx) error {
+	if h.Meta.VerifyToken() == "" {
+		return c.SendStatus(fiber.StatusForbidden)
+	}
+	if c.Query("hub.mode") == "subscribe" && c.Query("hub.verify_token") == h.Meta.VerifyToken() {
+		return c.SendString(c.Query("hub.challenge"))
+	}
+	return c.SendStatus(fiber.StatusForbidden)
+}
+
+// MetaWebhook handles POST /api/webhooks/meta for both Facebook pages and
+// Instagram. Like LINE, valid payloads always get 200 so Meta doesn't
+// retry-storm; unprocessable events are skipped.
+func (h *WebhookHandler) MetaWebhook(c *fiber.Ctx) error {
+	if !h.Meta.Enabled() {
+		return c.SendStatus(fiber.StatusOK)
+	}
+
+	body := c.Body()
+	if !h.Meta.VerifySignature(body, c.Get("X-Hub-Signature-256")) {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "invalid signature"})
+	}
+
+	var payload struct {
+		Object string `json:"object"`
+		Entry  []struct {
+			Messaging []metaMessaging `json:"messaging"`
+		} `json:"entry"`
+	}
+	if err := json.Unmarshal(body, &payload); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid payload"})
+	}
+
+	var platform string
+	switch payload.Object {
+	case "page":
+		platform = "facebook"
+	case "instagram":
+		platform = "instagram"
+	default:
+		return c.SendStatus(fiber.StatusOK)
+	}
+
+	for _, entry := range payload.Entry {
+		for _, ev := range entry.Messaging {
+			h.handleMetaMessage(platform, ev)
+		}
+	}
+	return c.SendStatus(fiber.StatusOK)
+}
+
+func (h *WebhookHandler) handleMetaMessage(platform string, ev metaMessaging) {
+	// Delivery/read receipts and postbacks carry no message — skip.
+	if ev.Message.MID == "" {
+		return
+	}
+	// Dedupe: webhook redeliveries, and echoes of replies we sent ourselves
+	// (the Send API response mid is stored on the outgoing row).
+	var count int64
+	database.DB.Model(&models.ChatMessage{}).
+		Where("external_id = ?", ev.Message.MID).Count(&count)
+	if count > 0 {
+		return
+	}
+
+	// Echo = message sent by the page (admin replied from the FB/IG inbox
+	// app, or another tool). The conversation partner is then the recipient.
+	direction := "in"
+	externalUserID := ev.Sender.ID
+	if ev.Message.IsEcho {
+		direction = "out"
+		externalUserID = ev.Recipient.ID
+	}
+	if externalUserID == "" {
+		return
+	}
+
+	conv, err := h.findOrCreateConversation(platform, externalUserID)
+	if err != nil {
+		log.Println("meta webhook: conversation error:", err)
+		return
+	}
+
+	msg := models.ChatMessage{
+		ConversationID: conv.ID,
+		Direction:      direction,
+		Type:           "text",
+		Text:           ev.Message.Text,
+		ExternalID:     ev.Message.MID,
+	}
+	for _, att := range ev.Message.Attachments {
+		if att.Type == "image" && att.Payload.URL != "" {
+			msg.Type = "image"
+			// CDN URLs expire — persist a local copy, fall back to hotlink.
+			if data, ct, err := h.Meta.DownloadMedia(att.Payload.URL); err == nil {
+				if url, err := h.saveChatMedia(conv.ID, data, ct); err == nil {
+					msg.ImageURL = url
+				}
+			}
+			if msg.ImageURL == "" {
+				msg.ImageURL = att.Payload.URL
+			}
+			break
+		}
+		if msg.Text == "" {
+			msg.Type = "unsupported"
+			msg.Text = "[" + att.Type + "]"
+		}
+	}
+
+	if err := database.DB.Create(&msg).Error; err != nil {
+		log.Println("meta webhook: save message failed:", err)
+		return
+	}
+
+	preview := msg.Text
+	if msg.Type == "image" && preview == "" {
+		preview = "[รูปภาพ]"
+	}
+	updates := map[string]interface{}{
+		"last_message_text": preview,
+		"last_message_at":   time.Now(),
+	}
+	if direction == "in" {
+		updates["unread_count"] = gorm.Expr("unread_count + 1")
+	}
+	database.DB.Model(conv).Updates(updates)
+
+	h.Hub.Broadcast(fiber.Map{"type": "message", "conversation_id": conv.ID, "message": msg})
 }

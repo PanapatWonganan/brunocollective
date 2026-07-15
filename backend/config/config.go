@@ -14,6 +14,13 @@ type Config struct {
 	// same graceful-degradation pattern as Telegram.
 	LineChannelSecret string
 	LineChannelToken  string
+	// Meta (Facebook Messenger + Instagram DM). One app serves both — the
+	// page access token sends replies for the FB page and its linked IG
+	// account. VerifyToken is an owner-chosen string echoed during the
+	// webhook subscribe handshake.
+	MetaAppSecret   string
+	MetaVerifyToken string
+	MetaPageToken   string
 }
 
 func Load() *Config {
@@ -27,6 +34,9 @@ func Load() *Config {
 		BaseURL:           getEnv("BASE_URL", "http://localhost:8080"),
 		LineChannelSecret: getEnv("LINE_CHANNEL_SECRET", ""),
 		LineChannelToken:  getEnv("LINE_CHANNEL_ACCESS_TOKEN", ""),
+		MetaAppSecret:     getEnv("META_APP_SECRET", ""),
+		MetaVerifyToken:   getEnv("META_VERIFY_TOKEN", ""),
+		MetaPageToken:     getEnv("META_PAGE_ACCESS_TOKEN", ""),
 	}
 }
 
