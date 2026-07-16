@@ -22,6 +22,10 @@ type Order struct {
 	// Subtotal 0 — readers should fall back to TotalAmount when Subtotal is 0.
 	Subtotal       float64 `json:"subtotal"`
 	DiscountAmount float64 `json:"discount_amount"`
+	// MemberDiscount is the membership discount (5% of Subtotal), kept separate
+	// from the coupon DiscountAmount — the two stack:
+	// TotalAmount = Subtotal - MemberDiscount - DiscountAmount.
+	MemberDiscount float64 `json:"member_discount"`
 	// CouponCode is snapshotted so the order keeps showing the code even if the
 	// coupon is later edited or deleted.
 	CouponID   *uint  `json:"coupon_id"`

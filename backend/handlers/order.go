@@ -91,7 +91,7 @@ func (h *OrderHandler) ExportCSV(c *fiber.Ctx) error {
 	w.Write([]string{
 		"Order No", "Date", "Time", "Receipt No", "Customer", "Phone",
 		"Address", "Tax ID", "Items", "Item Count", "Status",
-		"Subtotal (THB)", "Coupon", "Discount (THB)", "Total (THB)",
+		"Subtotal (THB)", "Member Discount (THB)", "Coupon", "Discount (THB)", "Total (THB)",
 	})
 
 	// Map order -> receipt number (orders without a receipt show blank).
@@ -138,6 +138,7 @@ func (h *OrderHandler) ExportCSV(c *fiber.Ctx) error {
 			strconv.Itoa(itemCount),
 			string(o.Status),
 			strconv.FormatFloat(subtotal, 'f', 2, 64),
+			strconv.FormatFloat(o.MemberDiscount, 'f', 2, 64),
 			o.CouponCode,
 			strconv.FormatFloat(o.DiscountAmount, 'f', 2, 64),
 			strconv.FormatFloat(o.TotalAmount, 'f', 2, 64),
@@ -227,15 +228,26 @@ func (h *OrderHandler) Create(c *fiber.Ctx) error {
 			items = append(items, orderItem)
 		}
 
+		// Membership discount (5%) — same rule as the storefront checkout.
+		isMember, err := ensureMembership(tx, &customer)
+		if err != nil {
+			return err
+		}
+		var memberDiscount float64
+		if isMember {
+			memberDiscount = computeMemberDiscount(totalAmount)
+		}
+
 		order = models.Order{
-			CustomerID:  req.CustomerID,
-			Status:      models.StatusPending,
-			Subtotal:    totalAmount,
-			TotalAmount: totalAmount,
-			Notes:       req.Notes,
-			Channel:     req.Channel,
-			SlipImage:   slipFilename,
-			Items:       items,
+			CustomerID:     req.CustomerID,
+			Status:         models.StatusPending,
+			Subtotal:       totalAmount,
+			MemberDiscount: memberDiscount,
+			TotalAmount:    roundSatang(totalAmount - memberDiscount),
+			Notes:          req.Notes,
+			Channel:        req.Channel,
+			SlipImage:      slipFilename,
+			Items:          items,
 		}
 
 		if err := tx.Create(&order).Error; err != nil {

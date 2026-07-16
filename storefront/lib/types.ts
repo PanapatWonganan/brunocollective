@@ -69,6 +69,39 @@ export interface SalePage {
   allow_coupon: boolean;
 }
 
+// Storefront member profile (from /api/shop/members/*). Members get a flat
+// discount_percent off every order, separate from coupon discounts.
+export interface MemberProfile {
+  id: number;
+  name: string;
+  phone: string;
+  email: string;
+  address: string;
+  is_member: boolean;
+  member_since: string | null;
+  discount_percent: number;
+}
+
+// One past order in the member's history (subset of the backend Order).
+export interface MemberOrder {
+  id: number;
+  status: string;
+  subtotal: number;
+  member_discount: number;
+  discount_amount: number;
+  coupon_code: string;
+  total_amount: number;
+  created_at: string;
+  items: {
+    id: number;
+    quantity: number;
+    price: number;
+    size: string;
+    color: string;
+    product: { id: number; name: string; image_url: string };
+  }[];
+}
+
 // Successful response from POST /api/shop/coupons/validate.
 export interface CouponPreview {
   valid: boolean;

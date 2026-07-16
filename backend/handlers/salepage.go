@@ -408,16 +408,27 @@ func (h *SalePageHandler) PublicOrder(c *fiber.Ctx) error {
 			items = append(items, bumpItem)
 		}
 
+		// Membership discount (5%) — members get it on funnel offers too.
+		isMember, err := ensureMembership(tx, &customer)
+		if err != nil {
+			return err
+		}
+		var memberDiscount float64
+		if isMember {
+			memberDiscount = computeMemberDiscount(totalAmount)
+		}
+
 		order = models.Order{
-			CustomerID:  customer.ID,
-			Status:      models.StatusPending,
-			Subtotal:    totalAmount,
-			TotalAmount: totalAmount,
-			Notes:       req.Notes,
-			Channel:     "sale-page",
-			SlipImage:   slipFilename,
-			SalePageID:  &page.ID,
-			Items:       items,
+			CustomerID:     customer.ID,
+			Status:         models.StatusPending,
+			Subtotal:       totalAmount,
+			MemberDiscount: memberDiscount,
+			TotalAmount:    roundSatang(totalAmount - memberDiscount),
+			Notes:          req.Notes,
+			Channel:        "sale-page",
+			SlipImage:      slipFilename,
+			SalePageID:     &page.ID,
+			Items:          items,
 		}
 		if err := tx.Create(&order).Error; err != nil {
 			return err

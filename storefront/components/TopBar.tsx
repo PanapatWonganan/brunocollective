@@ -13,6 +13,7 @@ const NAV_LINKS = [
   { href: "/#journal", label: "Journal" },
   { href: "/#boutiques", label: "Visit" },
   { href: "/#contact", label: "Contact" },
+  { href: "/member", label: "Membership" },
 ];
 
 export default function TopBar() {
@@ -71,7 +72,7 @@ export default function TopBar() {
         <nav className={styles.right} aria-label="Secondary">
           <Link href="/#boutiques">Visit</Link>
           <Link href="/#contact">Contact</Link>
-          <Link href="/shop" className={styles.icons} aria-label="Account">
+          <Link href="/member" className={styles.icons} aria-label="Member account">
             <svg viewBox="0 0 24 24">
               <circle cx="12" cy="8" r="3.6" />
               <path d="M4.5 20c1.2-3.6 4.2-5.6 7.5-5.6S18.3 16.4 19.5 20" />

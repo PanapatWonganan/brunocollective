@@ -134,6 +134,9 @@ func claimCoupon(tx *gorm.DB, coupon *models.Coupon, orderID, customerID uint, d
 // and stamps the discount fields onto it. Call inside the order-creation
 // transaction, after tx.Create(&order) (the redemption needs the order ID).
 // An empty code is a no-op so both order paths can call it unconditionally.
+// The coupon discount is computed on the full subtotal — independent of the
+// membership discount (the two stack) — but is capped so the payable total
+// never goes below zero when both apply.
 func applyCouponToOrder(tx *gorm.DB, order *models.Order, code string, subtotal float64) error {
 	order.Subtotal = subtotal
 	if normalizeCouponCode(code) == "" {
@@ -144,6 +147,9 @@ func applyCouponToOrder(tx *gorm.DB, order *models.Order, code string, subtotal 
 	if err != nil {
 		return err
 	}
+	if remaining := roundSatang(subtotal - order.MemberDiscount); discount > remaining {
+		discount = remaining
+	}
 	if err := claimCoupon(tx, coupon, order.ID, order.CustomerID, discount); err != nil {
 		return err
 	}
@@ -151,7 +157,7 @@ func applyCouponToOrder(tx *gorm.DB, order *models.Order, code string, subtotal 
 	order.CouponID = &coupon.ID
 	order.CouponCode = coupon.Code
 	order.DiscountAmount = discount
-	order.TotalAmount = roundSatang(subtotal - discount)
+	order.TotalAmount = roundSatang(subtotal - order.MemberDiscount - discount)
 
 	return tx.Model(order).Updates(map[string]interface{}{
 		"subtotal":        order.Subtotal,

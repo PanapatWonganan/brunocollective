@@ -121,6 +121,7 @@ func (h *ReceiptHandler) Issue(c *fiber.Ctx) error {
 			BuyerTaxID:     strings.TrimSpace(body.BuyerTaxID),
 			Lines:          lines,
 			Subtotal:       subtotal,
+			MemberDiscount: order.MemberDiscount,
 			DiscountAmount: order.DiscountAmount,
 			CouponCode:     order.CouponCode,
 			TotalAmount:    order.TotalAmount,

@@ -167,15 +167,27 @@ func (h *ShopHandler) Checkout(c *fiber.Ctx) error {
 			items = append(items, orderItem)
 		}
 
+		// Membership discount (5%) — checked before the order row exists so a
+		// first-time buyer's own order doesn't make them a "returning" customer.
+		isMember, err := ensureMembership(tx, &customer)
+		if err != nil {
+			return err
+		}
+		var memberDiscount float64
+		if isMember {
+			memberDiscount = computeMemberDiscount(totalAmount)
+		}
+
 		order = models.Order{
-			CustomerID:  customer.ID,
-			Status:      models.StatusPending,
-			Subtotal:    totalAmount,
-			TotalAmount: totalAmount,
-			Notes:       req.Notes,
-			Channel:     "storefront",
-			SlipImage:   slipFilename,
-			Items:       items,
+			CustomerID:     customer.ID,
+			Status:         models.StatusPending,
+			Subtotal:       totalAmount,
+			MemberDiscount: memberDiscount,
+			TotalAmount:    roundSatang(totalAmount - memberDiscount),
+			Notes:          req.Notes,
+			Channel:        "storefront",
+			SlipImage:      slipFilename,
+			Items:          items,
 		}
 		if err := tx.Create(&order).Error; err != nil {
 			return err

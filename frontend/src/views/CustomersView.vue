@@ -37,10 +37,29 @@
                 <span class="text-caption font-weight-bold">{{ item.name[0]?.toUpperCase() }}</span>
               </v-avatar>
               <div class="ml-3">
-                <div class="font-weight-medium">{{ item.name }}</div>
+                <div class="font-weight-medium">
+                  {{ item.name }}
+                  <v-chip v-if="item.is_member" size="x-small" color="secondary" variant="tonal" class="ml-1" prepend-icon="mdi-star">
+                    Member
+                  </v-chip>
+                </div>
                 <div v-if="item.email" class="text-caption text-medium-emphasis">{{ item.email }}</div>
               </div>
             </div>
+          </template>
+          <template v-slot:item.is_member="{ item }">
+            <v-tooltip :text="item.is_member ? 'สมาชิก — ลด 5% ทุกออเดอร์ (กดเพื่อยกเลิก)' : 'กดเพื่อตั้งเป็นสมาชิก (ลด 5%)'" location="top">
+              <template v-slot:activator="{ props }">
+                <v-switch
+                  v-bind="props"
+                  :model-value="item.is_member"
+                  color="secondary"
+                  hide-details
+                  density="compact"
+                  @update:model-value="toggleMember(item)"
+                />
+              </template>
+            </v-tooltip>
           </template>
           <template v-slot:item.phone="{ item }">
             <div v-if="item.phone" class="d-flex align-center">
@@ -166,6 +185,7 @@ import api from '@/services/api'
 
 interface Customer {
   id?: number; name: string; email: string; phone: string; address: string; notes: string;
+  is_member?: boolean; member_since?: string | null;
 }
 
 const colors = ['primary', 'secondary', 'success', 'warning', 'info', 'error']
@@ -180,6 +200,7 @@ const headers = [
   { title: 'Customer', key: 'name' },
   { title: 'Phone', key: 'phone' },
   { title: 'Address', key: 'address' },
+  { title: 'Member', key: 'is_member', width: '90px' },
   { title: '', key: 'actions', sortable: false, align: 'end' as const, width: '100px' },
 ]
 
@@ -225,6 +246,13 @@ async function saveCustomer() {
   } finally {
     saving.value = false
   }
+}
+
+async function toggleMember(customer: Customer) {
+  const { data } = await api.post(`/customers/${customer.id}/member`)
+  // Update in place so the table doesn't jump.
+  const idx = customers.value.findIndex(c => c.id === customer.id)
+  if (idx !== -1) customers.value[idx] = data
 }
 
 function confirmDelete(customer: Customer) {

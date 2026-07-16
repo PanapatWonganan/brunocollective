@@ -64,6 +64,16 @@ func main() {
 	couponHandler := handlers.NewCouponHandler()
 	app.Post("/api/shop/coupons/validate", couponHandler.Validate)
 
+	// Storefront membership — register/login by phone; members get a flat 5%
+	// discount on every order, stacked separately from coupons.
+	memberHandler := handlers.NewMemberHandler(cfg)
+	app.Post("/api/shop/members/register", memberHandler.Register)
+	app.Post("/api/shop/members/login", memberHandler.Login)
+	app.Post("/api/shop/members/check", memberHandler.Check)
+	app.Get("/api/shop/members/me", middleware.MemberAuth(cfg), memberHandler.Me)
+	app.Put("/api/shop/members/me", middleware.MemberAuth(cfg), memberHandler.UpdateMe)
+	app.Get("/api/shop/members/me/orders", middleware.MemberAuth(cfg), memberHandler.MyOrders)
+
 	// Public sale/landing pages — rendered by the storefront at /s/{slug}.
 	salePageHandler := handlers.NewSalePageHandler(cfg, telegramNotifier)
 	app.Get("/api/shop/sale-pages/:slug", salePageHandler.PublicGet)
@@ -93,6 +103,11 @@ func main() {
 			return []byte(cfg.JWTSecret), nil
 		})
 		if err != nil || !token.Valid {
+			return fiber.ErrUnauthorized
+		}
+		// Storefront member tokens share the signing secret — keep them out
+		// of the admin chat socket.
+		if claims, ok := token.Claims.(jwt.MapClaims); !ok || claims["user_id"] == nil {
 			return fiber.ErrUnauthorized
 		}
 		return c.Next()
@@ -153,6 +168,7 @@ func main() {
 	api.Post("/customers", customerHandler.Create)
 	api.Put("/customers/:id", customerHandler.Update)
 	api.Delete("/customers/:id", customerHandler.Delete)
+	api.Post("/customers/:id/member", customerHandler.ToggleMember)
 
 	// Orders
 	orderHandler := handlers.NewOrderHandler(cfg, telegramNotifier)

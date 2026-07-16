@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Cormorant_Garamond, Inter, Playfair_Display } from "next/font/google";
 import { CartProvider } from "@/lib/cart";
+import { MemberProvider } from "@/lib/member";
 import TopBar from "@/components/TopBar";
 import Footer from "@/components/Footer";
 import BagDrawer from "@/components/BagDrawer";
@@ -51,12 +52,14 @@ export default function RootLayout({
       className={`${cormorant.variable} ${playfair.variable} ${inter.variable}`}
     >
       <body>
-        <CartProvider>
-          <TopBar />
-          {children}
-          <Footer />
-          <BagDrawer />
-        </CartProvider>
+        <MemberProvider>
+          <CartProvider>
+            <TopBar />
+            {children}
+            <Footer />
+            <BagDrawer />
+          </CartProvider>
+        </MemberProvider>
       </body>
     </html>
   );

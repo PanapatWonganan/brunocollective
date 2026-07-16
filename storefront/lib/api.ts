@@ -1,4 +1,11 @@
-import type { Product, CheckoutPayload, CouponPreview, SalePage } from "./types";
+import type {
+  Product,
+  CheckoutPayload,
+  CouponPreview,
+  SalePage,
+  MemberProfile,
+  MemberOrder,
+} from "./types";
 
 // On the server we hit the backend directly; in the browser we use same-origin
 // paths that Next rewrites (see next.config.ts) to the backend.
@@ -143,6 +150,139 @@ export async function salePageOrder(
     return { ok: false, error: data?.error || "สั่งซื้อไม่สำเร็จ กรุณาลองใหม่" };
   }
   return { ok: true, orderId: data?.id };
+}
+
+// ---- Membership ----
+// Members log in by phone; the token lives in localStorage (see lib/member.tsx)
+// and unlocks a flat 5% discount that the backend applies server-side.
+
+export const MEMBER_TOKEN_KEY = "bc_member_token";
+
+export function getMemberToken(): string | null {
+  if (typeof window === "undefined") return null;
+  return localStorage.getItem(MEMBER_TOKEN_KEY);
+}
+
+export interface MemberAuthResult {
+  ok: boolean;
+  member?: MemberProfile;
+  token?: string;
+  error?: string;
+}
+
+async function memberAuthRequest(
+  path: string,
+  body: Record<string, string>
+): Promise<MemberAuthResult> {
+  try {
+    const res = await fetch(path, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      return { ok: false, error: data?.error || "ไม่สำเร็จ กรุณาลองใหม่" };
+    }
+    return { ok: true, member: data.member, token: data.token };
+  } catch {
+    return { ok: false, error: "ไม่สำเร็จ กรุณาลองใหม่" };
+  }
+}
+
+export function memberRegister(payload: {
+  name: string;
+  phone: string;
+  email?: string;
+  password: string;
+}): Promise<MemberAuthResult> {
+  return memberAuthRequest("/api/shop/members/register", {
+    name: payload.name,
+    phone: payload.phone,
+    email: payload.email || "",
+    password: payload.password,
+  });
+}
+
+export function memberLogin(phone: string, password: string): Promise<MemberAuthResult> {
+  return memberAuthRequest("/api/shop/members/login", { phone, password });
+}
+
+// Fetches the logged-in member's profile; null when the token is missing,
+// expired, or rejected (callers should then clear the stored token).
+export async function memberMe(): Promise<MemberProfile | null> {
+  const token = getMemberToken();
+  if (!token) return null;
+  try {
+    const res = await fetch("/api/shop/members/me", {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!res.ok) return null;
+    return res.json();
+  } catch {
+    return null;
+  }
+}
+
+export async function memberUpdate(payload: {
+  name: string;
+  email: string;
+  address: string;
+  current_password?: string;
+  new_password?: string;
+}): Promise<MemberAuthResult> {
+  const token = getMemberToken();
+  if (!token) return { ok: false, error: "กรุณาเข้าสู่ระบบใหม่" };
+  try {
+    const res = await fetch("/api/shop/members/me", {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(payload),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      return { ok: false, error: data?.error || "บันทึกไม่สำเร็จ กรุณาลองใหม่" };
+    }
+    return { ok: true, member: data };
+  } catch {
+    return { ok: false, error: "บันทึกไม่สำเร็จ กรุณาลองใหม่" };
+  }
+}
+
+export async function memberOrders(): Promise<MemberOrder[]> {
+  const token = getMemberToken();
+  if (!token) return [];
+  try {
+    const res = await fetch("/api/shop/members/me/orders", {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!res.ok) return [];
+    return res.json();
+  } catch {
+    return [];
+  }
+}
+
+// Asks whether a phone number qualifies for the member discount — used by the
+// checkout page for shoppers who aren't logged in (returning customers get
+// the discount automatically by phone match).
+export async function memberCheck(
+  phone: string
+): Promise<{ is_member: boolean; discount_percent: number }> {
+  try {
+    const res = await fetch("/api/shop/members/check", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ phone }),
+    });
+    if (!res.ok) return { is_member: false, discount_percent: 0 };
+    return res.json();
+  } catch {
+    return { is_member: false, discount_percent: 0 };
+  }
 }
 
 export interface CouponCheckResult {

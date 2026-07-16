@@ -128,7 +128,18 @@
             prepend-inner-icon="mdi-account-outline"
             :rules="[v => !!v || 'Required']"
             class="mb-2"
-          />
+          >
+            <template v-slot:item="{ item: cust, props }">
+              <v-list-item v-bind="props">
+                <template v-slot:append v-if="cust.raw.is_member">
+                  <v-chip size="x-small" color="secondary" variant="tonal" prepend-icon="mdi-star">Member</v-chip>
+                </template>
+              </v-list-item>
+            </template>
+          </v-select>
+          <v-alert v-if="selectedCustomerIsMember" type="info" variant="tonal" density="compact" class="mb-2" icon="mdi-star">
+            ลูกค้าสมาชิก — ส่วนลด 5% จะถูกหักอัตโนมัติ (ใช้ร่วมกับคูปองได้)
+          </v-alert>
 
           <v-select
             v-model="orderForm.channel"
@@ -231,6 +242,10 @@
                 <span>Subtotal</span>
                 <span>{{ formatCurrency(createSubtotal) }}</span>
               </div>
+              <div v-if="createMemberDiscount > 0" class="d-flex justify-space-between text-body-2">
+                <span>Member -5%</span>
+                <span>-{{ formatCurrency(createMemberDiscount) }}</span>
+              </div>
               <div v-if="appliedCoupon" class="d-flex justify-space-between text-body-2">
                 <span>Discount ({{ appliedCoupon.code }})</span>
                 <span>-{{ formatCurrency(appliedCoupon.discount) }}</span>
@@ -305,9 +320,12 @@
             </div>
             <v-spacer />
             <div class="text-right">
-              <div v-if="selectedOrder.discount_amount > 0" class="text-caption text-medium-emphasis">
+              <div v-if="selectedOrder.discount_amount > 0 || selectedOrder.member_discount > 0" class="text-caption text-medium-emphasis">
                 <span class="text-decoration-line-through mr-1">{{ formatCurrency(selectedOrder.subtotal) }}</span>
-                <v-chip size="x-small" color="secondary" variant="tonal" prepend-icon="mdi-ticket-percent-outline">
+                <v-chip v-if="selectedOrder.member_discount > 0" size="x-small" color="secondary" variant="tonal" prepend-icon="mdi-star" class="mr-1">
+                  Member -{{ formatCurrency(selectedOrder.member_discount) }}
+                </v-chip>
+                <v-chip v-if="selectedOrder.discount_amount > 0" size="x-small" color="secondary" variant="tonal" prepend-icon="mdi-ticket-percent-outline">
                   {{ selectedOrder.coupon_code }} -{{ formatCurrency(selectedOrder.discount_amount) }}
                 </v-chip>
               </div>
@@ -746,8 +764,22 @@ const createSubtotal = computed(() =>
   }, 0)
 )
 
+// Member discount preview — a member flag on the customer, or any prior order
+// (auto-membership). The backend recomputes the real discount at order time.
+const selectedCustomerIsMember = computed(() => {
+  const id = orderForm.value.customer_id
+  if (!id) return false
+  const c = customers.value.find((x: any) => x.id === id)
+  if (c?.is_member) return true
+  return orders.value.some((o: any) => o.customer_id === id)
+})
+
+const createMemberDiscount = computed(() =>
+  selectedCustomerIsMember.value ? Math.round(createSubtotal.value * 5) / 100 : 0
+)
+
 const createTotal = computed(() =>
-  Math.max(0, createSubtotal.value - (appliedCoupon.value?.discount || 0))
+  Math.max(0, createSubtotal.value - createMemberDiscount.value - (appliedCoupon.value?.discount || 0))
 )
 
 async function applyCoupon() {
@@ -1078,11 +1110,17 @@ function printReceipt(receipt: any) {
 
   <div class="totals">
     <table>
-      ${receipt.discount_amount > 0 ? `
+      ${receipt.discount_amount > 0 || receipt.member_discount > 0 ? `
       <tr>
         <td>รวม / Subtotal</td>
         <td class="r">${formatCurrency(receipt.subtotal)}</td>
-      </tr>
+      </tr>` : ''}
+      ${receipt.member_discount > 0 ? `
+      <tr>
+        <td>ส่วนลดสมาชิก / Member Discount</td>
+        <td class="r">-${formatCurrency(receipt.member_discount)}</td>
+      </tr>` : ''}
+      ${receipt.discount_amount > 0 ? `
       <tr>
         <td>ส่วนลด${receipt.coupon_code ? ` (${esc(receipt.coupon_code)})` : ''} / Discount</td>
         <td class="r">-${formatCurrency(receipt.discount_amount)}</td>

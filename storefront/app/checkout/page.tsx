@@ -1,15 +1,17 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useCart } from "@/lib/cart";
-import { checkout, validateCoupon } from "@/lib/api";
+import { useMember } from "@/lib/member";
+import { checkout, memberCheck, validateCoupon } from "@/lib/api";
 import { money, imageSrc } from "@/lib/format";
 import type { CouponPreview } from "@/lib/types";
 import styles from "./checkout.module.css";
 
 export default function CheckoutPage() {
   const { lines, total, clear } = useCart();
+  const { member } = useMember();
   const [form, setForm] = useState({
     name: "",
     phone: "",
@@ -31,8 +33,47 @@ export default function CheckoutPage() {
   const [couponError, setCouponError] = useState<string | null>(null);
   const [couponChecking, setCouponChecking] = useState(false);
 
-  const discount = coupon ? Math.min(coupon.discount, total) : 0;
-  const payable = total - discount;
+  // Member discount — logged-in members get it from their profile; guests get
+  // it when their phone matches a member/returning customer. Display only:
+  // the backend recomputes and applies the real discount at order time.
+  const [memberPct, setMemberPct] = useState(0);
+  const prefilled = useRef(false);
+
+  useEffect(() => {
+    if (!member) return;
+    setMemberPct(member.discount_percent);
+    if (!prefilled.current) {
+      prefilled.current = true;
+      setForm((f) => ({
+        ...f,
+        name: f.name || member.name,
+        phone: f.phone || member.phone,
+        email: f.email || member.email,
+        address: f.address || member.address,
+      }));
+    }
+  }, [member]);
+
+  // Guest phone check (debounced) — returning customers qualify by phone.
+  useEffect(() => {
+    if (member) return;
+    const phone = form.phone.trim();
+    if (phone.length < 9) {
+      setMemberPct(0);
+      return;
+    }
+    const timer = setTimeout(async () => {
+      const res = await memberCheck(phone);
+      setMemberPct(res.is_member ? res.discount_percent : 0);
+    }, 600);
+    return () => clearTimeout(timer);
+  }, [member, form.phone]);
+
+  const memberDiscount = memberPct > 0 ? Math.round(total * memberPct) / 100 : 0;
+  const discount = coupon
+    ? Math.min(coupon.discount, total - memberDiscount)
+    : 0;
+  const payable = total - memberDiscount - discount;
 
   async function onApplyCoupon() {
     const code = couponCode.trim();
@@ -304,17 +345,34 @@ export default function CheckoutPage() {
             {couponError && <p className={styles.couponError}>{couponError}</p>}
           </div>
 
+          <p className={styles.memberNote}>
+            {memberDiscount > 0 ? (
+              <>✦ ส่วนลดสมาชิก {memberPct}% ถูกนำมาคำนวณแล้ว</>
+            ) : (
+              <>
+                สมาชิกลด 5% ทุกออเดอร์ —{" "}
+                <Link href="/member">เข้าสู่ระบบ / สมัครสมาชิก</Link>
+              </>
+            )}
+          </p>
+
+          {(coupon || memberDiscount > 0) && (
+            <div className={styles.sumRow}>
+              <span>Subtotal</span>
+              <span>{money(total)}</span>
+            </div>
+          )}
+          {memberDiscount > 0 && (
+            <div className={`${styles.sumRow} ${styles.sumDiscount}`}>
+              <span>Member −{memberPct}%</span>
+              <span>−{money(memberDiscount)}</span>
+            </div>
+          )}
           {coupon && (
-            <>
-              <div className={styles.sumRow}>
-                <span>Subtotal</span>
-                <span>{money(total)}</span>
-              </div>
-              <div className={`${styles.sumRow} ${styles.sumDiscount}`}>
-                <span>Discount ({coupon.code})</span>
-                <span>−{money(discount)}</span>
-              </div>
-            </>
+            <div className={`${styles.sumRow} ${styles.sumDiscount}`}>
+              <span>Discount ({coupon.code})</span>
+              <span>−{money(discount)}</span>
+            </div>
           )}
           <div className={`${styles.sumRow} ${styles.sumTotal}`}>
             <span>Total</span>

@@ -50,8 +50,11 @@ func (t *TelegramNotifier) NotifyNewOrder(order *models.Order) {
 	today := getTodaySummary()
 
 	coupon := ""
+	if order.MemberDiscount > 0 {
+		coupon += fmt.Sprintf("⭐ Member: -%.2f THB\n", order.MemberDiscount)
+	}
 	if order.CouponCode != "" {
-		coupon = fmt.Sprintf("\U0001F39F Coupon: %s (-%.2f THB)\n",
+		coupon += fmt.Sprintf("\U0001F39F Coupon: %s (-%.2f THB)\n",
 			html.EscapeString(order.CouponCode), order.DiscountAmount)
 	}
 

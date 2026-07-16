@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"strconv"
+	"time"
 
 	"brunocollective_inventory/database"
 	"brunocollective_inventory/models"
@@ -78,6 +79,29 @@ func (h *CustomerHandler) Update(c *fiber.Ctx) error {
 	database.DB.Model(&existing).Updates(updates)
 	database.DB.First(&existing, id)
 	return c.JSON(existing)
+}
+
+// ToggleMember flips the customer's membership. A struct-based Update can't
+// clear a bool back to false (GORM skips zero values), so membership gets a
+// dedicated endpoint like coupon toggle.
+func (h *CustomerHandler) ToggleMember(c *fiber.Ctx) error {
+	id, err := strconv.Atoi(c.Params("id"))
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid id"})
+	}
+
+	var customer models.Customer
+	if err := database.DB.First(&customer, id).Error; err != nil {
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "customer not found"})
+	}
+
+	updates := map[string]interface{}{"is_member": !customer.IsMember}
+	if !customer.IsMember && customer.MemberSince == nil {
+		updates["member_since"] = time.Now()
+	}
+	database.DB.Model(&customer).Updates(updates)
+	database.DB.First(&customer, id)
+	return c.JSON(customer)
 }
 
 func (h *CustomerHandler) Delete(c *fiber.Ctx) error {
