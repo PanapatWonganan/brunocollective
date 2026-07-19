@@ -2,6 +2,28 @@
    Bruno Collective — design tokens & base styles
    Ported verbatim from the Claude Design handoff (index.html).
    ============================================================ */
+
+/* LINE Seed Sans TH — Thai glyphs only (unicode-range), so Latin text keeps
+   the brand serif/sans. Self-hosted in /public/fonts (official seed.line.me). */
+@font-face{
+  font-family:"LINE Seed Sans TH";
+  src:url("/fonts/LINESeedSansTH_W_Rg.woff2") format("woff2");
+  font-weight:400; font-style:normal; font-display:swap;
+  unicode-range:U+0E00-0E7F;
+}
+@font-face{
+  font-family:"LINE Seed Sans TH";
+  src:url("/fonts/LINESeedSansTH_W_Bd.woff2") format("woff2");
+  font-weight:500 700; font-style:normal; font-display:swap;
+  unicode-range:U+0E00-0E7F;
+}
+@font-face{
+  font-family:"LINE Seed Sans TH";
+  src:url("/fonts/LINESeedSansTH_W_XBd.woff2") format("woff2");
+  font-weight:800 900; font-style:normal; font-display:swap;
+  unicode-range:U+0E00-0E7F;
+}
+
 :root{
   --cream:        #EDE5D6;   /* parchment background */
   --ivory:        #F7F2E8;   /* panels / cards */
@@ -15,8 +37,8 @@
   --hairline:     rgba(31,42,64,.18);
   --hairline-soft:rgba(31,42,64,.10);
 
-  --serif: "Cormorant Garamond", "Playfair Display", "EB Garamond", Georgia, serif;
-  --sans:  var(--font-inter), "Inter", "Neue Haas Grotesk", "Helvetica Neue", Arial, sans-serif;
+  --serif: "LINE Seed Sans TH", "Cormorant Garamond", "Playfair Display", "EB Garamond", Georgia, serif;
+  --sans:  "LINE Seed Sans TH", var(--font-inter), "Inter", "Neue Haas Grotesk", "Helvetica Neue", Arial, sans-serif;
 
   --pad:   clamp(20px, 4vw, 56px);
   --maxw:  1480px;

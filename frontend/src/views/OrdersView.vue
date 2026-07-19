@@ -461,53 +461,6 @@
       </v-card>
     </v-dialog>
 
-    <!-- Print Shipping Label Dialog -->
-    <v-dialog v-model="printDialog" max-width="550">
-      <v-card>
-        <v-card-title class="pa-5 pb-2 d-flex align-center">
-          <span class="text-h6 font-weight-bold">Shipping Label Preview</span>
-          <v-spacer />
-          <v-btn icon="mdi-close" size="small" variant="text" @click="printDialog = false" />
-        </v-card-title>
-        <v-card-text class="px-5 pb-5">
-          <div ref="labelRef" class="shipping-label">
-            <div class="label-header">
-              <img src="/brunocollective_logo.jpg" alt="Bruno Collective" class="label-logo" />
-              <div class="label-brand">BRUNO COLLECTIVE</div>
-            </div>
-            <div class="label-divider" />
-            <div class="label-section">
-              <div class="label-section-title">FROM (Sender)</div>
-              <div class="label-from-name">Bruno Collective</div>
-              <div class="label-from-detail">87/4-5 ถนน กลางเมือง ตำบลในเมือง</div>
-              <div class="label-from-detail">อำเภอเมืองขอนแก่น ขอนแก่น 40000</div>
-              <div class="label-from-detail">Tel: 0952964145</div>
-            </div>
-            <div class="label-divider" />
-            <div class="label-section label-to">
-              <div class="label-section-title">TO (Recipient)</div>
-              <div class="label-to-name">{{ printingOrder?.customer?.name }}</div>
-              <div v-if="printingOrder?.customer?.phone" class="label-to-phone">
-                Tel: {{ printingOrder.customer.phone }}
-              </div>
-              <div class="label-to-address">{{ printingOrder?.customer?.address }}</div>
-            </div>
-            <div class="label-divider" />
-            <div class="label-footer">
-              <div class="label-order-id">Order #{{ printingOrder?.id }}</div>
-              <div class="label-items">{{ printingOrder?.items?.length || 0 }} item(s)</div>
-            </div>
-          </div>
-
-          <div class="d-flex justify-center mt-4 ga-3">
-            <v-btn variant="tonal" prepend-icon="mdi-printer" color="secondary" class="text-none px-6" @click="doPrint">
-              Print Label
-            </v-btn>
-          </div>
-        </v-card-text>
-      </v-card>
-    </v-dialog>
-
     <!-- Receipt (ใบเสร็จรับเงิน) -->
     <v-dialog v-model="receiptDialog" max-width="520">
       <v-card>
@@ -640,6 +593,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import api from '@/services/api'
+import { printLabels, orderLabelItems } from '@/utils/shippingLabel'
 
 const headers = [
   { title: 'ID', key: 'id', width: '80px' },
@@ -665,7 +619,6 @@ const viewDialog = ref(false)
 const uploadDialog = ref(false)
 const slipViewDialog = ref(false)
 const deleteDialog = ref(false)
-const printDialog = ref(false)
 const exportDialog = ref(false)
 const exporting = ref(false)
 
@@ -706,8 +659,6 @@ async function downloadExport() {
 const selectedOrder = ref<any>(null)
 const deletingOrder = ref<any>(null)
 const uploadingOrder = ref<any>(null)
-const printingOrder = ref<any>(null)
-const labelRef = ref<HTMLElement | null>(null)
 
 // Receipt (ใบเสร็จรับเงิน) — issued from admin only. The shop is not VAT-registered,
 // so this is a plain receipt, NOT a tax invoice (ใบกำกับภาษี). The running number
@@ -954,52 +905,10 @@ function viewSlip(order: any) {
 }
 
 function printLabel(order: any) {
-  printingOrder.value = order
-  printDialog.value = true
-}
-
-function doPrint() {
-  if (!labelRef.value) return
-  const printContent = labelRef.value.innerHTML
-  const win = window.open('', '_blank', 'width=500,height=600')
-  if (!win) return
-  win.document.write(`<!DOCTYPE html>
-<html><head><title>Shipping Label - Order #${printingOrder.value?.id}</title>
-<style>
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-  body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 0; }
-  @page { size: 100mm 150mm; margin: 0; }
-  .shipping-label {
-    width: 100mm; min-height: 140mm; padding: 6mm;
-    border: 2px solid #1A1714; margin: 0 auto;
-  }
-  .label-header { text-align: center; padding: 4mm 0; }
-  .label-logo { height: 32px; margin-bottom: 2mm; }
-  .label-brand { font-size: 10px; font-weight: 700; letter-spacing: 2px; color: #1A1714; }
-  .label-divider { border-top: 1px dashed #ccc; margin: 3mm 0; }
-  .label-section { padding: 2mm 0; }
-  .label-section-title {
-    font-size: 9px; font-weight: 700; letter-spacing: 1.5px;
-    color: #8C8478; margin-bottom: 2mm; text-transform: uppercase;
-  }
-  .label-from-name { font-size: 13px; font-weight: 600; color: #1A1714; }
-  .label-from-detail { font-size: 11px; color: #666; margin-top: 1mm; }
-  .label-to { background: #FAF8F5; padding: 4mm; border-radius: 3mm; border: 1px solid #E8E2D9; }
-  .label-to-name { font-size: 18px; font-weight: 700; color: #1A1714; margin-bottom: 1mm; }
-  .label-to-phone { font-size: 13px; color: #555; margin-bottom: 2mm; }
-  .label-to-address { font-size: 14px; line-height: 1.5; color: #333; white-space: pre-wrap; }
-  .label-footer { display: flex; justify-content: space-between; align-items: center; padding: 2mm 0; }
-  .label-order-id { font-size: 12px; font-weight: 700; color: #1A1714; }
-  .label-items { font-size: 11px; color: #8C8478; }
-  @media print {
-    body { padding: 0; }
-    .shipping-label { border: 2px solid #000; page-break-after: always; }
-  }
-</style></head><body>
-<div class="shipping-label">${printContent}</div>
-<script>window.onload=function(){window.print();window.onafterprint=function(){window.close();}}<\/script>
-</body></html>`)
-  win.document.close()
+  printLabels(
+    [{ orderId: order.id, items: orderLabelItems(order), customer: order.customer || {} }],
+    `Shipping Label - Order #${order.id}`
+  )
 }
 
 // --- Receipt (ใบเสร็จรับเงิน) ---
@@ -1183,75 +1092,14 @@ function printReceipt(receipt: any) {
 function printAllLabels() {
   const items = printableOrders.value
   if (!items.length) return
-
-  const labelHtml = items.map((order: any) => `
-    <div class="shipping-label">
-      <div class="label-header">
-        <img src="${window.location.origin}/brunocollective_logo.jpg" alt="Bruno Collective" class="label-logo" />
-        <div class="label-brand">BRUNO COLLECTIVE</div>
-      </div>
-      <div class="label-divider"></div>
-      <div class="label-section">
-        <div class="label-section-title">FROM (Sender)</div>
-        <div class="label-from-name">Bruno Collective</div>
-        <div class="label-from-detail">87/4-5 ถนน กลางเมือง ตำบลในเมือง</div>
-        <div class="label-from-detail">อำเภอเมืองขอนแก่น ขอนแก่น 40000</div>
-        <div class="label-from-detail">Tel: 0952964145</div>
-      </div>
-      <div class="label-divider"></div>
-      <div class="label-section label-to">
-        <div class="label-section-title">TO (Recipient)</div>
-        <div class="label-to-name">${order.customer?.name || ''}</div>
-        ${order.customer?.phone ? `<div class="label-to-phone">Tel: ${order.customer.phone}</div>` : ''}
-        <div class="label-to-address">${order.customer?.address || ''}</div>
-      </div>
-      <div class="label-divider"></div>
-      <div class="label-footer">
-        <div class="label-order-id">Order #${order.id}</div>
-        <div class="label-items">${order.items?.length || 0} item(s)</div>
-      </div>
-    </div>
-  `).join('')
-
-  const win = window.open('', '_blank', 'width=500,height=600')
-  if (!win) return
-  win.document.write(`<!DOCTYPE html>
-<html><head><title>Shipping Labels - ${items.length} orders</title>
-<style>
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-  body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 0; }
-  @page { size: 100mm 150mm; margin: 0; }
-  .shipping-label {
-    width: 100mm; min-height: 140mm; padding: 6mm;
-    border: 2px solid #1A1714; margin: 0 auto;
-  }
-  .label-header { text-align: center; padding: 4mm 0; }
-  .label-logo { height: 32px; margin-bottom: 2mm; }
-  .label-brand { font-size: 10px; font-weight: 700; letter-spacing: 2px; color: #1A1714; }
-  .label-divider { border-top: 1px dashed #ccc; margin: 3mm 0; }
-  .label-section { padding: 2mm 0; }
-  .label-section-title {
-    font-size: 9px; font-weight: 700; letter-spacing: 1.5px;
-    color: #8C8478; margin-bottom: 2mm; text-transform: uppercase;
-  }
-  .label-from-name { font-size: 13px; font-weight: 600; color: #1A1714; }
-  .label-from-detail { font-size: 11px; color: #666; margin-top: 1mm; }
-  .label-to { background: #FAF8F5; padding: 4mm; border-radius: 3mm; border: 1px solid #E8E2D9; }
-  .label-to-name { font-size: 18px; font-weight: 700; color: #1A1714; margin-bottom: 1mm; }
-  .label-to-phone { font-size: 13px; color: #555; margin-bottom: 2mm; }
-  .label-to-address { font-size: 14px; line-height: 1.5; color: #333; white-space: pre-wrap; }
-  .label-footer { display: flex; justify-content: space-between; align-items: center; padding: 2mm 0; }
-  .label-order-id { font-size: 12px; font-weight: 700; color: #1A1714; }
-  .label-items { font-size: 11px; color: #8C8478; }
-  @media print {
-    body { padding: 0; }
-    .shipping-label { border: 2px solid #000; page-break-after: always; }
-  }
-</style></head><body>
-${labelHtml}
-<script>window.onload=function(){window.print();window.onafterprint=function(){window.close();}}<\/script>
-</body></html>`)
-  win.document.close()
+  printLabels(
+    items.map((order: any) => ({
+      orderId: order.id,
+      items: orderLabelItems(order),
+      customer: order.customer || {},
+    })),
+    `Shipping Labels - ${items.length} orders`
+  )
 }
 
 function confirmDelete(order: any) {
@@ -1294,105 +1142,4 @@ onMounted(async () => {
   border: 1px solid #E8E2D9;
 }
 
-/* Shipping Label Preview */
-.shipping-label {
-  border: 2px solid #1A1714;
-  border-radius: 8px;
-  padding: 20px;
-  background: #fff;
-  max-width: 380px;
-  margin: 0 auto;
-}
-
-.label-header {
-  text-align: center;
-  padding: 8px 0;
-}
-
-.label-logo {
-  height: 32px;
-  margin-bottom: 4px;
-}
-
-.label-brand {
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 2px;
-  color: #1A1714;
-}
-
-.label-divider {
-  border-top: 1px dashed #ccc;
-  margin: 10px 0;
-}
-
-.label-section {
-  padding: 4px 0;
-}
-
-.label-section-title {
-  font-size: 9px;
-  font-weight: 700;
-  letter-spacing: 1.5px;
-  color: #8C8478;
-  margin-bottom: 6px;
-  text-transform: uppercase;
-}
-
-.label-from-name {
-  font-size: 13px;
-  font-weight: 600;
-  color: #1A1714;
-}
-
-.label-from-detail {
-  font-size: 11px;
-  color: #666;
-  margin-top: 2px;
-}
-
-.label-to {
-  background: #FAF8F5;
-  padding: 14px;
-  border-radius: 8px;
-  border: 1px solid #E8E2D9;
-}
-
-.label-to-name {
-  font-size: 18px;
-  font-weight: 700;
-  color: #1A1714;
-  margin-bottom: 2px;
-}
-
-.label-to-phone {
-  font-size: 13px;
-  color: #555;
-  margin-bottom: 6px;
-}
-
-.label-to-address {
-  font-size: 14px;
-  line-height: 1.5;
-  color: #333;
-  white-space: pre-wrap;
-}
-
-.label-footer {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 4px 0;
-}
-
-.label-order-id {
-  font-size: 12px;
-  font-weight: 700;
-  color: #1A1714;
-}
-
-.label-items {
-  font-size: 11px;
-  color: #8C8478;
-}
 </style>

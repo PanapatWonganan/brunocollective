@@ -112,52 +112,6 @@
       </v-card>
     </v-dialog>
 
-    <!-- Print Address Label Dialog -->
-    <v-dialog v-model="printDialog" max-width="550">
-      <v-card>
-        <v-card-title class="pa-5 pb-2 d-flex align-center">
-          <span class="text-h6 font-weight-bold">Address Label Preview</span>
-          <v-spacer />
-          <v-btn icon="mdi-close" size="small" variant="text" @click="printDialog = false" />
-        </v-card-title>
-        <v-card-text class="px-5 pb-5">
-          <div ref="labelRef" class="shipping-label">
-            <div class="label-header">
-              <img src="/brunocollective_logo.jpg" alt="Bruno Collective" class="label-logo" />
-              <div class="label-brand">BRUNO COLLECTIVE</div>
-            </div>
-            <div class="label-divider" />
-            <div class="label-section">
-              <div class="label-section-title">FROM (Sender)</div>
-              <div class="label-from-name">Bruno Collective</div>
-              <div class="label-from-detail">87/4-5 ถนน กลางเมือง ตำบลในเมือง</div>
-              <div class="label-from-detail">อำเภอเมืองขอนแก่น ขอนแก่น 40000</div>
-              <div class="label-from-detail">Tel: 0952964145</div>
-            </div>
-            <div class="label-divider" />
-            <div class="label-section label-to">
-              <div class="label-section-title">TO (Recipient)</div>
-              <div class="label-to-name">{{ printingCustomer?.name }}</div>
-              <div v-if="printingCustomer?.phone" class="label-to-phone">
-                Tel: {{ printingCustomer.phone }}
-              </div>
-              <div class="label-to-address">{{ printingCustomer?.address }}</div>
-            </div>
-            <div class="label-divider" />
-            <div class="label-footer">
-              <div class="label-order-id">{{ printingCustomer?.name }}</div>
-            </div>
-          </div>
-
-          <div class="d-flex justify-center mt-4">
-            <v-btn variant="tonal" prepend-icon="mdi-printer" color="secondary" class="text-none px-6" @click="doPrint">
-              Print Label
-            </v-btn>
-          </div>
-        </v-card-text>
-      </v-card>
-    </v-dialog>
-
     <!-- Delete Confirm -->
     <v-dialog v-model="deleteDialog" max-width="420">
       <v-card class="text-center pa-2">
@@ -182,6 +136,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import api from '@/services/api'
+import { printLabels } from '@/utils/shippingLabel'
 
 interface Customer {
   id?: number; name: string; email: string; phone: string; address: string; notes: string;
@@ -209,12 +164,9 @@ const search = ref('')
 const loading = ref(false)
 const dialog = ref(false)
 const deleteDialog = ref(false)
-const printDialog = ref(false)
 const saving = ref(false)
 const editingCustomer = ref<Customer | null>(null)
 const deletingCustomer = ref<Customer | null>(null)
-const printingCustomer = ref<Customer | null>(null)
-const labelRef = ref<HTMLElement | null>(null)
 const form = ref()
 
 const emptyForm = (): Customer => ({ name: '', email: '', phone: '', address: '', notes: '' })
@@ -272,150 +224,8 @@ async function deleteCustomer() {
 }
 
 function printLabel(customer: Customer) {
-  printingCustomer.value = customer
-  printDialog.value = true
-}
-
-function doPrint() {
-  if (!labelRef.value) return
-  const printContent = labelRef.value.innerHTML
-  const win = window.open('', '_blank', 'width=500,height=600')
-  if (!win) return
-  win.document.write(`<!DOCTYPE html>
-<html><head><title>Address Label - ${printingCustomer.value?.name}</title>
-<style>
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-  body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 0; }
-  @page { size: 100mm 150mm; margin: 0; }
-  .shipping-label {
-    width: 100mm; min-height: 140mm; padding: 6mm;
-    border: 2px solid #1A1714; margin: 0 auto;
-  }
-  .label-header { text-align: center; padding: 4mm 0; }
-  .label-logo { height: 32px; margin-bottom: 2mm; }
-  .label-brand { font-size: 10px; font-weight: 700; letter-spacing: 2px; color: #1A1714; }
-  .label-divider { border-top: 1px dashed #ccc; margin: 3mm 0; }
-  .label-section { padding: 2mm 0; }
-  .label-section-title {
-    font-size: 9px; font-weight: 700; letter-spacing: 1.5px;
-    color: #8C8478; margin-bottom: 2mm; text-transform: uppercase;
-  }
-  .label-from-name { font-size: 13px; font-weight: 600; color: #1A1714; }
-  .label-from-detail { font-size: 11px; color: #666; margin-top: 1mm; }
-  .label-to { background: #FAF8F5; padding: 4mm; border-radius: 3mm; border: 1px solid #E8E2D9; }
-  .label-to-name { font-size: 18px; font-weight: 700; color: #1A1714; margin-bottom: 1mm; }
-  .label-to-phone { font-size: 13px; color: #555; margin-bottom: 2mm; }
-  .label-to-address { font-size: 14px; line-height: 1.5; color: #333; white-space: pre-wrap; }
-  .label-footer { display: flex; justify-content: space-between; align-items: center; padding: 2mm 0; }
-  .label-order-id { font-size: 12px; font-weight: 700; color: #1A1714; }
-  @media print {
-    body { padding: 0; }
-    .shipping-label { border: 2px solid #000; page-break-after: always; }
-  }
-</style></head><body>
-<div class="shipping-label">${printContent}</div>
-<script>window.onload=function(){window.print();window.onafterprint=function(){window.close();}}<\/script>
-</body></html>`)
-  win.document.close()
+  printLabels([{ customer }], `Address Label - ${customer.name}`)
 }
 
 onMounted(fetchCustomers)
 </script>
-
-<style scoped>
-.shipping-label {
-  border: 2px solid #1A1714;
-  border-radius: 8px;
-  padding: 20px;
-  background: #fff;
-  max-width: 380px;
-  margin: 0 auto;
-}
-
-.label-header {
-  text-align: center;
-  padding: 8px 0;
-}
-
-.label-logo {
-  height: 32px;
-  margin-bottom: 4px;
-}
-
-.label-brand {
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 2px;
-  color: #1A1714;
-}
-
-.label-divider {
-  border-top: 1px dashed #ccc;
-  margin: 10px 0;
-}
-
-.label-section {
-  padding: 4px 0;
-}
-
-.label-section-title {
-  font-size: 9px;
-  font-weight: 700;
-  letter-spacing: 1.5px;
-  color: #8C8478;
-  margin-bottom: 6px;
-  text-transform: uppercase;
-}
-
-.label-from-name {
-  font-size: 13px;
-  font-weight: 600;
-  color: #1A1714;
-}
-
-.label-from-detail {
-  font-size: 11px;
-  color: #666;
-  margin-top: 2px;
-}
-
-.label-to {
-  background: #FAF8F5;
-  padding: 14px;
-  border-radius: 8px;
-  border: 1px solid #E8E2D9;
-}
-
-.label-to-name {
-  font-size: 18px;
-  font-weight: 700;
-  color: #1A1714;
-  margin-bottom: 2px;
-}
-
-.label-to-phone {
-  font-size: 13px;
-  color: #555;
-  margin-bottom: 6px;
-}
-
-.label-to-address {
-  font-size: 14px;
-  line-height: 1.5;
-  color: #333;
-  white-space: pre-wrap;
-}
-
-.label-footer {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 4px 0;
-}
-
-.label-order-id {
-  font-size: 12px;
-  font-weight: 700;
-  color: #1A1714;
-}
-</style>

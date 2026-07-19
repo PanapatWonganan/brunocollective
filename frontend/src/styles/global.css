@@ -1,3 +1,36 @@
+/* ── LINE Seed Sans TH — Thai glyphs only ──
+   unicode-range keeps Latin text in Vuetify's default Roboto stack; only
+   Thai characters render in LINE Seed. Bundled by Vite from assets/fonts. */
+@font-face {
+  font-family: 'LINE Seed Sans TH';
+  src: url('../assets/fonts/LINESeedSansTH_W_Rg.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+0E00-0E7F;
+}
+@font-face {
+  font-family: 'LINE Seed Sans TH';
+  src: url('../assets/fonts/LINESeedSansTH_W_Bd.woff2') format('woff2');
+  font-weight: 500 700;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+0E00-0E7F;
+}
+@font-face {
+  font-family: 'LINE Seed Sans TH';
+  src: url('../assets/fonts/LINESeedSansTH_W_XBd.woff2') format('woff2');
+  font-weight: 800 900;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+0E00-0E7F;
+}
+
+body,
+.v-application {
+  font-family: 'LINE Seed Sans TH', Roboto, -apple-system, 'Helvetica Neue', Arial, sans-serif !important;
+}
+
 /* ── Global responsive safety net ──
    Prevents horizontal overflow on mobile across all views. */
 
