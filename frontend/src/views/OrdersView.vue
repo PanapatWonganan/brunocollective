@@ -35,8 +35,8 @@
       </div>
     </div>
 
-    <!-- Status Filter Chips -->
-    <div class="d-flex flex-wrap ga-2 mb-4">
+    <!-- Status Filter Chips + date filter -->
+    <div class="d-flex flex-wrap align-center ga-2 mb-4">
       <v-chip
         :color="!statusFilter ? 'primary' : undefined"
         :variant="!statusFilter ? 'elevated' : 'outlined'"
@@ -55,13 +55,30 @@
       >
         {{ s }}
       </v-chip>
+      <v-spacer />
+      <v-btn
+        size="small" variant="tonal" color="primary" class="text-none"
+        prepend-icon="mdi-calendar-today"
+        @click="dateFilter = localDay(new Date())"
+      >
+        วันนี้
+      </v-btn>
+      <v-text-field
+        v-model="dateFilter"
+        type="date"
+        label="เฉพาะวันที่"
+        density="compact"
+        hide-details
+        clearable
+        style="max-width: 200px;"
+      />
     </div>
 
     <v-card>
       <v-card-text class="pa-5">
         <v-data-table
           :headers="headers"
-          :items="orders"
+          :items="filteredOrders"
           :loading="loading"
           items-per-page="10"
           class="rounded-lg"
@@ -825,8 +842,24 @@ function formatDate(d: string) {
   return new Date(d).toLocaleDateString('th-TH', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
 }
 
+// Local calendar day (yyyy-mm-dd) of a timestamp — NOT toISOString, which
+// shifts to UTC and puts late-evening orders on the wrong day (+07:00 here).
+function localDay(d: string | Date): string {
+  const t = new Date(d)
+  return `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}-${String(t.getDate()).padStart(2, '0')}`
+}
+
+// Orders shown in the table: status comes filtered from the API; the date
+// filter narrows client-side so staff can batch-print one day's labels.
+const dateFilter = ref<string | null>('')
+const filteredOrders = computed(() =>
+  dateFilter.value
+    ? orders.value.filter((o: any) => localDay(o.created_at) === dateFilter.value)
+    : orders.value
+)
+
 const printableOrders = computed(() =>
-  orders.value.filter((o: any) => o.customer?.address)
+  filteredOrders.value.filter((o: any) => o.customer?.address)
 )
 
 function statusColor(status: string) {
