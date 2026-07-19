@@ -3,6 +3,7 @@ import { Cormorant_Garamond, Inter, Playfair_Display } from "next/font/google";
 import { CartProvider } from "@/lib/cart";
 import { MemberProvider } from "@/lib/member";
 import TopBar from "@/components/TopBar";
+import AnnouncementBar from "@/components/AnnouncementBar";
 import Footer from "@/components/Footer";
 import BagDrawer from "@/components/BagDrawer";
 import "./globals.css";
@@ -54,6 +55,7 @@ export default function RootLayout({
       <body>
         <MemberProvider>
           <CartProvider>
+            <AnnouncementBar />
             <TopBar />
             {children}
             <Footer />
