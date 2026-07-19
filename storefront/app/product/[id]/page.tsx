@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { getProduct, getSiteImages } from "@/lib/api";
+import { getProduct, getSiteImages, sizeChartFor } from "@/lib/api";
 import { money, imageSrc } from "@/lib/format";
 import AddToBag from "@/components/AddToBag";
 import ProductGallery from "@/components/ProductGallery";
@@ -45,7 +45,7 @@ export default async function ProductPage({ params }: Params) {
     getSiteImages(),
   ]);
   if (!product) notFound();
-  const sizeChartUrl = siteImages["size_chart"]?.image_url || "";
+  const sizeChartUrl = sizeChartFor(product.category, siteImages);
 
   return (
     <main className={styles.page}>

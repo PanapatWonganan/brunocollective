@@ -39,6 +39,19 @@ export interface SiteImage {
   caption_b: string;
 }
 
+// Pick the inline size chart for a product by its category: รองเท้า (shoes)
+// gets its own chart, every other sized category uses the shirt chart.
+// Returns "" when the matching chart hasn't been uploaded (chart hidden).
+export function sizeChartFor(
+  category: string | undefined,
+  site: Record<string, SiteImage>
+): string {
+  const cat = (category || "").toLowerCase();
+  const isShoes = cat.includes("รองเท้า") || cat.includes("shoe");
+  const key = isShoes ? "size_chart_shoes" : "size_chart";
+  return site[key]?.image_url || "";
+}
+
 // Editable storefront images keyed by slot (hero, lookbook_1…6, journal_1…3).
 // Only customised slots are returned; callers fall back to built-in defaults.
 export async function getSiteImages(): Promise<Record<string, SiteImage>> {

@@ -124,9 +124,11 @@ const groups = [
     })),
   },
   {
-    title: 'Size chart',
+    title: 'Size charts',
     slots: [
-      { key: 'size_chart', label: 'ตารางไซส์เสื้อ', hint: 'Shown inline under the size selector on product and sale pages (products with sizes only). Leave empty to hide.',
+      { key: 'size_chart', label: 'ตารางไซส์เสื้อ', hint: 'Shown inline under the size selector for sized products in every category except รองเท้า. Leave empty to hide.',
+        capALabel: 'Caption A (unused)', capBLabel: 'Caption B (unused)' },
+      { key: 'size_chart_shoes', label: 'ตารางไซส์รองเท้า', hint: 'Shown instead of the shirt chart when the product category is รองเท้า. Leave empty to hide.',
         capALabel: 'Caption A (unused)', capBLabel: 'Caption B (unused)' },
     ],
   },

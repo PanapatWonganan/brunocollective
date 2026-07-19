@@ -25,5 +25,5 @@ var SiteImageSlots = []string{
 	"lookbook_1", "lookbook_2", "lookbook_3",
 	"lookbook_4", "lookbook_5", "lookbook_6",
 	"journal_1", "journal_2", "journal_3",
-	"size_chart",
+	"size_chart", "size_chart_shoes",
 }

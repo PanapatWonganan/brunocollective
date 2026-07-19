@@ -13,6 +13,7 @@ export interface Product {
   sku: string;
   size: string;
   description: string;
+  category: string;
   price: number;
   stock: number;
   image_url: string;

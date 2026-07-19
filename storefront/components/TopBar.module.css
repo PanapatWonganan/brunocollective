@@ -43,6 +43,19 @@
 }
 .icons{display:inline-flex;gap:18px;align-items:center;position:relative}
 .icons svg{width:15px;height:15px;stroke:var(--ink);fill:none;stroke-width:1.2}
+
+/* Labeled member pill next to the bag icon */
+.memberBtn{
+  display:inline-flex; align-items:center; gap:7px;
+  border:1px solid var(--hairline); border-radius:999px;
+  padding:7px 14px;
+  font-size:10px; letter-spacing:.22em; text-transform:uppercase;
+  color:var(--ink); transition:border-color .3s var(--ease), background .3s var(--ease);
+}
+.memberBtn svg{width:13px;height:13px;stroke:var(--ink);fill:none;stroke-width:1.2}
+.memberBtn:hover{border-color:var(--ink)}
+.transparent .memberBtn{color:var(--ivory);border-color:rgba(247,242,232,.4)}
+.transparent .memberBtn svg{stroke:var(--ivory)}
 .badge{
   position:absolute; top:-8px; right:-10px;
   min-width:15px; height:15px; padding:0 3px;

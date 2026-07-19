@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
-import { getSalePage, getSiteImages } from "@/lib/api";
+import { getSalePage, getSiteImages, sizeChartFor } from "@/lib/api";
 import SalePageClient from "./SalePageClient";
 
 // Funnel/landing pages are personal-campaign URLs — always render fresh so
@@ -36,7 +36,7 @@ export default async function SaleLandingPage({ params, searchParams }: Props) {
     <SalePageClient
       page={page}
       isPreview={preview === "1"}
-      sizeChartUrl={siteImages["size_chart"]?.image_url || ""}
+      sizeChartUrl={sizeChartFor(page.product?.category, siteImages)}
     />
   );
 }
