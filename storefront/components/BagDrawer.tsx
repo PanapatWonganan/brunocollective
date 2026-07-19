@@ -2,11 +2,13 @@
 
 import Link from "next/link";
 import { useCart, lineKey } from "@/lib/cart";
+import { useMember } from "@/lib/member";
 import { money, imageSrc } from "@/lib/format";
 import styles from "./BagDrawer.module.css";
 
 export default function BagDrawer() {
   const { lines, total, count, setQuantity, remove, open, setOpen } = useCart();
+  const { member, ready } = useMember();
 
   return (
     <>
@@ -29,10 +31,22 @@ export default function BagDrawer() {
 
         {lines.length === 0 ? (
           <div className={styles.empty}>
-            <p className={styles.emptyNote}>Your bag is quiet for now.</p>
+            <p className={styles.emptyNote}>Your cart is empty.</p>
             <Link href="/shop" className="qlink" onClick={() => setOpen(false)}>
               Explore the Collection <span className="arrow">→</span>
             </Link>
+
+            {ready && !member && (
+              <div className={styles.account}>
+                <span className={styles.accountTitle}>Have an account?</span>
+                <p className={styles.accountNote}>
+                  สมาชิกรับส่วนลด 5% ทุกคำสั่งซื้อ — เข้าสู่ระบบหรือสมัครฟรีได้เลย
+                </p>
+                <Link href="/member" className="qlink" onClick={() => setOpen(false)}>
+                  Sign in / Join the Circle <span className="arrow">→</span>
+                </Link>
+              </div>
+            )}
           </div>
         ) : (
           <>
