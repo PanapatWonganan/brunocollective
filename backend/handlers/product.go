@@ -159,6 +159,163 @@ func (h *ProductHandler) Delete(c *fiber.Ctx) error {
 	return c.JSON(fiber.Map{"message": "product deleted"})
 }
 
+// Merge folds duplicate product :id into another product (target_id): all order
+// history, variant stock, sale-page references and images move to the target,
+// then the duplicate is deleted. Sales analytics combine automatically because
+// every aggregate keys on order_items.product_id. Used when staff accidentally
+// create the same physical product twice under different SKUs.
+func (h *ProductHandler) Merge(c *fiber.Ctx) error {
+	id, err := strconv.Atoi(c.Params("id"))
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid id"})
+	}
+
+	var body struct {
+		TargetID uint `json:"target_id"`
+	}
+	if err := c.BodyParser(&body); err != nil || body.TargetID == 0 {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "target_id is required"})
+	}
+	if body.TargetID == uint(id) {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "cannot merge a product into itself"})
+	}
+
+	var source, target models.Product
+	if err := database.DB.Preload("Variants").First(&source, id).Error; err != nil {
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "product not found"})
+	}
+	if err := database.DB.Preload("Variants").First(&target, body.TargetID).Error; err != nil {
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "target product not found"})
+	}
+
+	var movedItems int64
+	database.DB.Model(&models.OrderItem{}).Where("product_id = ?", source.ID).Count(&movedItems)
+
+	err = database.DB.Transaction(func(tx *gorm.DB) error {
+		variantKey := func(size, color string) string { return size + "\x00" + color }
+
+		// If the target is a legacy single-size product but the source brings
+		// variants, convert the target's legacy stock into a variant first so it
+		// stays visible once the product has a variant list.
+		if len(target.Variants) == 0 && len(source.Variants) > 0 && target.Stock > 0 {
+			v := models.ProductVariant{ProductID: target.ID, Size: target.Size, Stock: target.Stock}
+			if err := tx.Create(&v).Error; err != nil {
+				return err
+			}
+			if err := tx.Model(&target).Update("stock", 0).Error; err != nil {
+				return err
+			}
+			target.Variants = append(target.Variants, v)
+		}
+
+		targetByKey := map[string]*models.ProductVariant{}
+		for i := range target.Variants {
+			v := &target.Variants[i]
+			targetByKey[variantKey(v.Size, v.Color)] = v
+		}
+
+		// Variants: same size+color merges stock into the target's variant (order
+		// lines follow); otherwise the whole variant moves across unchanged.
+		for i := range source.Variants {
+			sv := source.Variants[i]
+			if tv, ok := targetByKey[variantKey(sv.Size, sv.Color)]; ok {
+				if err := tx.Model(&models.ProductVariant{}).Where("id = ?", tv.ID).
+					Update("stock", gorm.Expr("stock + ?", sv.Stock)).Error; err != nil {
+					return err
+				}
+				if err := tx.Model(&models.OrderItem{}).Where("variant_id = ?", sv.ID).
+					Update("variant_id", tv.ID).Error; err != nil {
+					return err
+				}
+				if err := tx.Delete(&models.ProductVariant{}, sv.ID).Error; err != nil {
+					return err
+				}
+			} else {
+				if err := tx.Model(&models.ProductVariant{}).Where("id = ?", sv.ID).
+					Update("product_id", target.ID).Error; err != nil {
+					return err
+				}
+			}
+		}
+
+		// Legacy source stock (no variants): sum into the target's legacy stock,
+		// or into the matching/new variant when the target sells by variant.
+		if len(source.Variants) == 0 && source.Stock > 0 {
+			if len(target.Variants) == 0 {
+				if err := tx.Model(&target).Update("stock", gorm.Expr("stock + ?", source.Stock)).Error; err != nil {
+					return err
+				}
+			} else if tv, ok := targetByKey[variantKey(source.Size, "")]; ok {
+				if err := tx.Model(&models.ProductVariant{}).Where("id = ?", tv.ID).
+					Update("stock", gorm.Expr("stock + ?", source.Stock)).Error; err != nil {
+					return err
+				}
+			} else {
+				v := models.ProductVariant{ProductID: target.ID, Size: source.Size, Stock: source.Stock}
+				if err := tx.Create(&v).Error; err != nil {
+					return err
+				}
+			}
+		}
+
+		// Order history and sale-page references follow the merge.
+		if err := tx.Model(&models.OrderItem{}).Where("product_id = ?", source.ID).
+			Update("product_id", target.ID).Error; err != nil {
+			return err
+		}
+		if err := tx.Model(&models.SalePage{}).Where("product_id = ?", source.ID).
+			Update("product_id", target.ID).Error; err != nil {
+			return err
+		}
+		if err := tx.Model(&models.SalePage{}).Where("bump_product_id = ?", source.ID).
+			Update("bump_product_id", target.ID).Error; err != nil {
+			return err
+		}
+
+		// Keep the target's details; adopt the source's images (files stay on
+		// disk) and fill in fields the target is missing.
+		updates := map[string]interface{}{}
+		gallery := append(models.StringSlice{}, target.Images...)
+		seen := map[string]bool{}
+		for _, img := range gallery {
+			seen[img] = true
+		}
+		for _, img := range append(models.StringSlice{source.ImageURL}, source.Images...) {
+			if img != "" && !seen[img] {
+				gallery = append(gallery, img)
+				seen[img] = true
+			}
+		}
+		updates["images"] = gallery
+		if target.ImageURL == "" && source.ImageURL != "" {
+			updates["image_url"] = source.ImageURL
+		}
+		if target.Description == "" && source.Description != "" {
+			updates["description"] = source.Description
+		}
+		if target.Category == "" && source.Category != "" {
+			updates["category"] = source.Category
+		}
+		if target.Cost == 0 && source.Cost > 0 {
+			updates["cost"] = source.Cost
+		}
+		if err := tx.Model(&target).Updates(updates).Error; err != nil {
+			return err
+		}
+
+		// Drop the duplicate row only — its images now belong to the target.
+		return tx.Delete(&models.Product{}, source.ID).Error
+	})
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to merge products"})
+	}
+
+	var merged models.Product
+	database.DB.Preload("Variants").First(&merged, target.ID)
+	merged.ComputeTotalStock()
+	return c.JSON(fiber.Map{"product": merged, "moved_items": movedItems})
+}
+
 // UploadImages accepts one or more image files (multipart field "images") and
 // appends them to the product's gallery. The first image also seeds image_url
 // when none is set, so existing single-image consumers keep working.

@@ -105,6 +105,11 @@
             </v-chip>
           </template>
           <template v-slot:item.actions="{ item }">
+            <v-tooltip text="รวมเข้ากับสินค้าอื่น (สินค้าซ้ำ)" location="top">
+              <template v-slot:activator="{ props }">
+                <v-btn v-bind="props" icon="mdi-merge" size="small" variant="text" color="secondary" @click="openMerge(item)" />
+              </template>
+            </v-tooltip>
             <v-btn icon="mdi-pencil-outline" size="small" variant="text" color="primary" @click="openDialog(item)" />
             <v-btn icon="mdi-delete-outline" size="small" variant="text" color="error" @click="confirmDelete(item)" />
           </template>
@@ -121,6 +126,15 @@
         <v-card-text class="px-5">
           <v-form ref="form">
             <v-text-field v-model="formData.name" label="Product Name" :rules="[v => !!v || 'Required']" class="mb-1" />
+            <v-alert
+              v-if="similarProduct"
+              type="warning" variant="tonal" density="compact" icon="mdi-content-duplicate" class="mb-3"
+            >
+              <div class="text-body-2">
+                มีสินค้าชื่อคล้ายกันอยู่แล้ว: <strong>{{ similarProduct.name }}</strong>
+                ({{ similarProduct.sku || 'no SKU' }}) — ถ้าเป็นตัวเดียวกัน แก้ไขตัวเดิมแทนการสร้างใหม่
+              </div>
+            </v-alert>
             <v-text-field v-model="formData.sku" label="Base SKU" hint="optional — variants can have their own SKU" class="mb-1" />
             <v-textarea v-model="formData.description" label="Description" rows="2" class="mb-1" />
             <v-combobox
@@ -199,6 +213,47 @@
       </v-card>
     </v-dialog>
 
+    <!-- Merge Duplicate -->
+    <v-dialog v-model="mergeDialog" max-width="520" persistent>
+      <v-card>
+        <v-card-title class="pa-5 pb-2">
+          <span class="text-h6 font-weight-bold">รวมสินค้าซ้ำ</span>
+        </v-card-title>
+        <v-card-text class="px-5">
+          <div class="text-body-2 mb-4">
+            รวม "<strong>{{ mergingProduct?.name }}</strong>"
+            <span class="text-medium-emphasis">({{ mergingProduct?.sku || 'no SKU' }})</span>
+            เข้ากับสินค้าตัวหลักที่เลือกด้านล่าง
+          </div>
+          <v-autocomplete
+            v-model="mergeTargetId"
+            :items="mergeTargetOptions"
+            label="สินค้าตัวหลัก (ตัวที่จะเก็บไว้)"
+            placeholder="ค้นหาด้วยชื่อหรือ SKU"
+            clearable
+          />
+          <v-alert type="warning" variant="tonal" density="comfortable" icon="mdi-merge" class="mt-2">
+            <div class="text-body-2">
+              ยอดขายและประวัติออเดอร์ทั้งหมดจะย้ายไปรวมที่ตัวหลัก
+              สต็อกจะรวมกันตามไซส์/สี แล้ว "<strong>{{ mergingProduct?.name }}</strong>" จะถูกลบ —
+              ราคาและรายละเอียดใช้ของตัวหลัก ย้อนกลับไม่ได้
+            </div>
+          </v-alert>
+        </v-card-text>
+        <v-card-actions class="pa-5 pt-3">
+          <v-spacer />
+          <v-btn @click="mergeDialog = false" variant="text" class="text-none">Cancel</v-btn>
+          <v-btn color="primary" :disabled="!mergeTargetId" :loading="merging" @click="doMerge" class="text-none px-6">
+            รวมสินค้า
+          </v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
+
+    <v-snackbar v-model="snackbar.show" :color="snackbar.color" timeout="4000">
+      {{ snackbar.text }}
+    </v-snackbar>
+
     <!-- Delete Confirm -->
     <v-dialog v-model="deleteDialog" max-width="420">
       <v-card class="text-center pa-2">
@@ -221,7 +276,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted } from 'vue'
 import api from '@/services/api'
 
 interface Variant {
@@ -346,6 +401,61 @@ async function removeImage(img: string) {
     formData.value.images = data.images || []
   } finally {
     deletingImg.value = null
+  }
+}
+
+// Warn when a NEW product's name looks like an existing one — the path staff
+// took to create duplicates in the first place (SKU uniqueness didn't catch it
+// because they typed a different SKU).
+const similarProduct = computed(() => {
+  if (editingProduct.value) return null
+  const name = formData.value.name.trim().toLowerCase()
+  if (name.length < 3) return null
+  return (
+    products.value.find(p => {
+      const other = p.name.trim().toLowerCase()
+      return other === name || other.includes(name) || name.includes(other)
+    }) || null
+  )
+})
+
+// ---- Merge duplicates ----
+const mergeDialog = ref(false)
+const merging = ref(false)
+const mergingProduct = ref<Product | null>(null)
+const mergeTargetId = ref<number | null>(null)
+const snackbar = reactive({ show: false, text: '', color: 'success' })
+
+const mergeTargetOptions = computed(() =>
+  products.value
+    .filter(p => p.id !== mergingProduct.value?.id)
+    .map(p => ({ title: `${p.name} (${p.sku || 'no SKU'})`, value: p.id! }))
+)
+
+function openMerge(product: Product) {
+  mergingProduct.value = product
+  mergeTargetId.value = null
+  mergeDialog.value = true
+}
+
+async function doMerge() {
+  if (!mergingProduct.value?.id || !mergeTargetId.value) return
+  merging.value = true
+  try {
+    const { data } = await api.post(`/products/${mergingProduct.value.id}/merge`, {
+      target_id: mergeTargetId.value,
+    })
+    mergeDialog.value = false
+    snackbar.text = `รวมสินค้าเรียบร้อย — ย้ายประวัติออเดอร์ ${data.moved_items} รายการไปที่ "${data.product?.name}"`
+    snackbar.color = 'success'
+    snackbar.show = true
+    await fetchProducts()
+  } catch {
+    snackbar.text = 'รวมสินค้าไม่สำเร็จ กรุณาลองใหม่'
+    snackbar.color = 'error'
+    snackbar.show = true
+  } finally {
+    merging.value = false
   }
 }
 

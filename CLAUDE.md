@@ -118,6 +118,7 @@ Both `OrdersView.vue` and `CustomersView.vue` generate 100mm x 150mm shipping la
 | PUT | `/api/change-password` | Yes | Change authenticated user's password |
 | GET/POST | `/api/products` | Yes | List / Create product |
 | GET/PUT/DELETE | `/api/products/:id` | Yes | Get / Update / Delete product |
+| POST | `/api/products/:id/merge` | Yes | Merge duplicate product `:id` into `{target_id}` (orders, stock, sale pages move; duplicate deleted) |
 | GET/POST | `/api/customers` | Yes | List / Create customer |
 | GET/PUT/DELETE | `/api/customers/:id` | Yes | Get / Update / Delete customer |
 | GET/POST | `/api/orders` | Yes | List / Create order (supports multipart form with slip) |

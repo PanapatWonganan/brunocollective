@@ -152,6 +152,7 @@ func main() {
 	api.Post("/products", productHandler.Create)
 	api.Put("/products/:id", productHandler.Update)
 	api.Delete("/products/:id", productHandler.Delete)
+	api.Post("/products/:id/merge", productHandler.Merge)
 	api.Post("/products/:id/images", productHandler.UploadImages)
 	api.Delete("/products/:id/images", productHandler.DeleteImage)
 
