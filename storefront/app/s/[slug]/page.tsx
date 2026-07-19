@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
-import { getSalePage } from "@/lib/api";
+import { getSalePage, getSiteImages } from "@/lib/api";
 import SalePageClient from "./SalePageClient";
 
 // Funnel/landing pages are personal-campaign URLs — always render fresh so
@@ -27,7 +27,16 @@ export async function generateMetadata({ params, searchParams }: Props): Promise
 export default async function SaleLandingPage({ params, searchParams }: Props) {
   const { slug } = await params;
   const { preview } = await searchParams;
-  const page = await getSalePage(slug, preview === "1");
+  const [page, siteImages] = await Promise.all([
+    getSalePage(slug, preview === "1"),
+    getSiteImages(),
+  ]);
   if (!page) notFound();
-  return <SalePageClient page={page} isPreview={preview === "1"} />;
+  return (
+    <SalePageClient
+      page={page}
+      isPreview={preview === "1"}
+      sizeChartUrl={siteImages["size_chart"]?.image_url || ""}
+    />
+  );
 }

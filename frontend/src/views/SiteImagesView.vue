@@ -4,7 +4,7 @@
       <div>
         <div class="text-h5 font-weight-bold">Site Images</div>
         <div class="text-caption text-medium-emphasis">
-          Manage the hero, lookbook and journal images shown on the public storefront home page
+          Manage the hero, lookbook and journal images on the storefront home page, plus the size chart shown when ordering
         </div>
       </div>
     </div>
@@ -122,6 +122,13 @@ const groups = [
       capALabel: 'Tag (e.g. "Essay — N° 17")',
       capBLabel: 'Read time (e.g. "8 min")',
     })),
+  },
+  {
+    title: 'Size chart',
+    slots: [
+      { key: 'size_chart', label: 'ตารางไซส์เสื้อ', hint: 'Shown inline under the size selector on product and sale pages (products with sizes only). Leave empty to hide.',
+        capALabel: 'Caption A (unused)', capBLabel: 'Caption B (unused)' },
+    ],
   },
 ]
 

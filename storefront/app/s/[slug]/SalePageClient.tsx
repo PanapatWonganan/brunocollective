@@ -12,6 +12,7 @@ import styles from "./salepage.module.css";
 interface Props {
   page: SalePage;
   isPreview: boolean;
+  sizeChartUrl?: string;
 }
 
 // Live countdown to a deadline. Returns null once passed (or when no deadline).
@@ -58,10 +59,15 @@ const SECTION_KICKERS: Record<string, string> = {
   faq: "Questions",
 };
 
-export default function SalePageClient({ page, isPreview }: Props) {
+export default function SalePageClient({ page, isPreview, sizeChartUrl }: Props) {
   const product = page.product;
   const variants = (product.variants || []).filter(Boolean);
   const hasVariants = variants.length > 0;
+  // Inline size chart in the order form — only when the product actually comes
+  // in sizes and the admin uploaded a chart (Site Images → size_chart slot).
+  const showSizeChart =
+    !!sizeChartUrl &&
+    (variants.some((v) => v.size) || (!hasVariants && !!product.size));
 
   const productImages: string[] = useMemo(
     () =>
@@ -449,6 +455,13 @@ export default function SalePageClient({ page, isPreview }: Props) {
                           );
                         })}
                       </div>
+                    </div>
+                  )}
+
+                  {showSizeChart && (
+                    <div className={styles.sizeChart}>
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={imageSrc(sizeChartUrl!)} alt="ตารางไซส์เสื้อ" loading="lazy" />
                     </div>
                   )}
 

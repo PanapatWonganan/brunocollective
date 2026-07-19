@@ -2,10 +2,17 @@
 
 import { useMemo, useState } from "react";
 import { useCart } from "@/lib/cart";
+import { imageSrc } from "@/lib/format";
 import type { Product, ProductVariant } from "@/lib/types";
 import styles from "./AddToBag.module.css";
 
-export default function AddToBag({ product }: { product: Product }) {
+export default function AddToBag({
+  product,
+  sizeChartUrl,
+}: {
+  product: Product;
+  sizeChartUrl?: string;
+}) {
   const { add } = useCart();
   const variants = product.variants ?? [];
   const hasVariants = variants.length > 0;
@@ -47,6 +54,11 @@ export default function AddToBag({ product }: { product: Product }) {
   const needsSize = sizes.length > 0 && !size;
   const needsColor = colors.length > 0 && !color;
 
+  // Inline size chart: only for sized garments (variant sizes or a legacy
+  // single-size product) and only when the admin has uploaded one.
+  const showSizeChart =
+    !!sizeChartUrl && (sizes.length > 0 || (!hasVariants && !!product.size));
+
   const stock = hasVariants ? (selected ? selected.stock : 0) : Math.max(product.stock, 0);
   const soldOut = hasVariants ? product.total_stock <= 0 : product.stock <= 0;
   const canAdd = !soldOut && !needsSize && !needsColor && stock > 0;
@@ -76,6 +88,13 @@ export default function AddToBag({ product }: { product: Product }) {
               </button>
             ))}
           </div>
+        </div>
+      )}
+
+      {showSizeChart && (
+        <div className={styles.sizeChart}>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={imageSrc(sizeChartUrl!)} alt="ตารางไซส์เสื้อ" loading="lazy" />
         </div>
       )}
 

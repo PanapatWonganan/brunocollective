@@ -3,7 +3,7 @@ package models
 import "time"
 
 // SiteImage holds an editable image + captions for a fixed slot on the public
-// storefront (hero, lookbook tiles, journal entries). Slots are addressed by a
+// storefront (hero, lookbook tiles, journal entries, size chart). Slots are addressed by a
 // stable Key so the storefront can look them up and fall back to its built-in
 // defaults when a slot has not been customised yet.
 type SiteImage struct {
@@ -25,4 +25,5 @@ var SiteImageSlots = []string{
 	"lookbook_1", "lookbook_2", "lookbook_3",
 	"lookbook_4", "lookbook_5", "lookbook_6",
 	"journal_1", "journal_2", "journal_3",
+	"size_chart",
 }

@@ -367,6 +367,12 @@
 .variantOn{background:var(--ink); color:var(--ivory); border-color:var(--ink)}
 .variantOut{opacity:.35; cursor:not-allowed; text-decoration:line-through}
 
+/* Inline size chart */
+.sizeChart img{
+  display:block; width:100%; height:auto;
+  border:1px solid var(--hairline); border-radius:2px; background:var(--ivory);
+}
+
 /* Quantity */
 .qtyRow{display:inline-flex; align-items:center; border:1px solid var(--hairline); background:var(--ivory); border-radius:2px; width:max-content}
 .qtyBtn{width:44px; height:44px; font-size:18px; color:var(--ink); transition:background .25s var(--ease)}

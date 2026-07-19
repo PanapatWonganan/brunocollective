@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { getProduct } from "@/lib/api";
+import { getProduct, getSiteImages } from "@/lib/api";
 import { money, imageSrc } from "@/lib/format";
 import AddToBag from "@/components/AddToBag";
 import ProductGallery from "@/components/ProductGallery";
@@ -40,8 +40,12 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
 
 export default async function ProductPage({ params }: Params) {
   const { id } = await params;
-  const product = await getProduct(id).catch(() => null);
+  const [product, siteImages] = await Promise.all([
+    getProduct(id).catch(() => null),
+    getSiteImages(),
+  ]);
   if (!product) notFound();
+  const sizeChartUrl = siteImages["size_chart"]?.image_url || "";
 
   return (
     <main className={styles.page}>
@@ -63,7 +67,7 @@ export default async function ProductPage({ params }: Params) {
             <p className={styles.desc}>{product.description}</p>
           )}
 
-          <AddToBag product={product} />
+          <AddToBag product={product} sizeChartUrl={sizeChartUrl} />
 
           <dl className={styles.specs}>
             {product.sku && (
