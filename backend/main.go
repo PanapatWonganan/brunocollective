@@ -148,6 +148,8 @@ func main() {
 	// Products
 	productHandler := handlers.NewProductHandler(cfg)
 	api.Get("/products", productHandler.List)
+	// NOTE: must be registered before /products/:id so "reorder" isn't parsed as an id.
+	api.Put("/products/reorder", productHandler.Reorder)
 	api.Get("/products/:id", productHandler.Get)
 	api.Post("/products", productHandler.Create)
 	api.Put("/products/:id", productHandler.Update)

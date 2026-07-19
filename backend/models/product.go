@@ -65,6 +65,11 @@ type Product struct {
 	ImageURL string      `json:"image_url"`
 	Images   StringSlice `json:"images" gorm:"type:text"`
 
+	// DisplayOrder controls storefront position (1 = first). 0 = unordered —
+	// those sort after every ordered product, newest first. Set in bulk by the
+	// admin "reorder" endpoint, which renumbers all products 1..N.
+	DisplayOrder int `json:"display_order" gorm:"default:0;index"`
+
 	// Variants are the sellable size+color combinations. A product with no
 	// variants is treated as a single legacy unit (Size/Stock above).
 	Variants []ProductVariant `json:"variants" gorm:"foreignKey:ProductID"`

@@ -41,7 +41,7 @@ func (h *ShopHandler) Products(c *fiber.Ctx) error {
 	if search := c.Query("search"); search != "" {
 		query = query.Where("name LIKE ? OR sku LIKE ?", "%"+search+"%", "%"+search+"%")
 	}
-	query.Order("created_at DESC").Find(&products)
+	query.Order(ProductDisplayOrder).Find(&products)
 
 	includeOut := c.Query("include_out") == "1"
 	out := make([]models.Product, 0, len(products))

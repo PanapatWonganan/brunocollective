@@ -24,6 +24,11 @@ func NewProductHandler(cfg *config.Config) *ProductHandler {
 	return &ProductHandler{Config: cfg}
 }
 
+// ProductDisplayOrder sorts explicitly-ordered products first (1..N), then
+// unordered ones (display_order 0) newest-first. Used by both the admin list
+// and the public shop so the admin sees exactly what the storefront shows.
+const ProductDisplayOrder = "CASE WHEN display_order = 0 THEN 1 ELSE 0 END, display_order ASC, created_at DESC"
+
 func (h *ProductHandler) List(c *fiber.Ctx) error {
 	var products []models.Product
 
@@ -32,7 +37,7 @@ func (h *ProductHandler) List(c *fiber.Ctx) error {
 		query = query.Where("name LIKE ? OR sku LIKE ?", "%"+search+"%", "%"+search+"%")
 	}
 
-	query.Order("created_at DESC").Find(&products)
+	query.Order(ProductDisplayOrder).Find(&products)
 	for i := range products {
 		products[i].ComputeTotalStock()
 	}
@@ -157,6 +162,33 @@ func (h *ProductHandler) Delete(c *fiber.Ctx) error {
 	}
 
 	return c.JSON(fiber.Map{"message": "product deleted"})
+}
+
+// Reorder sets the storefront display order in bulk: body {ids: [...]} assigns
+// display_order 1..N following the array. The admin dialog always sends the
+// full product list, so every product ends up explicitly ordered.
+func (h *ProductHandler) Reorder(c *fiber.Ctx) error {
+	var body struct {
+		IDs []uint `json:"ids"`
+	}
+	if err := c.BodyParser(&body); err != nil || len(body.IDs) == 0 {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "ids is required"})
+	}
+
+	err := database.DB.Transaction(func(tx *gorm.DB) error {
+		for i, id := range body.IDs {
+			if err := tx.Model(&models.Product{}).Where("id = ?", id).
+				Update("display_order", i+1).Error; err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to reorder products"})
+	}
+
+	return c.JSON(fiber.Map{"message": "reordered"})
 }
 
 // Merge folds duplicate product :id into another product (target_id): all order

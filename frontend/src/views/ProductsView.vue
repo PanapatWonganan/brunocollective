@@ -6,6 +6,9 @@
         <div class="text-caption text-medium-emphasis">Manage your product inventory</div>
       </div>
       <v-spacer />
+      <v-btn variant="tonal" color="secondary" prepend-icon="mdi-swap-vertical" @click="openReorder" class="text-none mr-2">
+        จัดเรียงหน้าร้าน
+      </v-btn>
       <v-btn color="primary" prepend-icon="mdi-plus" @click="openDialog()" class="text-none">
         Add Product
       </v-btn>
@@ -226,6 +229,51 @@
       </v-card>
     </v-dialog>
 
+    <!-- Reorder storefront -->
+    <v-dialog v-model="reorderDialog" max-width="560">
+      <v-card>
+        <v-card-title class="pa-5 pb-1">
+          <span class="text-h6 font-weight-bold">จัดเรียงสินค้าหน้าร้าน</span>
+        </v-card-title>
+        <v-card-text class="px-5">
+          <div class="text-caption text-medium-emphasis mb-3">
+            ลากสลับตำแหน่ง หรือใช้ปุ่มลูกศร — อันดับ 1 แสดงเป็นตัวแรกทั้งหน้าแรกและหน้า The Collection
+          </div>
+          <div
+            v-for="(p, i) in reorderList"
+            :key="p.id"
+            class="reorder-row"
+            :class="{ 'reorder-dragging': dragIndex === i }"
+            draggable="true"
+            @dragstart="dragIndex = i"
+            @dragover.prevent
+            @drop="onReorderDrop(i)"
+            @dragend="dragIndex = null"
+          >
+            <v-icon icon="mdi-drag-horizontal-variant" size="18" class="reorder-grip" />
+            <span class="reorder-num">{{ i + 1 }}</span>
+            <v-avatar size="34" rounded="lg" color="primary" variant="tonal">
+              <v-img v-if="p.image_url" :src="p.image_url" cover />
+              <v-icon v-else icon="mdi-package-variant" size="16" />
+            </v-avatar>
+            <div class="ml-3 flex-grow-1 overflow-hidden">
+              <div class="font-weight-medium text-truncate">{{ p.name }}</div>
+              <div class="text-caption text-medium-emphasis">{{ totalStock(p) }} in stock</div>
+            </div>
+            <v-btn icon="mdi-arrow-up" size="x-small" variant="text" :disabled="i === 0" @click="moveReorder(i, -1)" />
+            <v-btn icon="mdi-arrow-down" size="x-small" variant="text" :disabled="i === reorderList.length - 1" @click="moveReorder(i, 1)" />
+          </div>
+        </v-card-text>
+        <v-card-actions class="pa-5 pt-2">
+          <v-spacer />
+          <v-btn @click="reorderDialog = false" variant="text" class="text-none">Cancel</v-btn>
+          <v-btn color="primary" :loading="savingOrder" @click="saveReorder" class="text-none px-6">
+            บันทึกลำดับ
+          </v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
+
     <!-- Merge Duplicate -->
     <v-dialog v-model="mergeDialog" max-width="520" persistent>
       <v-card>
@@ -432,6 +480,53 @@ const similarProduct = computed(() => {
   )
 })
 
+// ---- Storefront reorder ----
+// The admin /products list comes back in storefront order already, so the
+// dialog starts from exactly what shoppers currently see.
+const reorderDialog = ref(false)
+const savingOrder = ref(false)
+const reorderList = ref<Product[]>([])
+const dragIndex = ref<number | null>(null)
+
+function openReorder() {
+  reorderList.value = [...products.value]
+  dragIndex.value = null
+  reorderDialog.value = true
+}
+
+function moveReorder(index: number, dir: number) {
+  const target = index + dir
+  if (target < 0 || target >= reorderList.value.length) return
+  const list = reorderList.value
+  ;[list[index], list[target]] = [list[target], list[index]]
+}
+
+function onReorderDrop(index: number) {
+  if (dragIndex.value === null || dragIndex.value === index) return
+  const list = reorderList.value
+  const [moved] = list.splice(dragIndex.value, 1)
+  list.splice(index, 0, moved)
+  dragIndex.value = null
+}
+
+async function saveReorder() {
+  savingOrder.value = true
+  try {
+    await api.put('/products/reorder', { ids: reorderList.value.map(p => p.id) })
+    reorderDialog.value = false
+    snackbar.text = 'บันทึกลำดับสินค้าแล้ว — หน้าร้านอัปเดตภายในไม่กี่วินาที'
+    snackbar.color = 'success'
+    snackbar.show = true
+    await fetchProducts()
+  } catch {
+    snackbar.text = 'บันทึกลำดับไม่สำเร็จ กรุณาลองใหม่'
+    snackbar.color = 'error'
+    snackbar.show = true
+  } finally {
+    savingOrder.value = false
+  }
+}
+
 // ---- Merge duplicates ----
 const mergeDialog = ref(false)
 const merging = ref(false)
@@ -507,6 +602,31 @@ onMounted(fetchProducts)
   display: flex;
   align-items: center;
   gap: 8px;
+}
+.reorder-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border: 1px solid #E5E7EB;
+  border-radius: 10px;
+  margin-bottom: 8px;
+  background: #fff;
+  cursor: grab;
+}
+.reorder-dragging {
+  opacity: 0.5;
+  border-style: dashed;
+}
+.reorder-grip {
+  color: #9CA3AF;
+}
+.reorder-num {
+  min-width: 22px;
+  text-align: center;
+  font-weight: 600;
+  color: #6B7280;
+  font-size: 12px;
 }
 .variant-size { max-width: 130px; }
 .variant-color { max-width: 130px; }
