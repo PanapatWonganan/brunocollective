@@ -163,8 +163,21 @@
                 Add variant
               </v-btn>
             </div>
-            <div v-if="!formData.variants.length" class="text-caption text-medium-emphasis mb-3">
-              No variants yet. Add one per size/color combination — each holds its own stock.
+            <div v-if="!formData.variants.length" class="mb-1">
+              <div class="text-caption text-medium-emphasis mb-2">
+                No variants yet. Add one per size/color combination — each holds its own stock.
+                For products without sizes/colors, set the stock directly below.
+              </div>
+              <v-text-field
+                v-model.number="formData.stock"
+                label="Stock (สินค้าไม่มีไซส์/สี)"
+                type="number"
+                hint="จำนวนคงเหลือรวมของสินค้านี้ — ใช้เมื่อไม่มี variants"
+                persistent-hint
+                :rules="[v => v >= 0 || 'Invalid']"
+                class="mb-3"
+                style="max-width: 260px;"
+              />
             </div>
             <div v-for="(v, i) in formData.variants" :key="i" class="variant-row mb-2">
               <v-combobox
