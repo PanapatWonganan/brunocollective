@@ -96,6 +96,26 @@ h1,h2,h3,h4{font-family:var(--serif);font-weight:400;margin:0;line-height:1.1;te
 .qlink--ghost{border-color:transparent;padding-bottom:0;border-bottom:1px solid transparent}
 .qlink--ghost:hover{border-bottom-color:var(--ink)}
 
+/* Filled pill for the primary call to action — reads clearly over photography,
+   unlike the hairline .qlink underline. */
+.qlink--solid{
+  color:var(--ink);
+  background:var(--champagne-2);
+  border:1px solid var(--champagne-2);
+  border-radius:999px;
+  padding:16px 34px;
+  box-shadow:0 10px 30px rgba(0,0,0,.28);
+  transition:background .35s var(--ease), box-shadow .35s var(--ease),
+             transform .35s var(--ease), gap .4s var(--ease);
+}
+.qlink--solid:hover{
+  opacity:1;
+  background:#E7D7B8;
+  border-color:#E7D7B8;
+  box-shadow:0 14px 38px rgba(0,0,0,.34);
+  transform:translateY(-2px);
+}
+
 /* ---------- Layout ---------- */
 .wrap{max-width:var(--maxw); margin:0 auto; padding:0 var(--pad)}
 

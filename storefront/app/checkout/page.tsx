@@ -237,8 +237,8 @@ export default function CheckoutPage() {
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               className={styles.bankImage}
-              src="/payment/bank-kbank.jpg"
-              alt="ช่องทางการชำระเงิน — ธนาคารกสิกรไทย เลขบัญชี 231-1421-053 บจก. บรูโน่ คอลเลคทีฟ"
+              src="/payment/promptpay-qr.jpg"
+              alt="Thai QR Payment (พร้อมเพย์) — สแกนเพื่อชำระเงิน บจก. บรูโน่ คอลเลคทีฟ"
             />
           </div>
 

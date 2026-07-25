@@ -36,7 +36,7 @@ export default function Hero({ site }: { site?: Record<string, SiteImage> }) {
           </p>
         </Reveal>
         <Reveal delay={4}>
-          <Link href="/shop" className="qlink qlink--light">
+          <Link href="/shop" className="qlink qlink--solid">
             Explore the Collection <span className="arrow">→</span>
           </Link>
         </Reveal>
