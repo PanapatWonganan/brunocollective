@@ -56,10 +56,14 @@ func (h *DashboardHandler) Stats(c *fiber.Ctx) error {
 
 // Charts returns data for dashboard charts
 func (h *DashboardHandler) Charts(c *fiber.Ctx) error {
-	period := c.Query("period", "month") // day, week, month, year
-
 	// --- 1. Revenue over time ---
-	revenueSeries := h.getRevenueSeries(period)
+	// An explicit ?from=&to= date range wins over ?period=day|week|month|year.
+	var revenueSeries []RevenuePoint
+	if from, to, ok := queryDateRange(c); ok {
+		revenueSeries = h.getRevenueSeriesRange(from, to)
+	} else {
+		revenueSeries = h.getRevenueSeries(c.Query("period", "month"))
+	}
 
 	// --- 2. Order status distribution ---
 	statusDist := h.getOrderStatusDistribution()
@@ -186,6 +190,45 @@ func (h *DashboardHandler) getRevenueSeries(period string) []RevenuePoint {
 		}
 	}
 
+	return results
+}
+
+// getRevenueSeriesRange buckets [from, to) by day, switching to monthly
+// buckets past ~4 months so the chart stays readable.
+func (h *DashboardHandler) getRevenueSeriesRange(from, to time.Time) []RevenuePoint {
+	days := int(to.Sub(from).Hours() / 24)
+	dateFormat, keyFormat, labelFormat := "%Y-%m-%d", "2006-01-02", "02 Jan"
+	slotStart := from
+	step := func(t time.Time) time.Time { return t.AddDate(0, 0, 1) }
+	if days > 120 {
+		dateFormat, keyFormat, labelFormat = "%Y-%m", "2006-01", "Jan 2006"
+		slotStart = time.Date(from.Year(), from.Month(), 1, 0, 0, 0, 0, from.Location())
+		step = func(t time.Time) time.Time { return t.AddDate(0, 1, 0) }
+	}
+
+	type rawRow struct {
+		Period  string
+		Revenue float64
+		Orders  int
+	}
+	var rows []rawRow
+	database.DB.Model(&models.Order{}).
+		Where("status != ? AND created_at >= ? AND created_at < ?", models.StatusCancelled, from, to).
+		Select(fmt.Sprintf("strftime('%s', created_at) as period, COALESCE(SUM(total_amount), 0) as revenue, COUNT(*) as orders", dateFormat)).
+		Group("period").
+		Order("period ASC").
+		Scan(&rows)
+
+	slotMap := make(map[string]rawRow, len(rows))
+	for _, r := range rows {
+		slotMap[r.Period] = r
+	}
+
+	var results []RevenuePoint
+	for t := slotStart; t.Before(to); t = step(t) {
+		row := slotMap[t.Format(keyFormat)]
+		results = append(results, RevenuePoint{Label: t.Format(labelFormat), Revenue: row.Revenue, Orders: row.Orders})
+	}
 	return results
 }
 

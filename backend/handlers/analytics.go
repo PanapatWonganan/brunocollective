@@ -30,6 +30,29 @@ func periodDays(c *fiber.Ctx) int {
 	return days
 }
 
+// queryDateRange reads ?from=YYYY-MM-DD&to=YYYY-MM-DD (both inclusive, server
+// local time). Returns [from, to) with to advanced to the following midnight.
+func queryDateRange(c *fiber.Ctx) (time.Time, time.Time, bool) {
+	loc := time.Now().Location()
+	from, errF := time.ParseInLocation("2006-01-02", c.Query("from"), loc)
+	to, errT := time.ParseInLocation("2006-01-02", c.Query("to"), loc)
+	if errF != nil || errT != nil || to.Before(from) {
+		return time.Time{}, time.Time{}, false
+	}
+	return from, to.AddDate(0, 0, 1), true
+}
+
+// periodRange resolves the analytics window: an explicit from/to date range
+// wins over ?days=N. The returned day count sizes the previous-period compare.
+func periodRange(c *fiber.Ctx) (time.Time, time.Time, int) {
+	if from, to, ok := queryDateRange(c); ok {
+		return from, to, int(to.Sub(from).Hours() / 24)
+	}
+	days := periodDays(c)
+	now := time.Now()
+	return now.AddDate(0, 0, -days), now, days
+}
+
 // ---------------------------------------------------------------------------
 // Overview tab
 // ---------------------------------------------------------------------------
@@ -123,19 +146,18 @@ type salePageRow struct {
 
 // Overview returns headline totals (with previous-period comparison) plus
 // revenue splits by channel and category, coupon performance, and sale-page
-// funnel conversion. ?days=7|30|90|365 selects the window.
+// funnel conversion. ?days=7|30|90|365 selects the window, or an explicit
+// ?from=YYYY-MM-DD&to=YYYY-MM-DD range (inclusive) overrides it.
 func (h *AnalyticsHandler) Overview(c *fiber.Ctx) error {
-	days := periodDays(c)
-	now := time.Now()
-	from := now.AddDate(0, 0, -days)
-	prevFrom := from.AddDate(0, 0, -days)
+	from, to, days := periodRange(c)
+	prevFrom := from.Add(-to.Sub(from))
 
-	current := h.totalsBetween(from, now)
+	current := h.totalsBetween(from, to)
 	previous := h.totalsBetween(prevFrom, from)
 
 	var channels []channelRow
 	database.DB.Model(&models.Order{}).
-		Where("status != ? AND created_at >= ?", models.StatusCancelled, from).
+		Where("status != ? AND created_at >= ? AND created_at < ?", models.StatusCancelled, from, to).
 		Select("CASE WHEN COALESCE(channel, '') = '' THEN 'unknown' ELSE channel END as channel, " +
 			"COALESCE(SUM(total_amount), 0) as revenue, COUNT(*) as orders").
 		Group("channel").
@@ -146,7 +168,7 @@ func (h *AnalyticsHandler) Overview(c *fiber.Ctx) error {
 	database.DB.Model(&models.OrderItem{}).
 		Joins("JOIN orders ON orders.id = order_items.order_id").
 		Joins("JOIN products ON products.id = order_items.product_id").
-		Where("orders.status != ? AND orders.created_at >= ?", models.StatusCancelled, from).
+		Where("orders.status != ? AND orders.created_at >= ? AND orders.created_at < ?", models.StatusCancelled, from, to).
 		Select("CASE WHEN COALESCE(products.category, '') = '' THEN 'ไม่ระบุหมวด' ELSE products.category END as category, " +
 			"COALESCE(SUM(order_items.quantity * order_items.price), 0) as revenue, " +
 			"COALESCE(SUM(order_items.quantity), 0) as units").
@@ -156,7 +178,7 @@ func (h *AnalyticsHandler) Overview(c *fiber.Ctx) error {
 
 	var coupons []couponRow
 	database.DB.Model(&models.Order{}).
-		Where("status != ? AND coupon_code != '' AND created_at >= ?", models.StatusCancelled, from).
+		Where("status != ? AND coupon_code != '' AND created_at >= ? AND created_at < ?", models.StatusCancelled, from, to).
 		Select("coupon_code as code, COUNT(*) as uses, " +
 			"COALESCE(SUM(total_amount), 0) as revenue, COALESCE(SUM(discount_amount), 0) as discount").
 		Group("coupon_code").

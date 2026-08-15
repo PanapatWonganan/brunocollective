@@ -26,15 +26,48 @@
         <div class="d-flex align-center mb-4 flex-wrap ga-2">
           <div>
             <div class="text-subtitle-1 font-weight-bold" style="color: #111827;">ผลประกอบการช่วงนี้</div>
-            <div class="text-caption" style="color: #6B7280;">เทียบกับช่วงก่อนหน้า ({{ overview.days || days }} วัน)</div>
+            <div class="text-caption" style="color: #6B7280;">{{ compareCaption }}</div>
           </div>
           <v-spacer />
-          <v-btn-toggle v-model="days" mandatory density="compact" color="secondary" variant="outlined" class="period-toggle">
-            <v-btn value="7" size="small" class="text-none">7 วัน</v-btn>
-            <v-btn value="30" size="small" class="text-none">30 วัน</v-btn>
-            <v-btn value="90" size="small" class="text-none">90 วัน</v-btn>
-            <v-btn value="365" size="small" class="text-none">1 ปี</v-btn>
-          </v-btn-toggle>
+          <div class="d-flex align-center ga-2 flex-wrap">
+            <v-btn-toggle v-model="days" density="compact" color="secondary" variant="outlined" class="period-toggle">
+              <v-btn value="7" size="small" class="text-none">7 วัน</v-btn>
+              <v-btn value="30" size="small" class="text-none">30 วัน</v-btn>
+              <v-btn value="90" size="small" class="text-none">90 วัน</v-btn>
+              <v-btn value="365" size="small" class="text-none">1 ปี</v-btn>
+            </v-btn-toggle>
+            <v-menu v-model="rangeMenu" :close-on-content-click="false" location="bottom end">
+              <template #activator="{ props }">
+                <v-btn
+                  v-bind="props" size="small" variant="outlined" class="text-none range-btn"
+                  :color="isCustomRange ? 'secondary' : undefined"
+                  :active="isCustomRange"
+                  prepend-icon="mdi-calendar-range"
+                >
+                  {{ isCustomRange ? rangeLabel : 'เลือกช่วงวันที่' }}
+                </v-btn>
+              </template>
+              <v-card min-width="330">
+                <v-date-picker
+                  v-model="pickerDates"
+                  multiple="range"
+                  :max="new Date()"
+                  color="secondary"
+                  show-adjacent-months
+                  hide-header
+                />
+                <v-card-actions class="pt-0">
+                  <span class="text-caption pl-2" style="color: #6B7280;">{{ pickerHint }}</span>
+                  <v-spacer />
+                  <v-btn size="small" class="text-none" @click="rangeMenu = false">ยกเลิก</v-btn>
+                  <v-btn
+                    size="small" color="secondary" variant="flat" class="text-none"
+                    :disabled="!pickerDates.length" @click="applyRange"
+                  >ตกลง</v-btn>
+                </v-card-actions>
+              </v-card>
+            </v-menu>
+          </div>
         </div>
         <v-row>
           <v-col v-for="kpi in kpiCards" :key="kpi.title" cols="12" sm="6" lg="3">
@@ -73,12 +106,19 @@
                 <div class="text-caption" style="color: #6B7280;">Sales performance over time</div>
               </div>
               <v-spacer />
-              <v-btn-toggle v-model="selectedPeriod" mandatory density="compact" color="secondary" variant="outlined" class="period-toggle">
+              <v-btn-toggle v-if="!isCustomRange" v-model="selectedPeriod" mandatory density="compact" color="secondary" variant="outlined" class="period-toggle">
                 <v-btn value="day" size="small" class="text-none">Day</v-btn>
                 <v-btn value="week" size="small" class="text-none">Week</v-btn>
                 <v-btn value="month" size="small" class="text-none">Month</v-btn>
                 <v-btn value="year" size="small" class="text-none">Year</v-btn>
               </v-btn-toggle>
+              <v-chip
+                v-else size="small" variant="tonal" color="secondary" label
+                prepend-icon="mdi-calendar-range" closable
+                @click:close="clearRange"
+              >
+                {{ rangeLabel }}
+              </v-chip>
             </div>
             <apexchart
               type="area"
@@ -98,7 +138,7 @@
           <v-card-text class="pa-5">
             <div class="mb-2">
               <div class="text-subtitle-1 font-weight-bold" style="color: #111827;">ยอดขายตามช่องทาง</div>
-              <div class="text-caption" style="color: #6B7280;">ช่วง {{ overview.days || days }} วันที่ผ่านมา</div>
+              <div class="text-caption" style="color: #6B7280;">{{ periodCaption }}</div>
             </div>
             <apexchart v-if="channels.length" type="donut" height="280" :options="channelOptions" :series="channelSeries" />
             <div v-else class="text-center pa-12" style="color: #6B7280;">
@@ -113,7 +153,7 @@
           <v-card-text class="pa-5">
             <div class="mb-2">
               <div class="text-subtitle-1 font-weight-bold" style="color: #111827;">ยอดขายตามหมวดสินค้า</div>
-              <div class="text-caption" style="color: #6B7280;">ช่วง {{ overview.days || days }} วันที่ผ่านมา</div>
+              <div class="text-caption" style="color: #6B7280;">{{ periodCaption }}</div>
             </div>
             <apexchart v-if="categories.length" type="bar" height="280" :options="categoryOptions" :series="categorySeries" />
             <div v-else class="text-center pa-12" style="color: #6B7280;">
@@ -174,7 +214,7 @@
           <v-card-text class="pa-5">
             <div class="mb-3">
               <div class="text-subtitle-1 font-weight-bold" style="color: #111827;">ประสิทธิภาพคูปอง</div>
-              <div class="text-caption" style="color: #6B7280;">ช่วง {{ overview.days || days }} วันที่ผ่านมา</div>
+              <div class="text-caption" style="color: #6B7280;">{{ periodCaption }}</div>
             </div>
             <v-table v-if="coupons.length" density="comfortable" class="rounded-lg">
               <thead>
@@ -335,24 +375,84 @@ const stats = ref<any>({})
 const chartData = ref<any>({})
 const selectedPeriod = ref('month')
 const overview = ref<any>({})
-const days = ref('30')
+const days = ref<string | null>('30')
+
+// ── Custom date range (calendar picker) ──
+// customRange = applied [start, end]; pickerDates is the picker's working
+// selection (v-date-picker range mode models every date in between).
+const rangeMenu = ref(false)
+const pickerDates = ref<Date[]>([])
+const customRange = ref<[Date, Date] | null>(null)
+const isCustomRange = computed(() => !!customRange.value)
+
+function fmtISO(d: Date) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+const thDate = new Intl.DateTimeFormat('th-TH', { day: 'numeric', month: 'short', year: '2-digit' })
+function labelFor(from: Date, to: Date) {
+  return fmtISO(from) === fmtISO(to) ? thDate.format(from) : `${thDate.format(from)} – ${thDate.format(to)}`
+}
+function pickedBounds(dates: Date[]): [Date, Date] {
+  const sorted = [...dates].sort((a, b) => a.getTime() - b.getTime())
+  return [sorted[0], sorted[sorted.length - 1]]
+}
+
+const rangeLabel = computed(() => customRange.value ? labelFor(...customRange.value) : '')
+const pickerHint = computed(() => {
+  if (!pickerDates.value.length) return 'แตะวันเริ่มต้น แล้วแตะวันสิ้นสุด'
+  return labelFor(...pickedBounds(pickerDates.value))
+})
+const periodCaption = computed(() =>
+  isCustomRange.value ? `ช่วง ${rangeLabel.value}` : `ช่วง ${days.value || 30} วันที่ผ่านมา`)
+const compareCaption = computed(() =>
+  isCustomRange.value
+    ? `${rangeLabel.value} เทียบกับช่วงก่อนหน้าที่ยาวเท่ากัน`
+    : `เทียบกับช่วงก่อนหน้า (${overview.value.days || days.value} วัน)`)
+
+function rangeParams() {
+  const [from, to] = customRange.value!
+  return { from: fmtISO(from), to: fmtISO(to) }
+}
+
+function applyRange() {
+  if (!pickerDates.value.length) return
+  customRange.value = pickedBounds(pickerDates.value)
+  days.value = null // deselect the preset buttons
+  rangeMenu.value = false
+  fetchOverview()
+  fetchCharts()
+}
+
+function clearRange() {
+  customRange.value = null
+  pickerDates.value = []
+  days.value = '30' // the days watcher refetches both
+}
 
 async function fetchCharts() {
   try {
-    const { data } = await api.get('/dashboard/charts', { params: { period: selectedPeriod.value } })
+    const params = isCustomRange.value ? rangeParams() : { period: selectedPeriod.value }
+    const { data } = await api.get('/dashboard/charts', { params })
     chartData.value = data
   } catch {}
 }
 
 async function fetchOverview() {
   try {
-    const { data } = await api.get('/analytics/overview', { params: { days: days.value } })
+    const params = isCustomRange.value ? rangeParams() : { days: days.value }
+    const { data } = await api.get('/analytics/overview', { params })
     overview.value = data
   } catch {}
 }
 
 watch(selectedPeriod, fetchCharts)
-watch(days, fetchOverview)
+watch(days, (v) => {
+  if (!v) return // custom range just took over
+  customRange.value = null
+  pickerDates.value = []
+  fetchOverview()
+  fetchCharts()
+})
 
 // ── Stat Cards ──
 const statCards = computed(() => [
