@@ -286,7 +286,7 @@ func (h *DashboardHandler) getTopSellingProducts() []TopProduct {
 		Joins("JOIN products ON products.id = order_items.product_id").
 		Joins("JOIN orders ON orders.id = order_items.order_id").
 		Where("orders.status != ?", models.StatusCancelled).
-		Select("products.name as name, SUM(order_items.quantity) as quantity, SUM(order_items.quantity * order_items.price) as revenue").
+		Select("products.name as name, SUM(order_items.quantity) as quantity, SUM(" + itemNetRevenue + ") as revenue").
 		Group("products.id").
 		Order("quantity DESC").
 		Limit(5).

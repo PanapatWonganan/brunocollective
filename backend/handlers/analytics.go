@@ -53,6 +53,14 @@ func periodRange(c *fiber.Ctx) (time.Time, time.Time, int) {
 	return now.AddDate(0, 0, -days), now, days
 }
 
+// itemNetRevenue is the SQL expression for an order item's revenue net of
+// order-level discounts (member 5%, coupons). Those live on the order, not on
+// items, so item-revenue aggregations must scale each item by the order's net
+// factor (total/subtotal) or they overstate sales. Legacy orders have
+// subtotal = 0 and no stored discounts — factor 1. Requires orders joined.
+const itemNetRevenue = "order_items.quantity * order_items.price * " +
+	"(CASE WHEN orders.subtotal > 0 THEN orders.total_amount * 1.0 / orders.subtotal ELSE 1 END)"
+
 // ---------------------------------------------------------------------------
 // Overview tab
 // ---------------------------------------------------------------------------
@@ -170,7 +178,7 @@ func (h *AnalyticsHandler) Overview(c *fiber.Ctx) error {
 		Joins("JOIN products ON products.id = order_items.product_id").
 		Where("orders.status != ? AND orders.created_at >= ? AND orders.created_at < ?", models.StatusCancelled, from, to).
 		Select("CASE WHEN COALESCE(products.category, '') = '' THEN 'ไม่ระบุหมวด' ELSE products.category END as category, " +
-			"COALESCE(SUM(order_items.quantity * order_items.price), 0) as revenue, " +
+			"COALESCE(SUM("+itemNetRevenue+"), 0) as revenue, " +
 			"COALESCE(SUM(order_items.quantity), 0) as units").
 		Group("category").
 		Order("revenue DESC").
@@ -675,7 +683,7 @@ func (h *AnalyticsHandler) Products(c *fiber.Ctx) error {
 		Joins("JOIN products ON products.id = order_items.product_id").
 		Where("orders.status != ?", models.StatusCancelled).
 		Select("order_items.product_id as product_id, products.name as name, products.category as category, " +
-			"COALESCE(SUM(order_items.quantity * order_items.price), 0) as revenue, " +
+			"COALESCE(SUM("+itemNetRevenue+"), 0) as revenue, " +
 			"COALESCE(SUM(order_items.quantity), 0) as units").
 		Group("order_items.product_id").
 		Order("revenue DESC").
