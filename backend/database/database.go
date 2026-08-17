@@ -37,6 +37,7 @@ func Connect(cfg *config.Config) {
 		&models.CannedReply{},
 		&models.AutoReplyRule{},
 		&models.AutoReplyLog{},
+		&models.Broadcast{},
 	)
 	if err != nil {
 		log.Fatal("Failed to migrate database:", err)

@@ -21,6 +21,10 @@ type AutoReplyRule struct {
 	ReplyText        string `json:"reply_text"`         // public reply under the comment
 	PrivateReplyText string `json:"private_reply_text"` // DM to the commenter (one shot per comment)
 	HideComment      bool   `json:"hide_comment"`       // hide from other users (e.g. CF prices)
+	// ApplyToChats extends the rule to inbound chat messages (LINE / FB
+	// Messenger / IG DM): when the message text matches, ReplyText is sent
+	// into the chat. PrivateReplyText/HideComment are comment-only actions.
+	ApplyToChats bool `json:"apply_to_chats"`
 
 	UsageCount int       `json:"usage_count"`
 	CreatedAt  time.Time `json:"created_at"`

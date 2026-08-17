@@ -123,7 +123,50 @@ func (h *ChatHandler) Summary(c *fiber.Ctx) error {
 	var unread int64
 	database.DB.Model(&models.Conversation{}).
 		Select("COALESCE(SUM(unread_count), 0)").Scan(&unread)
-	return c.JSON(fiber.Map{"waiting": waiting, "unread": unread})
+	return c.JSON(fiber.Map{
+		"waiting": waiting,
+		"unread":  unread,
+		// Whether the AI chat assistant is configured — drives the per-thread
+		// AI toggle in ChatView.
+		"ai_enabled": h.Config.AnthropicAPIKey != "",
+	})
+}
+
+// MarkAnswered clears a thread's waiting state without sending a message —
+// for replies made outside the system, e.g. typed in the LINE OA app. LINE's
+// webhook never delivers admin-sent messages (no echo events, unlike Meta),
+// so this is the manual sync for those. POST /chats/:id/answered.
+func (h *ChatHandler) MarkAnswered(c *fiber.Ctx) error {
+	id, err := strconv.Atoi(c.Params("id"))
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid id"})
+	}
+	var conv models.Conversation
+	if err := database.DB.First(&conv, id).Error; err != nil {
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "conversation not found"})
+	}
+	database.DB.Model(&conv).Updates(map[string]interface{}{
+		"waiting_since":  nil,
+		"last_direction": "out",
+		"unread_count":   0,
+	})
+	database.DB.Preload("Customer").First(&conv, id)
+	return c.JSON(conv)
+}
+
+// ToggleAI flips the AI assistant on/off for one thread (POST /chats/:id/ai).
+func (h *ChatHandler) ToggleAI(c *fiber.Ctx) error {
+	id, err := strconv.Atoi(c.Params("id"))
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid id"})
+	}
+	var conv models.Conversation
+	if err := database.DB.First(&conv, id).Error; err != nil {
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "conversation not found"})
+	}
+	database.DB.Model(&conv).Update("ai_disabled", !conv.AiDisabled)
+	database.DB.Preload("Customer").First(&conv, id)
+	return c.JSON(conv)
 }
 
 // UpdateStatus flips a thread between open and done.

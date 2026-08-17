@@ -56,6 +56,8 @@ func main() {
 	// Public storefront routes (no auth) — product browsing + customer checkout
 	shopHandler := handlers.NewShopHandler(cfg, telegramNotifier)
 	app.Get("/api/shop/products", shopHandler.Products)
+	// "suggest" is a literal path — must be registered before ":id".
+	app.Get("/api/shop/products/suggest", shopHandler.Suggest)
 	app.Get("/api/shop/products/:id", shopHandler.Product)
 	app.Post("/api/shop/orders", shopHandler.Checkout)
 	app.Get("/api/shop/site-images", shopHandler.SiteImages)
@@ -79,8 +81,20 @@ func main() {
 	app.Get("/api/shop/sale-pages/:slug", salePageHandler.PublicGet)
 	app.Post("/api/shop/sale-pages/:slug/order", salePageHandler.PublicOrder)
 
-	// Comment auto-reply engine (Phase 3) — shared with the Meta webhook.
-	autoReplyHandler := handlers.NewAutoReplyHandler(metaClient)
+	// Public payment page — token-scoped order summary + slip upload for
+	// orders created from the chat inbox ("สร้างออเดอร์จากแชท"). The token is
+	// unguessable and the response carries no phone/address.
+	orderHandler := handlers.NewOrderHandler(cfg, telegramNotifier)
+	app.Get("/api/pay/:token", orderHandler.PayGet)
+	app.Post("/api/pay/:token/slip", orderHandler.PayUploadSlip)
+
+	// AI chat assistant (Claude) — answers inbox questions from live stock
+	// when no keyword rule matches. Disabled without ANTHROPIC_API_KEY.
+	aiClient := services.NewAIClient(cfg)
+
+	// Auto-reply engine — FB/IG comments (via the Meta webhook) plus keyword
+	// replies + AI answers in LINE/FB/IG chats.
+	autoReplyHandler := handlers.NewAutoReplyHandler(metaClient, lineClient, chatHub, aiClient)
 
 	// Platform webhooks (no auth — verified by platform signature).
 	webhookHandler := handlers.NewWebhookHandler(cfg, lineClient, metaClient, chatHub, autoReplyHandler)
@@ -144,6 +158,7 @@ func main() {
 	api.Get("/analytics/inventory", analyticsHandler.Inventory)
 	api.Get("/analytics/customers", analyticsHandler.Customers)
 	api.Get("/analytics/products", analyticsHandler.Products)
+	api.Get("/analytics/chats", analyticsHandler.Chats)
 
 	// Products
 	productHandler := handlers.NewProductHandler(cfg)
@@ -173,8 +188,7 @@ func main() {
 	api.Delete("/customers/:id", customerHandler.Delete)
 	api.Post("/customers/:id/member", customerHandler.ToggleMember)
 
-	// Orders
-	orderHandler := handlers.NewOrderHandler(cfg, telegramNotifier)
+	// Orders (orderHandler constructed above, with the public payment routes)
 	api.Get("/orders", orderHandler.List)
 	// Accounting export — must be registered before "/orders/:id" so the literal
 	// path isn't swallowed by the :id param route.
@@ -183,6 +197,9 @@ func main() {
 	api.Post("/orders", orderHandler.Create)
 	api.Put("/orders/:id/status", orderHandler.UpdateStatus)
 	api.Post("/orders/:id/slip", orderHandler.UploadSlip)
+	// Follow-up discount for a stale unpaid order (single-use coupon, applied
+	// immediately so the /pay page updates without the customer typing a code).
+	api.Post("/orders/:id/followup-discount", orderHandler.FollowupDiscount)
 	api.Delete("/orders/:id", orderHandler.Delete)
 
 	// Coupons — literal routes before "/coupons/:id" so they aren't swallowed
@@ -211,12 +228,22 @@ func main() {
 	chatHandler := handlers.NewChatHandler(cfg, lineClient, metaClient, chatHub)
 	api.Get("/chats", chatHandler.List)
 	api.Get("/chats/summary", chatHandler.Summary)
+	// "ดีลค้าง" — conversations with unpaid chat-created orders. Literal path,
+	// so it must be registered before the ":id" routes below.
+	api.Get("/chats/followups", orderHandler.ChatFollowups)
 	api.Get("/chats/:id/messages", chatHandler.Messages)
 	api.Post("/chats/:id/reply", chatHandler.Reply)
+	// Create an order for the conversation's linked customer and get back a
+	// payment link (/pay/{token}) to push into the chat.
+	api.Post("/chats/:id/order", orderHandler.CreateFromChat)
 	api.Post("/chats/:id/read", chatHandler.MarkRead)
 	api.Put("/chats/:id/status", chatHandler.UpdateStatus)
 	api.Put("/chats/:id/tags", chatHandler.UpdateTags)
 	api.Put("/chats/:id/customer", chatHandler.LinkCustomer)
+	// Per-thread AI assistant on/off toggle.
+	api.Post("/chats/:id/ai", chatHandler.ToggleAI)
+	// Manual "answered elsewhere" — LINE OA app replies never reach webhooks.
+	api.Post("/chats/:id/answered", chatHandler.MarkAnswered)
 
 	// Comment auto-reply rules — "logs" before ":id" so it isn't swallowed.
 	api.Get("/auto-replies", autoReplyHandler.List)
@@ -225,6 +252,12 @@ func main() {
 	api.Put("/auto-replies/:id", autoReplyHandler.Update)
 	api.Delete("/auto-replies/:id", autoReplyHandler.Delete)
 	api.Post("/auto-replies/:id/toggle", autoReplyHandler.Toggle)
+
+	// LINE broadcast by RFM segment (แคมเปญหาลูกค้าตามกลุ่ม)
+	broadcastHandler := handlers.NewBroadcastHandler(lineClient)
+	api.Get("/broadcasts", broadcastHandler.List)
+	api.Get("/broadcasts/audience", broadcastHandler.Audience)
+	api.Post("/broadcasts", broadcastHandler.Send)
 
 	// Canned replies (ข้อความสำเร็จรูปในแชท)
 	api.Get("/canned-replies", chatHandler.CannedList)
@@ -237,6 +270,9 @@ func main() {
 	api.Get("/receipts", receiptHandler.List)
 	api.Get("/orders/:id/receipt", receiptHandler.Get)
 	api.Post("/orders/:id/receipt", receiptHandler.Issue)
+
+	// Chat SLA watcher — Telegram alert when chats wait too long for a reply.
+	handlers.StartChatSLAWatcher(cfg, telegramNotifier)
 
 	// Daily summary scheduler (8:00 AM Bangkok time)
 	go func() {

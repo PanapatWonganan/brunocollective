@@ -1,6 +1,9 @@
 package config
 
-import "os"
+import (
+	"os"
+	"strconv"
+)
 
 type Config struct {
 	Port             string
@@ -21,6 +24,13 @@ type Config struct {
 	MetaAppSecret   string
 	MetaVerifyToken string
 	MetaPageToken   string
+	// ChatSLAMinutes: alert Telegram when a chat has waited this long for a
+	// reply. 0 disables the watcher.
+	ChatSLAMinutes int
+	// AI chat assistant (Claude). Empty API key = disabled, same graceful
+	// degradation as Telegram/LINE.
+	AnthropicAPIKey string
+	AIModel         string
 }
 
 func Load() *Config {
@@ -37,12 +47,24 @@ func Load() *Config {
 		MetaAppSecret:     getEnv("META_APP_SECRET", ""),
 		MetaVerifyToken:   getEnv("META_VERIFY_TOKEN", ""),
 		MetaPageToken:     getEnv("META_PAGE_ACCESS_TOKEN", ""),
+		ChatSLAMinutes:    getEnvInt("CHAT_SLA_MINUTES", 10),
+		AnthropicAPIKey:   getEnv("ANTHROPIC_API_KEY", ""),
+		AIModel:           getEnv("AI_MODEL", "claude-opus-5"),
 	}
 }
 
 func getEnv(key, fallback string) string {
 	if v := os.Getenv(key); v != "" {
 		return v
+	}
+	return fallback
+}
+
+func getEnvInt(key string, fallback int) int {
+	if v := os.Getenv(key); v != "" {
+		if n, err := strconv.Atoi(v); err == nil {
+			return n
+		}
 	}
 	return fallback
 }

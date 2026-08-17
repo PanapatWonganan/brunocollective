@@ -163,6 +163,9 @@
           />
           <v-checkbox v-model="form.hide_comment" hide-details density="compact"
             label="3) ซ่อนคอมเมนต์จากคนอื่น (เหมาะกับโพสต์ CF กันคนเห็นราคา/ตัดหน้า)" />
+          <v-checkbox v-model="form.apply_to_chats" density="compact"
+            label="4) ตอบแชท/DM อัตโนมัติด้วย (LINE / FB / IG)"
+            hint="ใช้ข้อความจากช่อง 1) ตอบข้อความในแชทที่เจอ keyword — แชทยังค้างอยู่ในแท็บรอตอบให้คนตามต่อ" persistent-hint />
 
           <v-alert v-if="formError" type="error" variant="tonal" density="compact" class="mt-2">
             {{ formError }}
@@ -207,6 +210,7 @@ interface Rule {
   id?: number; name: string; platform: string; keywords: string[];
   enabled: boolean; priority: number;
   reply_text: string; private_reply_text: string; hide_comment: boolean;
+  apply_to_chats: boolean;
   usage_count?: number;
 }
 interface Log {
@@ -238,6 +242,7 @@ const platformOptions = [
   { label: 'ทุกแพลตฟอร์ม', value: 'all' },
   { label: 'Facebook', value: 'facebook' },
   { label: 'Instagram', value: 'instagram' },
+  { label: 'LINE (เฉพาะแชท)', value: 'line' },
 ]
 
 const keywordSuggestions = ['สนใจ', 'ราคา', 'เท่าไหร่', 'เท่าไร', 'cf', 'CF', 'ขอราคา', 'สั่งซื้อ', 'มีไซส์', 'inbox']
@@ -245,23 +250,25 @@ const keywordSuggestions = ['สนใจ', 'ราคา', 'เท่าไห�
 const emptyForm = (): Rule => ({
   name: '', platform: 'all', keywords: [], enabled: true, priority: 100,
   reply_text: '', private_reply_text: '', hide_comment: false,
+  apply_to_chats: false,
 })
 const form = ref<Rule>(emptyForm())
 
 function platformLabel(p: string) {
-  return ({ all: 'ทั้งหมด', facebook: 'Facebook', instagram: 'Instagram' } as Record<string, string>)[p] || p
+  return ({ all: 'ทั้งหมด', facebook: 'Facebook', instagram: 'Instagram', line: 'LINE' } as Record<string, string>)[p] || p
 }
 function platformColor(p: string) {
-  return ({ facebook: 'info', instagram: 'secondary', all: 'default' } as Record<string, string>)[p] || 'default'
+  return ({ facebook: 'info', instagram: 'secondary', line: 'success', all: 'default' } as Record<string, string>)[p] || 'default'
 }
 function actionLabel(a: string) {
-  return ({ reply: 'ตอบคอมเมนต์', private_reply: 'ส่ง DM', hide: 'ซ่อน' } as Record<string, string>)[a] || a
+  return ({ reply: 'ตอบคอมเมนต์', private_reply: 'ส่ง DM', hide: 'ซ่อน', chat_reply: 'ตอบแชท', ai_reply: 'AI ตอบแชท', ai_handoff: 'AI ส่งต่อให้คน' } as Record<string, string>)[a] || a
 }
 function actionSummary(r: Rule) {
   const parts: string[] = []
   if (r.reply_text) parts.push('ตอบคอมเมนต์')
   if (r.private_reply_text) parts.push('ส่ง DM')
   if (r.hide_comment) parts.push('ซ่อน')
+  if (r.apply_to_chats) parts.push('ตอบแชท')
   return parts.join(' + ')
 }
 function formatDate(d: string) {

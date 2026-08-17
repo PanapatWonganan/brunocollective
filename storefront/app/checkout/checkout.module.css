@@ -66,6 +66,17 @@
 .sumRow + .sumRow{margin-top:10px}
 .sumTotal{border-top:1px solid var(--hairline); padding-top:20px; margin-top:14px; font-family:var(--serif); font-size:22px}
 
+.crosssell{border-top:1px solid var(--hairline); padding-top:18px; margin-bottom:20px}
+.crosssellTitle{font-size:10px; letter-spacing:.24em; text-transform:uppercase; color:var(--ink-faint); font-weight:500; margin-bottom:14px}
+.crosssellItem{display:flex; gap:12px; align-items:center; margin-bottom:12px}
+.crosssellBtn{
+  flex:none; padding:9px 14px; background:none; border:1px solid var(--ink);
+  font-size:10px; letter-spacing:.22em; text-transform:uppercase; font-weight:500;
+  color:var(--ink); cursor:pointer; text-decoration:none;
+  transition:background .3s var(--ease), color .3s var(--ease);
+}
+.crosssellBtn:hover{background:var(--ink); color:var(--ivory)}
+
 .coupon{margin-bottom:18px}
 .couponRow{display:flex; gap:8px}
 .couponRow input{

@@ -4,13 +4,13 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useCart } from "@/lib/cart";
 import { useMember } from "@/lib/member";
-import { checkout, memberCheck, validateCoupon } from "@/lib/api";
+import { checkout, getSuggestions, memberCheck, validateCoupon } from "@/lib/api";
 import { money, imageSrc } from "@/lib/format";
-import type { CouponPreview } from "@/lib/types";
+import type { CouponPreview, Product } from "@/lib/types";
 import styles from "./checkout.module.css";
 
 export default function CheckoutPage() {
-  const { lines, total, clear } = useCart();
+  const { lines, total, clear, add, setOpen } = useCart();
   const { member } = useMember();
   const [form, setForm] = useState({
     name: "",
@@ -68,6 +68,30 @@ export default function CheckoutPage() {
     }, 600);
     return () => clearTimeout(timer);
   }, [member, form.phone]);
+
+  // Cross-sell: "bought together" suggestions for the current bag. Keyed on
+  // the product-id set so adding a suggested item refreshes the list (the
+  // backend excludes items already in the bag).
+  const [suggestions, setSuggestions] = useState<Product[]>([]);
+  const cartIds = lines.map((l) => l.product.id).sort().join(",");
+  useEffect(() => {
+    if (!cartIds) {
+      setSuggestions([]);
+      return;
+    }
+    let cancelled = false;
+    getSuggestions(cartIds.split(",").map(Number)).then((res) => {
+      if (!cancelled) setSuggestions(res.slice(0, 3));
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [cartIds]);
+
+  function addSuggestion(p: Product) {
+    add(p, null);
+    setOpen(false); // stay on the checkout page — no bag drawer popover
+  }
 
   const memberDiscount = memberPct > 0 ? Math.round(total * memberPct) / 100 : 0;
   const discount = coupon
@@ -306,6 +330,41 @@ export default function CheckoutPage() {
               );
             })}
           </div>
+          {suggestions.length > 0 && (
+            <div className={styles.crosssell}>
+              <div className={styles.crosssellTitle}>ซื้อคู่กันบ่อย · Often bought together</div>
+              {suggestions.map((p) => (
+                <div key={p.id} className={styles.crosssellItem}>
+                  <div
+                    className={styles.thumb}
+                    style={{
+                      backgroundImage: p.image_url
+                        ? `url('${imageSrc(p.image_url)}')`
+                        : undefined,
+                    }}
+                  />
+                  <div className={styles.itemBody}>
+                    <div className={styles.itemName}>{p.name}</div>
+                    <div className={styles.itemMeta}>{money(p.price)}</div>
+                  </div>
+                  {p.variants && p.variants.length > 0 ? (
+                    <Link href={`/product/${p.id}`} className={styles.crosssellBtn}>
+                      เลือกไซส์
+                    </Link>
+                  ) : (
+                    <button
+                      type="button"
+                      className={styles.crosssellBtn}
+                      onClick={() => addSuggestion(p)}
+                    >
+                      + เพิ่ม
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+
           <div className={styles.coupon}>
             {coupon ? (
               <div className={styles.couponApplied}>

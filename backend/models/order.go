@@ -37,8 +37,15 @@ type Order struct {
 	// walk-in, storefront, sale-page, …). Admin-created orders send it from the
 	// order form; storefront/sale-page checkouts stamp it server-side. Empty on
 	// legacy orders = unknown.
-	Channel     string      `json:"channel"`
-	TotalAmount float64     `json:"total_amount"`
+	Channel string `json:"channel"`
+	// ConversationID links orders created from the chat inbox back to the
+	// conversation they were sold in (attribution). Nil for other orders.
+	ConversationID *uint `json:"conversation_id"`
+	// PaymentToken is an unguessable token for the public payment page
+	// (/pay/{token}) where the customer sees the order summary and uploads a
+	// slip without logging in. Empty = no public payment page for this order.
+	PaymentToken string      `json:"payment_token" gorm:"index"`
+	TotalAmount  float64     `json:"total_amount"`
 	SlipImage   string      `json:"slip_image"`
 	Notes       string      `json:"notes"`
 	Items       []OrderItem `json:"items" gorm:"foreignKey:OrderID"`

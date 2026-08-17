@@ -219,6 +219,16 @@ func (t *TelegramNotifier) SendDailySummary() {
 	t.sendMessage(msg)
 }
 
+// SendText pushes a ready-made (HTML parse mode) message to the configured
+// chat — for features that compose their own text, e.g. chat SLA alerts.
+// No-op when Telegram is not configured.
+func (t *TelegramNotifier) SendText(text string) {
+	if !t.enabled {
+		return
+	}
+	t.sendMessage(text)
+}
+
 func (t *TelegramNotifier) sendMessage(text string) {
 	url := fmt.Sprintf("https://api.telegram.org/bot%s/sendMessage", t.botToken)
 

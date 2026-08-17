@@ -37,6 +37,13 @@ type Conversation struct {
 	// Tags are admin labels ("รอโอน", "CF แล้ว", …), stored like
 	// Product.Images (JSON TEXT).
 	Tags StringSlice `json:"tags" gorm:"type:text"`
+	// AiDisabled turns the AI chat assistant off for this thread only (admin
+	// toggle) — e.g. a sensitive negotiation the bot must stay out of.
+	AiDisabled bool `json:"ai_disabled"`
+	// SlaAlertedAt marks when the SLA watcher last alerted Telegram about the
+	// current waiting period. Re-alerts happen only when a NEW period starts
+	// (WaitingSince moves past it after a reply + new inbound).
+	SlaAlertedAt *time.Time `json:"sla_alerted_at"`
 
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
@@ -53,8 +60,11 @@ type ChatMessage struct {
 	ImageURL       string `json:"image_url"` // local /uploads/ path for downloaded media
 	// ExternalID is the platform's message id — used to dedupe webhook
 	// redeliveries.
-	ExternalID string    `json:"external_id" gorm:"index"`
-	CreatedAt  time.Time `json:"created_at"`
+	ExternalID string `json:"external_id" gorm:"index"`
+	// Source marks machine-sent outbound messages: "rule" (keyword auto-reply),
+	// "ai" (AI agent), "broadcast" (campaign push). Empty = admin or platform.
+	Source    string    `json:"source"`
+	CreatedAt time.Time `json:"created_at"`
 }
 
 // CannedReply is a saved response template the admin can insert in chat

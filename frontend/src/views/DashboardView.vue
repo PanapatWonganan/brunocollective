@@ -5,6 +5,7 @@
       <v-tab value="inventory" prepend-icon="mdi-package-variant-closed" class="text-none">สต็อก</v-tab>
       <v-tab value="customers" prepend-icon="mdi-account-group-outline" class="text-none">ลูกค้า</v-tab>
       <v-tab value="products" prepend-icon="mdi-hanger" class="text-none">สินค้า</v-tab>
+      <v-tab value="chats" prepend-icon="mdi-chat-outline" class="text-none">แชท & ช่องทาง</v-tab>
     </v-tabs>
 
     <!-- v-window mounts each tab lazily on first visit and keeps it alive after. -->
@@ -21,6 +22,9 @@
       <v-window-item value="products">
         <ProductsTab />
       </v-window-item>
+      <v-window-item value="chats">
+        <ChatsTab />
+      </v-window-item>
     </v-window>
   </div>
 </template>
@@ -31,6 +35,7 @@ import SalesTab from './dashboard/SalesTab.vue'
 import InventoryTab from './dashboard/InventoryTab.vue'
 import CustomersTab from './dashboard/CustomersTab.vue'
 import ProductsTab from './dashboard/ProductsTab.vue'
+import ChatsTab from './dashboard/ChatsTab.vue'
 
 const tab = ref('sales')
 </script>

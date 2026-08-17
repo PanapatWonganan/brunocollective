@@ -75,6 +75,22 @@ export async function getProduct(id: number | string): Promise<Product | null> {
   return res.json();
 }
 
+// Cross-sell: products most often bought together with the given ones (falls
+// back to best sellers). In-stock only; the given ids are excluded.
+export async function getSuggestions(ids: number[]): Promise<Product[]> {
+  if (!ids.length) return [];
+  try {
+    const res = await fetch(
+      `/api/shop/products/suggest?ids=${ids.join(",")}`,
+      { cache: "no-store" }
+    );
+    if (!res.ok) return [];
+    return res.json();
+  } catch {
+    return [];
+  }
+}
+
 export interface CheckoutResult {
   ok: boolean;
   orderId?: number;
@@ -163,6 +179,66 @@ export async function salePageOrder(
     return { ok: false, error: data?.error || "สั่งซื้อไม่สำเร็จ กรุณาลองใหม่" };
   }
   return { ok: true, orderId: data?.id };
+}
+
+// ---- Public payment page (/pay/{token}) ----
+// Orders created from the chat inbox carry an unguessable payment token; the
+// customer opens /pay/{token} to see the summary and upload a slip. The
+// backend response deliberately excludes phone/address.
+
+export interface PayOrderItem {
+  name: string;
+  size: string;
+  color: string;
+  quantity: number;
+  price: number;
+}
+
+export interface PayOrder {
+  order_no: number;
+  status: string;
+  created_at: string;
+  customer_name: string;
+  items: PayOrderItem[];
+  subtotal: number;
+  member_discount: number;
+  discount_amount: number;
+  coupon_code: string;
+  total_amount: number;
+  has_slip: boolean;
+}
+
+export async function getPayOrder(token: string): Promise<PayOrder | null> {
+  try {
+    const res = await fetch(`${BASE}/api/pay/${encodeURIComponent(token)}`, {
+      cache: "no-store",
+    });
+    if (!res.ok) return null;
+    return res.json();
+  } catch {
+    return null;
+  }
+}
+
+export async function uploadPaySlip(
+  token: string,
+  slip: File
+): Promise<{ ok: boolean; order?: PayOrder; error?: string }> {
+  const form = new FormData();
+  form.set("slip", slip);
+  try {
+    const res = await fetch(`/api/pay/${encodeURIComponent(token)}/slip`, {
+      method: "POST",
+      body: form,
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      return { ok: false, error: data?.error || "อัปโหลดสลิปไม่สำเร็จ กรุณาลองใหม่" };
+    }
+    return { ok: true, order: data };
+  } catch {
+    return { ok: false, error: "อัปโหลดสลิปไม่สำเร็จ กรุณาลองใหม่" };
+  }
 }
 
 // ---- Membership ----

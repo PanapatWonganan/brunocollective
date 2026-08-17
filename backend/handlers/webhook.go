@@ -133,6 +133,10 @@ func (h *WebhookHandler) handleLineMessage(ev lineEvent) {
 	touchConversation(conv, preview, "in")
 
 	h.Hub.Broadcast(fiber.Map{"type": "message", "conversation_id": conv.ID, "message": msg})
+
+	// Keyword auto-reply for chats (rules with ApplyToChats) — background so
+	// the webhook answers fast.
+	go h.AutoReply.HandleChatMessage(conv, &msg)
 }
 
 // touchConversation refreshes a thread's list-row fields after a new
@@ -444,4 +448,9 @@ func (h *WebhookHandler) handleMetaMessage(platform string, ev metaMessaging) {
 	touchConversation(conv, preview, direction)
 
 	h.Hub.Broadcast(fiber.Map{"type": "message", "conversation_id": conv.ID, "message": msg})
+
+	// Keyword auto-reply for chats — inbound only (echoes are our own sends).
+	if direction == "in" {
+		go h.AutoReply.HandleChatMessage(conv, &msg)
+	}
 }
