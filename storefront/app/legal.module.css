@@ -1,0 +1,67 @@
+/* Shared layout for legal pages (/privacy, /data-deletion). */
+
+.page {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: clamp(48px, 8vw, 96px) var(--pad) clamp(64px, 10vw, 120px);
+}
+
+.kicker {
+  font-family: var(--sans);
+  font-size: 11px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--champagne);
+  margin: 0 0 14px;
+}
+
+.title {
+  font-family: var(--serif);
+  font-weight: 500;
+  font-size: clamp(28px, 4.5vw, 40px);
+  line-height: 1.2;
+  margin: 0 0 10px;
+}
+
+.updated {
+  font-size: 13px;
+  color: var(--ink-quiet);
+  margin: 0 0 40px;
+  padding-bottom: 28px;
+  border-bottom: 1px solid var(--hairline-soft);
+}
+
+.page h2 {
+  font-family: var(--serif);
+  font-weight: 600;
+  font-size: 19px;
+  margin: 36px 0 10px;
+}
+
+.page p,
+.page li {
+  color: var(--ink-soft);
+  font-size: 15px;
+}
+
+.page ul {
+  padding-left: 22px;
+  margin: 8px 0 16px;
+}
+
+.page li {
+  margin: 6px 0;
+}
+
+.note {
+  background: var(--ivory);
+  border: 1px solid var(--hairline-soft);
+  border-radius: 10px;
+  padding: 18px 22px;
+  margin-top: 40px;
+}
+
+.note p {
+  margin: 0;
+  font-size: 14px;
+}
