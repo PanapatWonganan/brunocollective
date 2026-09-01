@@ -11,14 +11,14 @@ import s from "./home.module.css";
 // its slot has an image.
 const DEFAULTS = [
   {
-    img: "/design/hero-polo-dunes.png",
+    img: "/design/hero-polo-dunes.jpg",
     kicker: "Bruno Collective — Khon Kaen, Thailand",
     headline: "The quiet *uniform.*",
     cta: "Shop the Collection",
     href: "/shop",
   },
   {
-    img: "/design/hero-black-tee-villa.png",
+    img: "/design/hero-black-tee-villa.jpg",
     kicker: "Everyday Essentials",
     headline: "One tee, *worn for years.*",
     cta: "Discover",
@@ -47,6 +47,10 @@ export default function HeroCarousel({ site }: { site?: Record<string, SiteImage
   }).filter((sl) => sl.img);
 
   const [active, setActive] = useState(0);
+  // Slides after the first only get their (large) background image once the
+  // page is interactive, so the first paint downloads a single hero image.
+  const [ready, setReady] = useState(false);
+  useEffect(() => setReady(true), []);
   const timer = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const restart = useCallback(() => {
@@ -74,7 +78,11 @@ export default function HeroCarousel({ site }: { site?: Record<string, SiteImage
         <div key={i} className={`${s.slide} ${i === safe ? s.slideOn : ""}`}>
           <div
             className={s.slideBg}
-            style={{ backgroundImage: `url('${sl.img}')` }}
+            style={
+              i === 0 || ready
+                ? { backgroundImage: `url('${sl.img}')` }
+                : undefined
+            }
             aria-hidden
           />
           <div className={s.slideScrim} aria-hidden />

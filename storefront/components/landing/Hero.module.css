@@ -6,7 +6,7 @@
 }
 .img{
   position:absolute; inset:0; z-index:0;
-  background-image:url("/design/hero-polo-dunes.png");
+  background-image:url("/design/hero-polo-dunes.jpg");
   background-size:cover; background-position:center 25%;
   filter:saturate(.85) contrast(.95);
   transform:scale(1.04);

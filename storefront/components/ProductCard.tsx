@@ -17,12 +17,18 @@ export default function ProductCard({ product }: { product: Product }) {
   return (
     <figure className={styles.card}>
       <Link href={`/product/${product.id}`} className={styles.imgbox} aria-label={product.name}>
-        <div
-          className={styles.img}
-          style={{
-            backgroundImage: cover ? `url('${imageSrc(cover)}')` : undefined,
-          }}
-        />
+        {cover ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            className={styles.img}
+            src={imageSrc(cover)}
+            alt={product.name}
+            loading="lazy"
+            decoding="async"
+          />
+        ) : (
+          <div className={styles.img} />
+        )}
         {soldOut && <span className={styles.tag}>Sold Out</span>}
         {low && <span className={styles.tag}>Only {stock} left</span>}
       </Link>

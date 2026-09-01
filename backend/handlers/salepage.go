@@ -267,9 +267,9 @@ func (h *SalePageHandler) UploadImage(c *fiber.Ctx) error {
 	if err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "image file is required"})
 	}
-	ext := filepath.Ext(file.Filename)
-	filename := fmt.Sprintf("salepage_%d%s", time.Now().UnixNano(), ext)
-	if err := c.SaveFile(file, filepath.Join(h.Config.UploadDir, filename)); err != nil {
+	base := fmt.Sprintf("salepage_%d", time.Now().UnixNano())
+	filename, err := services.SaveOptimizedImage(file, h.Config.UploadDir, base, services.MaxDimProduct)
+	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to save image"})
 	}
 	return c.JSON(fiber.Map{"url": "/uploads/" + filename})
@@ -366,13 +366,14 @@ func (h *SalePageHandler) PublicOrder(c *fiber.Ctx) error {
 	if slipErr != nil || slipFile == nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "กรุณาแนบสลิปการโอนเงิน"})
 	}
-	slipFilename := fmt.Sprintf("slip_new_%d%s", time.Now().UnixNano(), filepath.Ext(slipFile.Filename))
-	if err := c.SaveFile(slipFile, filepath.Join(h.Config.UploadDir, slipFilename)); err != nil {
+	slipBase := fmt.Sprintf("slip_new_%d", time.Now().UnixNano())
+	slipFilename, err := services.SaveOptimizedImage(slipFile, h.Config.UploadDir, slipBase, services.MaxDimProduct)
+	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "บันทึกสลิปไม่สำเร็จ กรุณาลองใหม่"})
 	}
 
 	var order models.Order
-	err := database.DB.Transaction(func(tx *gorm.DB) error {
+	err = database.DB.Transaction(func(tx *gorm.DB) error {
 		customer, err := findOrCreateCustomerByPhone(tx, req.Name, req.Phone, req.Email, req.Address)
 		if err != nil {
 			return err

@@ -2,12 +2,12 @@ package handlers
 
 import (
 	"fmt"
-	"path/filepath"
 	"time"
 
 	"brunocollective_inventory/config"
 	"brunocollective_inventory/database"
 	"brunocollective_inventory/models"
+	"brunocollective_inventory/services"
 
 	"github.com/gofiber/fiber/v2"
 )
@@ -61,9 +61,9 @@ func (h *SiteImageHandler) UploadImage(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "no image provided"})
 	}
 
-	ext := filepath.Ext(file.Filename)
-	filename := fmt.Sprintf("site_%s_%d%s", key, time.Now().UnixNano(), ext)
-	if err := c.SaveFile(file, filepath.Join(h.Config.UploadDir, filename)); err != nil {
+	base := fmt.Sprintf("site_%s_%d", key, time.Now().UnixNano())
+	filename, err := services.SaveOptimizedImage(file, h.Config.UploadDir, base, services.MaxDimSite)
+	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to save image"})
 	}
 

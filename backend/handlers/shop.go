@@ -141,9 +141,10 @@ func (h *ShopHandler) Checkout(c *fiber.Ctx) error {
 	// order ID once the order is created (mirrors the admin order handler).
 	var slipFilename string
 	if slipFile != nil {
-		ext := filepath.Ext(slipFile.Filename)
-		slipFilename = fmt.Sprintf("slip_new_%d%s", time.Now().UnixNano(), ext)
-		if err := c.SaveFile(slipFile, filepath.Join(h.Config.UploadDir, slipFilename)); err != nil {
+		base := fmt.Sprintf("slip_new_%d", time.Now().UnixNano())
+		var err error
+		slipFilename, err = services.SaveOptimizedImage(slipFile, h.Config.UploadDir, base, services.MaxDimProduct)
+		if err != nil {
 			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to save slip"})
 		}
 	}

@@ -205,10 +205,9 @@ func (h *OrderHandler) Create(c *fiber.Ctx) error {
 	var slipFilename string
 	slipFile, err := c.FormFile("slip")
 	if err == nil && slipFile != nil {
-		ext := filepath.Ext(slipFile.Filename)
-		slipFilename = fmt.Sprintf("slip_new_%d%s", time.Now().UnixNano(), ext)
-		savePath := filepath.Join(h.Config.UploadDir, slipFilename)
-		if err := c.SaveFile(slipFile, savePath); err != nil {
+		base := fmt.Sprintf("slip_new_%d", time.Now().UnixNano())
+		slipFilename, err = services.SaveOptimizedImage(slipFile, h.Config.UploadDir, base, services.MaxDimProduct)
+		if err != nil {
 			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to save slip"})
 		}
 	}
@@ -384,11 +383,9 @@ func (h *OrderHandler) UploadSlip(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "slip file is required"})
 	}
 
-	ext := filepath.Ext(file.Filename)
-	filename := fmt.Sprintf("slip_%d_%d%s", id, time.Now().Unix(), ext)
-	savePath := filepath.Join(h.Config.UploadDir, filename)
-
-	if err := c.SaveFile(file, savePath); err != nil {
+	base := fmt.Sprintf("slip_%d_%d", id, time.Now().Unix())
+	filename, err := services.SaveOptimizedImage(file, h.Config.UploadDir, base, services.MaxDimProduct)
+	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to save file"})
 	}
 

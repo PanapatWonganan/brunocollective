@@ -12,13 +12,13 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"fmt"
-	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
 
 	"brunocollective_inventory/database"
 	"brunocollective_inventory/models"
+	"brunocollective_inventory/services"
 
 	"github.com/gofiber/fiber/v2"
 	"gorm.io/gorm"
@@ -354,9 +354,9 @@ func (h *OrderHandler) PayUploadSlip(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "ไฟล์สลิปต้องเป็นรูปภาพ"})
 	}
 
-	filename := fmt.Sprintf("slip_%d_%d%s", order.ID, time.Now().Unix(), filepath.Ext(file.Filename))
-	savePath := filepath.Join(h.Config.UploadDir, filename)
-	if err := c.SaveFile(file, savePath); err != nil {
+	base := fmt.Sprintf("slip_%d_%d", order.ID, time.Now().Unix())
+	filename, err := services.SaveOptimizedImage(file, h.Config.UploadDir, base, services.MaxDimProduct)
+	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "บันทึกสลิปไม่สำเร็จ กรุณาลองใหม่"})
 	}
 
