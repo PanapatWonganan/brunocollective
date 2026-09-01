@@ -192,3 +192,38 @@ func OptimizeFileInPlace(path string, maxDim int) (int64, int64, error) {
 	}
 	return oldSize, ni.Size(), nil
 }
+
+// ConvertPNGToJPEG re-encodes an opaque PNG photo as a JPEG sibling
+// (same basename, .jpg extension), resized to fit maxDim. Returns the new
+// path and true when a JPEG was written; PNGs with real transparency are
+// left alone. The caller is responsible for updating any DB references.
+func ConvertPNGToJPEG(path string, maxDim int) (string, bool, error) {
+	f, err := os.Open(path)
+	if err != nil {
+		return "", false, err
+	}
+	img, format, err := image.Decode(f)
+	f.Close()
+	if err != nil {
+		return "", false, err
+	}
+	if format != "png" || !isOpaque(img) {
+		return "", false, nil
+	}
+	img = resizeMax(img, maxDim)
+	newPath := strings.TrimSuffix(path, filepath.Ext(path)) + ".jpg"
+	out, err := os.Create(newPath)
+	if err != nil {
+		return "", false, err
+	}
+	err = jpeg.Encode(out, img, &jpeg.Options{Quality: JPEGQuality})
+	cerr := out.Close()
+	if err == nil {
+		err = cerr
+	}
+	if err != nil {
+		os.Remove(newPath)
+		return "", false, err
+	}
+	return newPath, true, nil
+}

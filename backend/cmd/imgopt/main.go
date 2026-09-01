@@ -45,6 +45,7 @@ func main() {
 	dir := flag.String("dir", "./uploads", "uploads directory")
 	minKB := flag.Int64("min", 250, "only touch files larger than this (KB)")
 	dry := flag.Bool("dry", false, "list what would change without writing")
+	png2jpg := flag.Bool("png2jpg", false, "re-encode opaque PNG photos as .jpg siblings and print MAP lines for DB updates")
 	flag.Parse()
 
 	backupDir := strings.TrimRight(*dir, "/") + "_originals"
@@ -83,6 +84,33 @@ func main() {
 		}
 		if *dry {
 			fmt.Printf("would optimize %-60s %6.0f KB\n", name, float64(info.Size())/1024)
+			continue
+		}
+		if *png2jpg {
+			// Photographic PNGs stay large even resized — write a JPEG
+			// sibling and let the operator update DB references from the
+			// MAP lines. Skip files that already have a .jpg twin.
+			if !strings.HasSuffix(lower, ".png") {
+				continue
+			}
+			jpgTwin := strings.TrimSuffix(path, filepath.Ext(path)) + ".jpg"
+			if _, err := os.Stat(jpgTwin); err == nil {
+				continue
+			}
+			newPath, converted, err := services.ConvertPNGToJPEG(path, maxDim)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "SKIP %s: %v\n", name, err)
+				continue
+			}
+			if !converted {
+				fmt.Fprintf(os.Stderr, "KEEP %s: has transparency\n", name)
+				continue
+			}
+			ni, _ := os.Stat(newPath)
+			changed++
+			savedBytes += info.Size() - ni.Size()
+			fmt.Printf("MAP %s %s\n", name, filepath.Base(newPath))
+			fmt.Fprintf(os.Stderr, "%-60s %6.0f KB -> %5.0f KB\n", name, float64(info.Size())/1024, float64(ni.Size())/1024)
 			continue
 		}
 		if err := backup(path, backupDir, name); err != nil {
