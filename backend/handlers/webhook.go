@@ -166,6 +166,10 @@ func (h *WebhookHandler) findOrCreateConversation(platform, externalID string) (
 	var conv models.Conversation
 	err := database.DB.Where("platform = ? AND external_id = ?", platform, externalID).First(&conv).Error
 	if err == nil {
+		// The first profile fetch can fail (e.g. the Meta app was still in
+		// Development Mode) and would otherwise leave the thread as
+		// "Facebook User" forever — retry on inbound while it's a placeholder.
+		h.refreshProfileIfPlaceholder(&conv)
 		return &conv, nil
 	}
 	if err != gorm.ErrRecordNotFound {
@@ -202,6 +206,49 @@ func (h *WebhookHandler) findOrCreateConversation(platform, externalID string) (
 		return nil, err
 	}
 	return &conv, nil
+}
+
+// placeholderNames are the fallback display names used when the profile API
+// was unavailable at first contact.
+var placeholderNames = map[string]bool{
+	"LINE User": true, "Facebook User": true, "Instagram User": true, "": true,
+}
+
+// refreshProfileIfPlaceholder retries the platform profile fetch for threads
+// still showing a fallback name, and persists whatever it learns.
+func (h *WebhookHandler) refreshProfileIfPlaceholder(conv *models.Conversation) {
+	if !placeholderNames[conv.DisplayName] {
+		return
+	}
+	updates := map[string]interface{}{}
+	switch conv.Platform {
+	case "line":
+		if profile, err := h.Line.GetProfile(conv.ExternalID); err == nil && profile.DisplayName != "" {
+			updates["display_name"] = profile.DisplayName
+			if profile.PictureURL != "" {
+				updates["avatar_url"] = profile.PictureURL
+			}
+		}
+	case "facebook", "instagram":
+		if profile, err := h.Meta.GetProfile(conv.ExternalID); err == nil {
+			switch {
+			case profile.Name != "":
+				updates["display_name"] = profile.Name
+			case profile.Username != "":
+				updates["display_name"] = "@" + profile.Username
+			}
+			if profile.ProfilePic != "" {
+				updates["avatar_url"] = profile.ProfilePic
+			}
+		}
+	}
+	if len(updates) == 0 {
+		return
+	}
+	database.DB.Model(conv).Updates(updates)
+	if name, ok := updates["display_name"].(string); ok {
+		conv.DisplayName = name
+	}
 }
 
 // saveLineImage downloads message media and stores it under uploads/,
