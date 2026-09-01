@@ -2,10 +2,12 @@ import type { Metadata } from "next";
 import { Cormorant_Garamond, Inter, Playfair_Display } from "next/font/google";
 import { CartProvider } from "@/lib/cart";
 import { MemberProvider } from "@/lib/member";
-import TopBar from "@/components/TopBar";
+import TopBar, { type NavFeatured } from "@/components/TopBar";
 import AnnouncementBar from "@/components/AnnouncementBar";
 import Footer from "@/components/Footer";
 import BagDrawer from "@/components/BagDrawer";
+import { getProducts } from "@/lib/api";
+import type { Product } from "@/lib/types";
 import "./globals.css";
 
 const cormorant = Cormorant_Garamond({
@@ -42,11 +44,32 @@ export const metadata: Metadata = {
   },
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  // Nav data for the mega menu — live categories plus a featured piece whose
+  // photo comes from the admin product uploads. Non-fatal when the backend
+  // is unreachable.
+  let products: Product[] = [];
+  try {
+    products = await getProducts();
+  } catch {
+    products = [];
+  }
+  const categories = Array.from(
+    new Set(products.map((p) => (p.category || "").trim()).filter(Boolean))
+  );
+  const featuredProduct = products.find((p) => p.image_url || p.images?.[0]);
+  const featured: NavFeatured | null = featuredProduct
+    ? {
+        id: featuredProduct.id,
+        name: featuredProduct.name,
+        image: featuredProduct.image_url || featuredProduct.images?.[0] || "",
+      }
+    : null;
+
   return (
     <html
       lang="en"
@@ -56,7 +79,7 @@ export default function RootLayout({
         <MemberProvider>
           <CartProvider>
             <AnnouncementBar />
-            <TopBar />
+            <TopBar categories={categories} featured={featured} />
             {children}
             <Footer />
             <BagDrawer />

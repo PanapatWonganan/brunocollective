@@ -75,6 +75,35 @@ export async function getProduct(id: number | string): Promise<Product | null> {
   return res.json();
 }
 
+// Best sellers for the home page — the suggest endpoint with no ids returns
+// overall best sellers, topped up with the catalogue display order when the
+// shop is young. In-stock only. Server-side (lightly cached).
+export async function getBestSellers(limit = 4): Promise<Product[]> {
+  try {
+    const res = await fetch(`${BASE}/api/shop/products/suggest?limit=${limit}`, {
+      next: { revalidate: 60 },
+    });
+    if (!res.ok) return [];
+    return res.json();
+  } catch {
+    return [];
+  }
+}
+
+// Server-side cross-sell for the product page ("You may also consider").
+export async function getRelated(id: number | string, limit = 4): Promise<Product[]> {
+  try {
+    const res = await fetch(
+      `${BASE}/api/shop/products/suggest?ids=${id}&limit=${limit}`,
+      { next: { revalidate: 60 } }
+    );
+    if (!res.ok) return [];
+    return res.json();
+  } catch {
+    return [];
+  }
+}
+
 // Cross-sell: products most often bought together with the given ones (falls
 // back to best sellers). In-stock only; the given ids are excluded.
 export async function getSuggestions(ids: number[]): Promise<Product[]> {

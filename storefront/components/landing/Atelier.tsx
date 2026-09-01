@@ -1,3 +1,4 @@
+import Link from "next/link";
 import Reveal from "@/components/Reveal";
 import s from "./sections.module.css";
 
@@ -42,9 +43,9 @@ export default function Atelier() {
               </div>
             </div>
 
-            <a href="#" className="qlink qlink--light">
+            <Link href="/journal/made-in-thailand" className="qlink qlink--light">
               Inside the Atelier <span className="arrow">→</span>
-            </a>
+            </Link>
           </Reveal>
         </div>
       </div>

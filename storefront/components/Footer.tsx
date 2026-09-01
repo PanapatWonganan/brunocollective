@@ -18,22 +18,22 @@ export default function Footer() {
           <div>
             <h5 className={styles.h5}>The House</h5>
             <ul className={styles.ul}>
-              <li><Link href="/#philosophy">Heritage</Link></li>
-              <li><Link href="/#atelier">The Atelier</Link></li>
-              <li><Link href="/#journal">Sustainability</Link></li>
-              <li><Link href="/#journal">Press</Link></li>
-              <li><Link href="/#contact">Careers</Link></li>
+              <li><Link href="/story">Our Story</Link></li>
+              <li><Link href="/story#atelier">The Atelier</Link></li>
+              <li><Link href="/lookbook">Lookbook</Link></li>
+              <li><Link href="/journal">Journal</Link></li>
+              <li><Link href="/member">Membership</Link></li>
             </ul>
           </div>
 
           <div>
             <h5 className={styles.h5}>Service</h5>
             <ul className={styles.ul}>
-              <li><Link href="/shop">Made-to-Measure</Link></li>
-              <li><Link href="/#contact">Private Appointment</Link></li>
-              <li><Link href="/#contact">Care &amp; Repair</Link></li>
-              <li><Link href="/#contact">Shipping</Link></li>
-              <li><Link href="/#contact">Contact</Link></li>
+              <li><Link href="/shop">The Collection</Link></li>
+              <li><Link href="/service#appointment">Private Appointment</Link></li>
+              <li><Link href="/service#care">Care &amp; Repair</Link></li>
+              <li><Link href="/service#shipping">Shipping &amp; Exchange</Link></li>
+              <li><Link href="/service#contact">Contact</Link></li>
             </ul>
           </div>
 
@@ -49,9 +49,9 @@ export default function Footer() {
             <h5 className={styles.h5}>Correspondence</h5>
             <ul className={styles.ul}>
               <li><a href="mailto:hello@brunocollective.co">hello@brunocollective.co</a></li>
-              <li><Link href="/#contact">Private Appointment · นัดหมาย</Link></li>
-              <li style={{ marginTop: 18 }}><Link href="/#contact">Press Enquiries</Link></li>
-              <li><Link href="/#contact">Wholesale</Link></li>
+              <li><Link href="/service#appointment">Private Appointment · นัดหมาย</Link></li>
+              <li style={{ marginTop: 18 }}><a href="mailto:hello@brunocollective.co?subject=Press%20Enquiry">Press Enquiries</a></li>
+              <li><a href="mailto:hello@brunocollective.co?subject=Wholesale">Wholesale</a></li>
             </ul>
           </div>
         </div>
@@ -59,9 +59,9 @@ export default function Footer() {
         <div className={styles.bottom}>
           <div>© 2026 Bruno Collective — All rights reserved.</div>
           <div className={styles.social}>
-            <a href="#">Instagram</a>
-            <a href="#">Journal</a>
-            <a href="#">LINE</a>
+            <a href="https://www.instagram.com/bruno.collective/" target="_blank" rel="noreferrer">Instagram</a>
+            <Link href="/journal">Journal</Link>
+            <a href="https://lin.ee/tT3JcJX" target="_blank" rel="noreferrer">LINE</a>
           </div>
           <div>Designed &amp; made in Khon Kaen, Thailand</div>
         </div>

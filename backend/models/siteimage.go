@@ -22,6 +22,9 @@ type SiteImage struct {
 // storefront components that consume them.
 var SiteImageSlots = []string{
 	"hero",
+	"home_hero_1", "home_hero_2", "home_hero_3",
+	"community_1", "community_2", "community_3",
+	"community_4", "community_5", "community_6",
 	"lookbook_1", "lookbook_2", "lookbook_3",
 	"lookbook_4", "lookbook_5", "lookbook_6",
 	"journal_1", "journal_2", "journal_3",

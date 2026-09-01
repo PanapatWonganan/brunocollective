@@ -1,8 +1,7 @@
 import type { Metadata } from "next";
 import { getProducts } from "@/lib/api";
 import type { Product } from "@/lib/types";
-import ProductCard from "@/components/ProductCard";
-import styles from "./shop.module.css";
+import ShopClient from "./ShopClient";
 
 export const metadata: Metadata = {
   title: "The Collection",
@@ -10,7 +9,12 @@ export const metadata: Metadata = {
     "Shop the full Bruno Collective collection — limited runs, cut and finished by hand in Khon Kaen, Thailand.",
 };
 
-export default async function ShopPage() {
+interface Props {
+  searchParams: Promise<{ cat?: string; sort?: string }>;
+}
+
+export default async function ShopPage({ searchParams }: Props) {
+  const { cat, sort } = await searchParams;
   let products: Product[] = [];
   try {
     products = await getProducts({ includeOut: true });
@@ -19,29 +23,10 @@ export default async function ShopPage() {
   }
 
   return (
-    <main className={styles.page}>
-      <header className={styles.head}>
-        <span className="kicker">The Collection</span>
-        <h1 className={`display ${styles.title}`}>
-          Pieces, <em>quietly considered.</em>
-        </h1>
-        <p className={styles.sub}>
-          Cut in limited runs and finished by hand in Khon Kaen. Every order is
-          reserved against our atelier stock. ตัดเย็บในไทย.
-        </p>
-      </header>
-
-      {products.length === 0 ? (
-        <p className={styles.empty}>
-          The atelier is between collections. Please return shortly.
-        </p>
-      ) : (
-        <div className={styles.grid}>
-          {products.map((p) => (
-            <ProductCard key={p.id} product={p} />
-          ))}
-        </div>
-      )}
-    </main>
+    <ShopClient
+      products={products}
+      initialCat={cat || ""}
+      initialSort={sort === "new" ? "new" : "default"}
+    />
   );
 }

@@ -1,41 +1,69 @@
-import Hero from "@/components/landing/Hero";
-import MarqueeStrip from "@/components/landing/MarqueeStrip";
-import Philosophy from "@/components/landing/Philosophy";
-import CollectionGrid from "@/components/landing/CollectionGrid";
-import Atelier from "@/components/landing/Atelier";
-import Lookbook from "@/components/landing/Lookbook";
-import Journal from "@/components/landing/Journal";
+import HeroCarousel from "@/components/home/HeroCarousel";
+import CategoryTiles from "@/components/home/CategoryTiles";
+import ProductRow from "@/components/home/ProductRow";
+import Values from "@/components/home/Values";
+import Statement from "@/components/home/Statement";
+import AtelierNotes from "@/components/home/AtelierNotes";
+import CommunityGrid from "@/components/home/CommunityGrid";
+import ServiceStrip from "@/components/home/ServiceStrip";
 import Newsletter from "@/components/landing/Newsletter";
-import { getProducts, getSiteImages, type SiteImage } from "@/lib/api";
+import { getBestSellers, getProducts, getSiteImages, type SiteImage } from "@/lib/api";
 import type { Product } from "@/lib/types";
 
+// The shop home (design: "Bruno Shop"). All imagery is admin-managed: product
+// photos from the product uploads, hero/community photos from Site Images.
 export default async function HomePage() {
-  // Real catalogue powers the featured collection; if the backend is
-  // unreachable we still render the editorial page.
   let products: Product[] = [];
-  try {
-    products = await getProducts();
-  } catch {
-    products = [];
-  }
-
-  // Editable hero/lookbook/journal images; empty map → components use defaults.
+  let best: Product[] = [];
   let siteImages: Record<string, SiteImage> = {};
   try {
-    siteImages = await getSiteImages();
+    [products, best, siteImages] = await Promise.all([
+      getProducts().catch(() => [] as Product[]),
+      getBestSellers(4).catch(() => [] as Product[]),
+      getSiteImages().catch(() => ({}) as Record<string, SiteImage>),
+    ]);
   } catch {
-    siteImages = {};
+    /* backend unreachable — render the static sections */
   }
+
+  // New arrivals: newest first, regardless of the owner's display order.
+  const newest = [...products]
+    .sort(
+      (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+    )
+    .slice(0, 4);
+
+  // Avoid showing the exact same 4 pieces twice when the shop is small.
+  const bestIds = new Set(best.map((p) => p.id));
+  const arrivals = newest.filter((p) => !bestIds.has(p.id)).length >= 2
+    ? newest.filter((p) => !bestIds.has(p.id))
+    : newest;
 
   return (
     <main>
-      <Hero site={siteImages} />
-      <MarqueeStrip />
-      <Philosophy />
-      <CollectionGrid products={products} />
-      <Atelier />
-      <Lookbook site={siteImages} />
-      <Journal site={siteImages} />
+      <HeroCarousel site={siteImages} />
+      <CategoryTiles products={products} />
+      <ProductRow
+        title={
+          <>
+            Best <em>sellers.</em>
+          </>
+        }
+        products={best}
+      />
+      <ProductRow
+        title={
+          <>
+            New <em>arrivals.</em>
+          </>
+        }
+        products={arrivals}
+      />
+      <Values />
+      <Statement />
+      <AtelierNotes />
+      <CommunityGrid site={siteImages} />
+      <ServiceStrip />
       <Newsletter />
     </main>
   );

@@ -30,6 +30,42 @@
 .left{justify-self:start}
 .right{justify-self:end}
 
+/* ── Mega menu (desktop) ── */
+.navItem{position:relative; display:flex; align-items:center}
+.mega{
+  position:absolute; top:calc(100% + 18px); left:-24px;
+  background:var(--paper); border:1px solid var(--hairline);
+  min-width:520px; padding:32px 36px;
+  display:grid; grid-template-columns:1fr 1fr 1.2fr; gap:28px;
+  opacity:0; visibility:hidden; transform:translateY(8px);
+  transition:opacity .35s var(--ease), visibility .35s var(--ease), transform .35s var(--ease);
+  box-shadow:0 24px 60px -30px rgba(31,42,64,.25);
+  color:var(--ink);
+}
+/* keep the hover alive across the gap between trigger and panel */
+.mega::before{content:""; position:absolute; top:-18px; left:0; right:0; height:18px}
+.navItem:hover .mega,
+.navItem:focus-within .mega{opacity:1; visibility:visible; transform:none}
+.megaH{
+  font-family:var(--sans); font-size:9.5px; letter-spacing:.3em; text-transform:uppercase;
+  color:var(--ink-quiet); font-weight:500; margin:0 0 16px;
+}
+.megaUl{list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:10px}
+.megaUl a{
+  font-size:13px !important; color:var(--ink-soft) !important;
+  letter-spacing:.02em !important; text-transform:none !important; opacity:1 !important;
+}
+.megaUl a:hover{color:var(--champagne) !important}
+.megaFeat{border-left:1px solid var(--hairline); padding-left:28px}
+.megaImg{
+  aspect-ratio:4/3; background-size:cover; background-position:center;
+  background-color:var(--ivory); margin-bottom:14px;
+}
+.megaFt{
+  font-family:var(--serif); font-size:17px; font-style:italic; color:var(--ink);
+  letter-spacing:.005em; text-transform:none; line-height:1.3;
+}
+
 .brand{
   font-family:var(--serif); font-size:18px; letter-spacing:.32em;
   text-transform:uppercase; font-weight:500;
@@ -134,3 +170,16 @@
 }
 .menuLinks a:last-child{border-bottom:none}
 .menuLinks a:hover{color:var(--champagne); padding-left:6px}
+
+/* category quick-links at the foot of the mobile drawer */
+.menuCats{
+  display:flex; flex-wrap:wrap; gap:10px;
+  padding:22px 0 8px; border-top:1px solid var(--hairline);
+  margin-top:6px;
+}
+.menuCats a{
+  border:1px solid var(--hairline); border-radius:999px;
+  padding:8px 16px !important; border-bottom:1px solid var(--hairline) !important;
+  font-family:var(--sans) !important; font-size:12px !important; color:var(--ink-soft) !important;
+}
+.menuCats a:hover{border-color:var(--ink); padding-left:16px !important}

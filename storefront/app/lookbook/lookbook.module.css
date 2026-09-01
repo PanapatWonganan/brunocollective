@@ -1,0 +1,44 @@
+.page{padding:clamp(110px,15vh,160px) var(--pad) clamp(80px,11vw,140px); max-width:var(--maxw); margin:0 auto}
+.head{max-width:760px; margin-bottom:clamp(48px,7vw,88px)}
+.title{font-size:clamp(40px,6vw,80px); margin:14px 0 24px; line-height:1.02}
+.title em{font-style:italic; color:var(--champagne); font-weight:300}
+.sub{color:var(--ink-faint); max-width:52ch; font-size:14.5px}
+
+/* Editorial 12-column layout — larger cousins of the story-page tiles */
+.grid{display:grid; grid-template-columns:repeat(12,1fr); gap:clamp(16px,2vw,28px)}
+.fig{margin:0; display:flex; flex-direction:column}
+.img{
+  width:100%;
+  background-size:cover; background-position:center; background-color:var(--ivory);
+  filter:saturate(.9);
+  transition:filter 1s var(--ease);
+}
+.fig:hover .img{filter:saturate(1)}
+.cap{
+  display:flex; justify-content:space-between; gap:16px;
+  padding-top:12px;
+  font-size:10px; letter-spacing:.26em; text-transform:uppercase;
+  color:var(--ink-faint); font-weight:500;
+}
+.f1{grid-column:1 / span 7} .f1 .img{aspect-ratio:5/4}
+.f2{grid-column:8 / span 5; margin-top:clamp(24px,4vw,60px)} .f2 .img{aspect-ratio:4/5}
+.f3{grid-column:1 / span 4; margin-top:clamp(8px,2vw,24px)} .f3 .img{aspect-ratio:3/4}
+.f4{grid-column:5 / span 8} .f4 .img{aspect-ratio:16/9}
+.f5{grid-column:1 / span 5; margin-top:clamp(8px,2vw,24px)} .f5 .img{aspect-ratio:4/5}
+.f6{grid-column:6 / span 7} .f6 .img{aspect-ratio:5/4; margin-top:clamp(24px,4vw,60px)}
+
+.endline{
+  margin-top:clamp(48px,7vw,80px);
+  display:flex; justify-content:space-between; align-items:end; gap:24px; flex-wrap:wrap;
+  padding-top:32px; border-top:1px solid var(--hairline);
+}
+.quote{
+  font-family:var(--serif); font-style:italic; font-weight:300;
+  font-size:clamp(24px,2.4vw,32px); max-width:30ch; margin:0;
+}
+
+@media (max-width:820px){
+  .grid{grid-template-columns:repeat(6,1fr)}
+  .f1,.f2,.f3,.f4,.f5,.f6{grid-column:span 6 !important; margin-top:0 !important}
+  .f1 .img,.f2 .img,.f3 .img,.f4 .img,.f5 .img,.f6 .img{aspect-ratio:4/5}
+}

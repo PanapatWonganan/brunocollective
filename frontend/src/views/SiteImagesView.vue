@@ -4,7 +4,7 @@
       <div>
         <div class="text-h5 font-weight-bold">Site Images</div>
         <div class="text-caption text-medium-emphasis">
-          Manage the hero, lookbook and journal images on the storefront home page, plus the size chart shown when ordering
+          Manage the storefront images — home carousel, community grid, story-page hero / lookbook / journal — plus the size chart shown when ordering
         </div>
       </div>
     </div>
@@ -97,9 +97,31 @@ interface SiteImage {
 // purely for the admin UI; keys must match backend models.SiteImageSlots.
 const groups = [
   {
-    title: 'Hero',
+    title: 'Home carousel (3 slides)',
+    slots: Array.from({ length: 3 }, (_, i) => ({
+      key: `home_hero_${i + 1}`,
+      label: `Carousel slide ${i + 1}`,
+      hint: i === 0
+        ? 'Full-width slide on the shop home page (slide 1 falls back to the built-in image)'
+        : 'Full-width slide on the shop home page (leave empty to skip this slide)',
+      capALabel: 'Kicker (e.g. "The Collection — 2026")',
+      capBLabel: 'Headline — *words* shown italic (e.g. "One tee, *worn for years.*")',
+    })),
+  },
+  {
+    title: 'Community grid (6 photos)',
+    slots: Array.from({ length: 6 }, (_, i) => ({
+      key: `community_${i + 1}`,
+      label: `Community photo ${i + 1}`,
+      hint: 'Square photo in the "In the wild" grid on the shop home page',
+      capALabel: 'Label on hover (e.g. "@bruno.collective")',
+      capBLabel: 'Link URL (optional — defaults to the shop)',
+    })),
+  },
+  {
+    title: 'Story-page hero',
     slots: [
-      { key: 'hero', label: 'Hero background', hint: 'Full-width image at the top of the home page',
+      { key: 'hero', label: 'Hero background', hint: 'Full-width image at the top of the story page (/story)',
         capALabel: 'Caption A (unused)', capBLabel: 'Caption B (unused)' },
     ],
   },

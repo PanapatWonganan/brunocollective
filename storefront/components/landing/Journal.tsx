@@ -1,28 +1,22 @@
+import Link from "next/link";
 import Reveal from "@/components/Reveal";
 import { imageSrc } from "@/lib/format";
+import { ESSAYS, em } from "@/lib/journal";
 import type { SiteImage } from "@/lib/api";
 import s from "./sections.module.css";
 
-const ENTRIES = [
-  {
-    img: "https://images.unsplash.com/photo-1531572753322-ad063cecc140?auto=format&fit=crop&w=1200&q=80",
-    tag: "Essay — N° 03", read: "8 min",
-    title: <>Why we make it <em>in Thailand</em></>,
-    body: "On choosing to design and finish every piece in Khon Kaen — what local making lets us control, and why slower, smaller runs make better clothes.",
-  },
-  {
-    img: "https://images.pexels.com/photos/2474308/pexels-photo-2474308.jpeg?auto=compress&cs=tinysrgb&w=1200",
-    tag: "Essay — N° 02", read: "12 min", d: 2 as const,
-    title: <>The art of the <em>wardrobe</em></>,
-    body: "A few good garments, worn often — on building a quiet wardrobe that travels with you and outlives the season that bore it.",
-  },
-  {
-    img: "https://images.unsplash.com/photo-1481627834876-b7833e8f5570?auto=format&fit=crop&w=1200&q=80",
-    tag: "Essay — N° 01", read: "6 min", d: 3 as const,
-    title: <>What &ldquo;quiet luxury&rdquo; <em>really means</em></>,
-    body: "Less logo, more cloth. On the small details — the hand of a fabric, a clean seam, a hem that hangs right — that separate considered clothing from the rest.",
-  },
-];
+// Entries come from the shared essay data (lib/journal) so the cards, the
+// /journal index and the article pages always agree.
+const DELAYS = [undefined, 2, 3] as const;
+const ENTRIES = ESSAYS.map((e, i) => ({
+  slug: e.slug,
+  img: e.cover,
+  tag: e.tag,
+  read: e.read,
+  d: DELAYS[i % 3],
+  title: em(e.title),
+  body: e.summary,
+}));
 
 export default function Journal({ site }: { site?: Record<string, SiteImage> }) {
   // Merge each entry with its admin-managed slot (journal_1…3); caption_a maps
@@ -52,7 +46,7 @@ export default function Journal({ site }: { site?: Record<string, SiteImage> }) 
 
         <div className={s.journGrid}>
           {entries.map((e, i) => (
-            <Reveal as="article" key={i} delay={e.d}>
+            <Reveal as="article" key={e.slug} delay={e.d}>
               <div className={s.journImgbox}>
                 <div className={s.journImg} style={{ backgroundImage: `url('${e.img}')` }} />
               </div>
@@ -60,11 +54,13 @@ export default function Journal({ site }: { site?: Record<string, SiteImage> }) 
                 <span>{e.tag}</span>
                 <span>{e.read}</span>
               </div>
-              <h3>{e.title}</h3>
+              <h3>
+                <Link href={`/journal/${e.slug}`}>{e.title}</Link>
+              </h3>
               <p>{e.body}</p>
-              <a href="#" className="qlink qlink--ghost read">
+              <Link href={`/journal/${e.slug}`} className="qlink qlink--ghost read">
                 Read — <span className="arrow">→</span>
-              </a>
+              </Link>
             </Reveal>
           ))}
         </div>

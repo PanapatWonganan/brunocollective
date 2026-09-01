@@ -1,6 +1,13 @@
-.wrap{display:flex; flex-direction:column; gap:14px}
+/* Desktop: design layout — thumbnail rail on the left, main image right.
+   Mobile: main image first, thumbnails in a row underneath. */
+.wrap{
+  display:grid; grid-template-columns:76px 1fr; gap:16px;
+  grid-template-areas:"th main";
+  align-items:start;
+}
 
 .box{
+  grid-area:main;
   position:relative; aspect-ratio:4/5; overflow:hidden;
   background:var(--ivory); border:1px solid var(--hairline-soft);
   cursor:zoom-in;
@@ -23,10 +30,10 @@
 }
 .box:hover .hint{opacity:1}
 
-.thumbs{display:flex; gap:10px; flex-wrap:wrap}
+.thumbs{grid-area:th; display:flex; flex-direction:column; gap:12px}
 .thumb{
-  width:64px; height:80px; padding:0; cursor:pointer;
-  border:1px solid var(--hairline); background:var(--ivory);
+  width:76px; height:76px; padding:0; cursor:pointer;
+  border:1px solid transparent; background:var(--ivory);
   opacity:.62; transition:opacity .2s ease, border-color .2s ease;
 }
 .thumb:hover{opacity:1}
@@ -77,5 +84,7 @@
   .hint{display:none}
 }
 @media (max-width:820px){
-  .thumb{width:54px; height:68px}
+  .wrap{grid-template-columns:1fr; grid-template-areas:"main" "th"}
+  .thumbs{flex-direction:row; flex-wrap:wrap; gap:10px}
+  .thumb{width:56px; height:56px}
 }

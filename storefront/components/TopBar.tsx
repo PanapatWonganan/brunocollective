@@ -4,24 +4,36 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useCart } from "@/lib/cart";
+import { imageSrc } from "@/lib/format";
 import styles from "./TopBar.module.css";
 
+// Featured product for the mega-menu image tile (admin-uploaded photo).
+export interface NavFeatured {
+  id: number;
+  name: string;
+  image: string;
+}
+
 const NAV_LINKS = [
-  { href: "/shop", label: "Collection" },
-  { href: "/#atelier", label: "Atelier" },
-  { href: "/#lookbook", label: "Lookbook" },
-  { href: "/#journal", label: "Journal" },
-  { href: "/#boutiques", label: "Visit" },
-  { href: "/#contact", label: "Contact" },
+  { href: "/shop", label: "Shop" },
+  { href: "/shop?sort=new", label: "New In" },
+  { href: "/story", label: "Editorial" },
   { href: "/member", label: "Membership" },
+  { href: "/service", label: "Client Services" },
 ];
 
-export default function TopBar() {
+export default function TopBar({
+  categories = [],
+  featured = null,
+}: {
+  categories?: string[];
+  featured?: NavFeatured | null;
+}) {
   const pathname = usePathname();
   const { count, setOpen } = useCart();
   const [menuOpen, setMenuOpen] = useState(false);
-  // Only the landing page has the dark full-bleed hero behind the bar.
-  const overHero = pathname === "/";
+  // Pages with a dark full-bleed hero behind the bar start transparent.
+  const overHero = pathname === "/" || pathname === "/story";
   const [scrolled, setScrolled] = useState(!overHero);
 
   useEffect(() => {
@@ -46,10 +58,56 @@ export default function TopBar() {
         className={`${styles.topbar} ${scrolled ? styles.scrolled : styles.transparent}`}
       >
         <nav className={styles.left} aria-label="Primary">
-          <Link href="/shop">Collection</Link>
-          <Link href="/#atelier">Atelier</Link>
-          <Link href="/#lookbook">Lookbook</Link>
-          <Link href="/#journal">Journal</Link>
+          <div className={styles.navItem}>
+            <Link href="/shop">Shop</Link>
+            {/* Mega menu — categories from the live catalogue */}
+            <div className={styles.mega}>
+              <div>
+                <h5 className={styles.megaH}>Categories</h5>
+                <ul className={styles.megaUl}>
+                  <li>
+                    <Link href="/shop">All Pieces</Link>
+                  </li>
+                  {categories.slice(0, 6).map((c) => (
+                    <li key={c}>
+                      <Link href={`/shop?cat=${encodeURIComponent(c)}`}>{c}</Link>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+              <div>
+                <h5 className={styles.megaH}>This Season</h5>
+                <ul className={styles.megaUl}>
+                  <li>
+                    <Link href="/shop?sort=new">New Arrivals</Link>
+                  </li>
+                  <li>
+                    <Link href="/shop">Best Sellers</Link>
+                  </li>
+                  <li>
+                    <Link href="/member">Member — ส่วนลด 5%</Link>
+                  </li>
+                </ul>
+              </div>
+              {featured && featured.image && (
+                <div className={styles.megaFeat}>
+                  <Link href={`/product/${featured.id}`}>
+                    <div
+                      className={styles.megaImg}
+                      style={{ backgroundImage: `url('${imageSrc(featured.image)}')` }}
+                    />
+                    <div className={styles.megaFt}>{featured.name}</div>
+                  </Link>
+                </div>
+              )}
+            </div>
+          </div>
+          <div className={styles.navItem}>
+            <Link href="/shop?sort=new">New In</Link>
+          </div>
+          <div className={styles.navItem}>
+            <Link href="/story">Editorial</Link>
+          </div>
         </nav>
 
         <button
@@ -70,8 +128,7 @@ export default function TopBar() {
         </Link>
 
         <nav className={styles.right} aria-label="Secondary">
-          <Link href="/#boutiques">Visit</Link>
-          <Link href="/#contact">Contact</Link>
+          <Link href="/service#contact">Contact</Link>
           <Link href="/member" className={styles.memberBtn} aria-label="Member account">
             <svg viewBox="0 0 24 24">
               <circle cx="12" cy="8" r="3.6" />
@@ -132,6 +189,19 @@ export default function TopBar() {
               {l.label}
             </Link>
           ))}
+          {categories.length > 0 && (
+            <div className={styles.menuCats}>
+              {categories.slice(0, 6).map((c) => (
+                <Link
+                  key={c}
+                  href={`/shop?cat=${encodeURIComponent(c)}`}
+                  onClick={() => setMenuOpen(false)}
+                >
+                  {c}
+                </Link>
+              ))}
+            </div>
+          )}
         </nav>
       </aside>
     </>

@@ -1,0 +1,18 @@
+.acc{margin-top:38px; border-top:1px solid var(--hairline)}
+.item{border-bottom:1px solid var(--hairline)}
+.ah{
+  width:100%;
+  display:flex; justify-content:space-between; align-items:center;
+  padding:18px 0;
+  font-size:11px; letter-spacing:.28em; text-transform:uppercase; font-weight:500;
+  cursor:pointer; user-select:none; color:var(--ink); text-align:left;
+}
+.car{font-family:var(--serif); font-size:18px; transition:transform .3s var(--ease)}
+.carOpen{transform:rotate(45deg)}
+.ab{
+  padding:0 0 22px;
+  font-size:13.5px; color:var(--ink-soft); line-height:1.8;
+}
+.ab ul{margin:10px 0 0; padding-left:18px}
+.ab p{margin:0}
+.ab p + p{margin-top:.8em}
