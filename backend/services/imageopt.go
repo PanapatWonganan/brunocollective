@@ -32,20 +32,41 @@ const (
 
 type opaquer interface{ Opaque() bool }
 
+// isOpaque reports whether an image can safely be flattened to JPEG. Photos
+// exported from design tools often carry an alpha channel with only a handful
+// of translucent edge pixels — treating those as "transparent" would leave
+// multi-MB PNGs, so a negligible alpha fraction (<0.5% of sampled pixels)
+// still counts as opaque; such images are composited onto white before the
+// JPEG encode (see flattenOnWhite).
 func isOpaque(img image.Image) bool {
-	if o, ok := img.(opaquer); ok {
-		return o.Opaque()
+	if o, ok := img.(opaquer); ok && o.Opaque() {
+		return true
 	}
-	// Fallback: sample the alpha channel on a coarse grid.
+	// Sample the alpha channel on a coarse grid.
 	b := img.Bounds()
+	var sampled, translucent int
 	for y := b.Min.Y; y < b.Max.Y; y += 8 {
 		for x := b.Min.X; x < b.Max.X; x += 8 {
-			if _, _, _, a := img.At(x, y).RGBA(); a < 0xffff {
-				return false
+			sampled++
+			if _, _, _, a := img.At(x, y).RGBA(); a < 0xf000 {
+				translucent++
 			}
 		}
 	}
-	return true
+	if sampled == 0 {
+		return true
+	}
+	return float64(translucent)/float64(sampled) < 0.005
+}
+
+// flattenOnWhite composites img onto a white background so a stray alpha
+// channel doesn't turn into black fringes in the JPEG encode.
+func flattenOnWhite(img image.Image) image.Image {
+	b := img.Bounds()
+	dst := image.NewRGBA(image.Rect(0, 0, b.Dx(), b.Dy()))
+	xdraw.Draw(dst, dst.Bounds(), image.White, image.Point{}, xdraw.Src)
+	xdraw.Draw(dst, dst.Bounds(), img, b.Min, xdraw.Over)
+	return dst
 }
 
 // resizeMax scales img down so its long side is at most maxDim (never up).
@@ -117,7 +138,7 @@ func SaveOptimizedImage(fh *multipart.FileHeader, dir, base string, maxDim int) 
 		return "", err
 	}
 	if ext == ".jpg" {
-		err = jpeg.Encode(out, img, &jpeg.Options{Quality: JPEGQuality})
+		err = jpeg.Encode(out, flattenOnWhite(img), &jpeg.Options{Quality: JPEGQuality})
 	} else {
 		enc := png.Encoder{CompressionLevel: png.BestCompression}
 		err = enc.Encode(out, img)
@@ -216,7 +237,7 @@ func ConvertPNGToJPEG(path string, maxDim int) (string, bool, error) {
 	if err != nil {
 		return "", false, err
 	}
-	err = jpeg.Encode(out, img, &jpeg.Options{Quality: JPEGQuality})
+	err = jpeg.Encode(out, flattenOnWhite(img), &jpeg.Options{Quality: JPEGQuality})
 	cerr := out.Close()
 	if err == nil {
 		err = cerr
