@@ -28,7 +28,21 @@ func main() {
 		Find(&convs)
 	fmt.Printf("%d conversations with placeholder names\n", len(convs))
 
-	var fixed int
+	// Bulk name map from the page conversations endpoint — a handful of
+	// paged requests instead of one profile call per thread.
+	names := map[string]string{}
+	for _, platform := range []string{"", "instagram"} {
+		m, err := meta.ListConversationNames(platform)
+		if err != nil {
+			fmt.Printf("list conversations (%q): %v (got %d so far)\n", platform, err, len(m))
+		}
+		for id, name := range m {
+			names[id] = name
+		}
+	}
+	fmt.Printf("%d participant names from the conversations API\n", len(names))
+
+	var fixed, missed int
 	for _, conv := range convs {
 		updates := map[string]interface{}{}
 		switch conv.Platform {
@@ -40,27 +54,16 @@ func main() {
 				}
 			}
 		case "facebook", "instagram":
-			p, err := meta.GetProfile(conv.ExternalID)
-			if err != nil {
-				fmt.Printf("  #%d %s %s: %v\n", conv.ID, conv.Platform, conv.ExternalID, err)
-				continue
-			}
-			switch {
-			case p.Name != "":
-				updates["display_name"] = p.Name
-			case p.Username != "":
-				updates["display_name"] = "@" + p.Username
-			}
-			if p.ProfilePic != "" {
-				updates["avatar_url"] = p.ProfilePic
+			if name := names[conv.ExternalID]; name != "" {
+				updates["display_name"] = name
 			}
 		}
 		if len(updates) == 0 {
+			missed++
 			continue
 		}
 		database.DB.Model(&models.Conversation{}).Where("id = ?", conv.ID).Updates(updates)
 		fixed++
-		fmt.Printf("  #%d %s -> %v\n", conv.ID, conv.Platform, updates["display_name"])
 	}
-	fmt.Printf("updated %d conversations\n", fixed)
+	fmt.Printf("updated %d conversations, %d unresolved\n", fixed, missed)
 }

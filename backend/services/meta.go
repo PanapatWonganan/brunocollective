@@ -108,25 +108,116 @@ type MetaProfile struct {
 	ProfilePic string `json:"profile_pic"`
 }
 
-// GetProfile fetches display info for a PSID/IGSID.
+// GetProfile fetches display info for a PSID/IGSID. The direct profile
+// endpoint requires Advanced Access ("Business Asset User Profile Access"
+// via App Review) — without it, it returns error 100/33 for real customers.
+// As a fallback we ask the page conversations endpoint, which returns the
+// participant's real name with standard access (no avatar, but a name).
 func (m *MetaClient) GetProfile(userID string) (*MetaProfile, error) {
 	if !m.enabled {
 		return nil, fmt.Errorf("Meta not configured")
 	}
 	url := fmt.Sprintf("%s/%s?fields=name,username,profile_pic&access_token=%s", metaGraphBase, userID, m.pageToken)
 	resp, err := m.http.Get(url)
+	if err == nil {
+		defer resp.Body.Close()
+		if resp.StatusCode < 300 {
+			var p MetaProfile
+			if derr := json.NewDecoder(resp.Body).Decode(&p); derr == nil {
+				return &p, nil
+			}
+		}
+	}
+	// Fallback: find the user among the page's conversation participants.
+	for _, platform := range []string{"", "instagram"} {
+		if name := m.participantName(userID, platform); name != "" {
+			return &MetaProfile{Name: name}, nil
+		}
+	}
+	return nil, fmt.Errorf("Meta profile unavailable for %s", userID)
+}
+
+type conversationsPage struct {
+	Data []struct {
+		Participants struct {
+			Data []struct {
+				ID   string `json:"id"`
+				Name string `json:"name"`
+			} `json:"data"`
+		} `json:"participants"`
+	} `json:"data"`
+	Paging struct {
+		Next string `json:"next"`
+	} `json:"paging"`
+}
+
+// participantName resolves one user's display name via the conversations
+// endpoint (platform "" = messenger, or "instagram").
+func (m *MetaClient) participantName(userID, platform string) string {
+	u := fmt.Sprintf("%s/me/conversations?fields=participants&user_id=%s&access_token=%s", metaGraphBase, userID, m.pageToken)
+	if platform != "" {
+		u += "&platform=" + platform
+	}
+	resp, err := m.http.Get(u)
 	if err != nil {
-		return nil, err
+		return ""
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode >= 300 {
-		return nil, fmt.Errorf("Meta profile failed (%d)", resp.StatusCode)
+		return ""
 	}
-	var p MetaProfile
-	if err := json.NewDecoder(resp.Body).Decode(&p); err != nil {
-		return nil, err
+	var out conversationsPage
+	if json.NewDecoder(resp.Body).Decode(&out) != nil {
+		return ""
 	}
-	return &p, nil
+	for _, conv := range out.Data {
+		for _, p := range conv.Participants.Data {
+			if p.ID == userID && p.Name != "" {
+				return p.Name
+			}
+		}
+	}
+	return ""
+}
+
+// ListConversationNames pages through every page conversation and returns a
+// userID -> display name map. platform "" = messenger, or "instagram".
+// Used by cmd/refreshprofiles to backfill names in a handful of requests
+// instead of one per thread.
+func (m *MetaClient) ListConversationNames(platform string) (map[string]string, error) {
+	if !m.enabled {
+		return nil, fmt.Errorf("Meta not configured")
+	}
+	names := make(map[string]string)
+	url := fmt.Sprintf("%s/me/conversations?fields=participants&limit=100&access_token=%s", metaGraphBase, m.pageToken)
+	if platform != "" {
+		url += "&platform=" + platform
+	}
+	for url != "" {
+		resp, err := m.http.Get(url)
+		if err != nil {
+			return names, err
+		}
+		if resp.StatusCode >= 300 {
+			resp.Body.Close()
+			return names, fmt.Errorf("Meta conversations failed (%d)", resp.StatusCode)
+		}
+		var out conversationsPage
+		err = json.NewDecoder(resp.Body).Decode(&out)
+		resp.Body.Close()
+		if err != nil {
+			return names, err
+		}
+		for _, conv := range out.Data {
+			for _, p := range conv.Participants.Data {
+				if p.Name != "" {
+					names[p.ID] = p.Name
+				}
+			}
+		}
+		url = out.Paging.Next
+	}
+	return names, nil
 }
 
 // postForm POSTs url-encoded params to a Graph API path and returns an
