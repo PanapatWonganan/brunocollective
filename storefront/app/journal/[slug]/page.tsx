@@ -81,7 +81,7 @@ export default async function JournalArticle({ params }: Params) {
 
           <div className={styles.sig}>
             <div className={styles.sigName}>Bruno Collective</div>
-            <div className={styles.sigRole}>The Journal — Khon Kaen, Thailand</div>
+            <div className={styles.sigRole}>The Journal — Thailand</div>
           </div>
         </div>
 

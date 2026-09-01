@@ -35,11 +35,11 @@ export const metadata: Metadata = {
     template: "%s — Bruno Collective",
   },
   description:
-    "Considered clothing, cut and finished by hand in Khon Kaen, Thailand — born from a love of fine cloth and quiet luxury. เสื้อผ้าคุณภาพ ตัดเย็บในไทย.",
+    "Considered clothing, cut and finished by hand in Thailand — born from a love of fine cloth and quiet luxury. เสื้อผ้าคุณภาพ ตัดเย็บในไทย.",
   openGraph: {
     title: "Bruno Collective — Quietly Made in Thailand",
     description:
-      "Considered clothing, cut and finished by hand in Khon Kaen, Thailand — born from a love of fine cloth and quiet luxury.",
+      "Considered clothing, cut and finished by hand in Thailand — born from a love of fine cloth and quiet luxury.",
     type: "website",
   },
 };

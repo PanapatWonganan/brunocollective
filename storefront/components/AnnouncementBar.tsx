@@ -25,7 +25,7 @@ export default function AnnouncementBar() {
       <span className={styles.cta}>สมัครเลย →</span>
     </Link>,
     <span key="made">
-      Cut &amp; finished by hand in <em>Khon Kaen</em> — ตัดเย็บประณีตทุกชิ้น
+      Cut &amp; finished by hand in <em>Thailand</em> — ตัดเย็บประณีตทุกชิ้น
     </span>,
     <span key="runs">
       Limited runs — <em>ผลิตจำนวนจำกัด</em> หมดแล้วหมดเลย

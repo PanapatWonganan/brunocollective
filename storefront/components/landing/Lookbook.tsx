@@ -7,7 +7,7 @@ import s from "./sections.module.css";
 // Default tiles — shared with the full /lookbook page. Each is overridden by
 // the admin lookbook_{n} site-image slot when customised.
 export const LOOK_DEFAULTS = [
-  { img: "https://images.pexels.com/photos/716411/pexels-photo-716411.jpeg?auto=compress&cs=tinysrgb&w=1400", a: "01 — The Studio", b: "Khon Kaen, Thailand" },
+  { img: "https://images.pexels.com/photos/716411/pexels-photo-716411.jpeg?auto=compress&cs=tinysrgb&w=1400", a: "01 — The Studio", b: "Thailand" },
   { img: "https://images.unsplash.com/photo-1499678329028-101435549a4e?auto=format&fit=crop&w=1200&q=80", a: "02 — Daylight", b: "Morning at the atelier" },
   { img: "https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?auto=format&fit=crop&w=1000&q=80", a: "03 — Everyday Tee", b: "Soft cotton jersey" },
   { img: "https://images.unsplash.com/photo-1503376780353-7e6692767b70?auto=format&fit=crop&w=1200&q=80", a: "04 — In Transit", b: "Made for the long wear" },

@@ -30,7 +30,7 @@ export default function CollectionGrid({ products }: { products: Product[] }) {
             </h2>
             <p className={s.intro}>
               Pieces from the atelier — everyday essentials, cut in limited runs
-              and finished by hand in Khon Kaen. Quiet luxury, made to be worn.
+              and finished by hand in Thailand. Quiet luxury, made to be worn.
             </p>
           </div>
         </Reveal>

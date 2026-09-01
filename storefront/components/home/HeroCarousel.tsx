@@ -12,7 +12,7 @@ import s from "./home.module.css";
 const DEFAULTS = [
   {
     img: "/design/hero-polo-dunes.jpg",
-    kicker: "Bruno Collective — Khon Kaen, Thailand",
+    kicker: "Bruno Collective — Made in Thailand",
     headline: "The quiet *uniform.*",
     cta: "Shop the Collection",
     href: "/shop",

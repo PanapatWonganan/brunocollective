@@ -13,7 +13,7 @@ import type { Product } from "@/lib/types";
 export const metadata: Metadata = {
   title: "Our Story",
   description:
-    "The Bruno Collective story — considered clothing, cut and finished by hand in Khon Kaen, Thailand.",
+    "The Bruno Collective story — considered clothing, cut and finished by hand in Thailand.",
 };
 
 // The editorial page ("A Quiet Inheritance") — formerly the home page, now the

@@ -25,7 +25,7 @@ export default function Philosophy() {
             <p>
               Bruno Collective began with a simple obsession — fine cloth, clean
               lines, and clothes that feel as good as they look. We started in a
-              small studio in Khon Kaen, cutting and finishing each piece by hand,
+              small studio in Thailand, cutting and finishing each piece by hand,
               and we have kept it that way.
             </p>
             <p>
@@ -42,7 +42,7 @@ export default function Philosophy() {
               <div>
                 <div className={s.sigName}>Bruno Collective</div>
                 <div className={s.sigRole}>
-                  Designed &amp; finished by hand — Khon Kaen, Thailand
+                  Designed &amp; finished by hand — Thailand
                 </div>
               </div>
             </div>

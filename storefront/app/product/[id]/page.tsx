@@ -31,7 +31,7 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
     title: product.name,
     description:
       product.description ||
-      `${product.name} — cut and finished by hand at the Bruno Collective atelier in Khon Kaen, Thailand.`,
+      `${product.name} — cut and finished by hand at the Bruno Collective atelier in Thailand.`,
     openGraph: {
       title: product.name,
       description: product.description || product.name,
@@ -84,7 +84,7 @@ export default async function ProductPage({ params }: Params) {
           <AddToBag product={product} sizeChartUrl={sizeChartUrl} />
 
           <div className={styles.note}>
-            Finished by hand in Khon Kaen — แพ็คอย่างดี ส่งไวทั่วไทย
+            Finished by hand in Thailand — แพ็คอย่างดี ส่งไวทั่วไทย
           </div>
 
           <Accordion
@@ -98,7 +98,7 @@ export default async function ProductPage({ params }: Params) {
                       <p>{product.description}</p>
                     ) : (
                       <p>
-                        Cut and finished by hand at our studio in Khon Kaen —
+                        Cut and finished by hand at our studio in Thailand —
                         considered fabric, clean lines, made in a limited run.
                       </p>
                     )}
@@ -112,7 +112,7 @@ export default async function ProductPage({ params }: Params) {
                           ? `In stock — เหลือ ${stock} ชิ้นในรอบนี้`
                           : "Sold out — หมดรอบนี้แล้ว"}
                       </li>
-                      <li>Made &amp; finished by hand in Khon Kaen, Thailand</li>
+                      <li>Made &amp; finished by hand in Thailand</li>
                     </ul>
                   </>
                 ),

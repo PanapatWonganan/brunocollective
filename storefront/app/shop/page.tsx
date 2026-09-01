@@ -6,7 +6,7 @@ import ShopClient from "./ShopClient";
 export const metadata: Metadata = {
   title: "The Collection",
   description:
-    "Shop the full Bruno Collective collection — limited runs, cut and finished by hand in Khon Kaen, Thailand.",
+    "Shop the full Bruno Collective collection — limited runs, cut and finished by hand in Thailand.",
 };
 
 interface Props {

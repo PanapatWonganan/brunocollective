@@ -27,14 +27,14 @@ export const ESSAYS: Essay[] = [
     read: "8 min",
     title: "Why we make it *in Thailand*",
     summary:
-      "On choosing to design and finish every piece in Khon Kaen — what local making lets us control, and why slower, smaller runs make better clothes.",
+      "On choosing to design and finish every piece in Thailand — what local making lets us control, and why slower, smaller runs make better clothes.",
     cover:
       "https://images.unsplash.com/photo-1531572753322-ad063cecc140?auto=format&fit=crop&w=1600&q=80",
     body: [
       "It would be easier not to. Easier to send a tech pack overseas, wait for a container, and sell what arrives. Most brands our size do exactly that, and it is a perfectly sensible way to run a business. It is just not the way to make the clothes we wanted to make.",
-      "Bruno Collective is designed and finished in Khon Kaen because closeness is a kind of quality control that no inspection report can replace. เมื่อโต๊ะตัดผ้าอยู่ห่างจากโต๊ะออกแบบไม่กี่ก้าว เราเห็นทุกตะเข็บก่อนถึงมือลูกค้า — when the cutting table is a few steps from the design table, a seam that sits wrong gets fixed the same afternoon, not discovered three months later in a warehouse.",
+      "Bruno Collective is designed and finished in Thailand because closeness is a kind of quality control that no inspection report can replace. เมื่อโต๊ะตัดผ้าอยู่ห่างจากโต๊ะออกแบบไม่กี่ก้าว เราเห็นทุกตะเข็บก่อนถึงมือลูกค้า — when the cutting table is a few steps from the design table, a seam that sits wrong gets fixed the same afternoon, not discovered three months later in a warehouse.",
       "Making locally also changes what we are willing to make. A factory minimum forces you to guess big and discount later; a small run lets you make only what deserves to exist. เราจึงผลิตทีละรอบ จำนวนจำกัด — we cut in small batches, sell through, listen, and cut again a little better. When a run is gone, it is gone; that is not a marketing line, it is simply how small-batch making works.",
-      "There is also the quieter reason. The people who press the seams and sew the buttons here are not a line item on a freight invoice — they are the reason the clothes feel the way they do. Keeping the work in Khon Kaen keeps that care close, and keeps us honest about what every piece actually costs to make well.",
+      "There is also the quieter reason. The people who press the seams and sew the buttons here are not a line item on a freight invoice — they are the reason the clothes feel the way they do. Keeping the work in Thailand keeps that care close, and keeps us honest about what every piece actually costs to make well.",
       "None of this makes a t-shirt more remarkable to look at, and that is rather the point. *Quiet luxury is care you can feel, not a label you can read.* The making is the luxury; Thailand is where we make it.",
     ],
   },
@@ -69,7 +69,7 @@ export const ESSAYS: Essay[] = [
       "You can audit it with your hands. Feel the weight of the fabric; a good cloth has body without stiffness. ลองจับชายเสื้อ ดูตะเข็บ — turn the hem and look at the stitching, because the inside of a garment is where the truth lives. Check the collar after the tenth wash, not the first wear. None of this requires expertise; it only requires attention.",
       "Loud clothes make a promise to other people; quiet clothes make a promise to you. เสื้อที่ดีไม่ต้องบอกใครว่าแพง — the person across the table may never know what your shirt cost, and that is precisely the point. What you get instead is private: the way it feels at hour nine of the day, the way it hangs after a year of wear.",
       "This is why quiet luxury is really a making problem, not a styling problem. A clean seam costs sewing time. A collar that keeps its shape costs better interfacing and a second pressing. งานเงียบ ๆ พวกนี้แหละคือของแพงจริง — the quiet work is the expensive part, which is why so many brands skip it and print a logo instead.",
-      "So our definition, for what it is worth: *luxury is care you can feel, kept quiet.* Everything we make in Khon Kaen is an attempt at that sentence.",
+      "So our definition, for what it is worth: *luxury is care you can feel, kept quiet.* Everything we make in Thailand is an attempt at that sentence.",
     ],
   },
 ];

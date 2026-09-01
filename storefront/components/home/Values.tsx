@@ -7,7 +7,7 @@ const VALUES = [
   {
     num: "I.",
     title: "Cut with care",
-    body: "ตัดเย็บทีละชิ้นอย่างประณีตในสตูดิโอของเราที่ขอนแก่น — finished by hand, checked twice.",
+    body: "ตัดเย็บทีละชิ้นอย่างประณีตในสตูดิโอของเราเอง — finished by hand, checked twice.",
   },
   {
     num: "II.",

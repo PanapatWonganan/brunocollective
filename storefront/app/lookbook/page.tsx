@@ -9,7 +9,7 @@ import styles from "./lookbook.module.css";
 export const metadata: Metadata = {
   title: "Lookbook",
   description:
-    "The Bruno Collective lookbook — notes from the atelier in Khon Kaen, Thailand. Photography of the collection, quietly considered.",
+    "The Bruno Collective lookbook — notes from the atelier in Thailand. Photography of the collection, quietly considered.",
 };
 
 // Full lookbook — every tile is admin-managed via the lookbook_1..6 site-image
@@ -33,7 +33,7 @@ export default async function LookbookPage() {
           Notes from the <em>atelier.</em>
         </h1>
         <p className={styles.sub}>
-          ภาพจากสตูดิโอของเราที่ขอนแก่น — the collection as it is actually worn,
+          ภาพจากสตูดิโอของเรา — the collection as it is actually worn,
           photographed slowly.
         </p>
       </header>

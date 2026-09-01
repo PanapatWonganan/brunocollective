@@ -11,7 +11,7 @@ export default function Atelier() {
             <div className={s.atelierImg} />
           </Reveal>
           <Reveal delay={2}>
-            <span className="kicker">The Atelier — Khon Kaen, Thailand</span>
+            <span className="kicker">The Atelier — Thailand</span>
             <h2>
               Finished
               <br />
@@ -31,7 +31,7 @@ export default function Atelier() {
             <div className={s.specs}>
               <div>
                 <div className={s.k}>Made in</div>
-                <div className={s.v}>Khon Kaen, TH</div>
+                <div className={s.v}>Thailand</div>
               </div>
               <div>
                 <div className={s.k}>Finishing</div>

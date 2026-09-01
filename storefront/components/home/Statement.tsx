@@ -7,7 +7,7 @@ export default function Statement() {
     <section className={s.statement}>
       <Reveal className="wrap">
         <div className={s.stBig}>
-          Made in <em>Khon Kaen.</em>
+          Made in <em>Thailand.</em>
         </div>
         <p>
           Bruno Collective began with a simple obsession — fine cloth, clean

@@ -11,7 +11,7 @@ export default function Footer() {
             <div className={styles.name}>Bruno Collective</div>
             <p className={styles.pitch}>
               A small Thai house, quietly making considered clothing from a love
-              of fine cloth and understated luxury. Designed &amp; made in Khon Kaen.
+              of fine cloth and understated luxury. Designed &amp; made in Thailand.
             </p>
           </div>
 
@@ -40,7 +40,7 @@ export default function Footer() {
           <div className={styles.boutiques} id="boutiques">
             <h5 className={styles.h5}>Atelier</h5>
             <ul className={styles.ul}>
-              <li><span className={styles.city}>Khon Kaen</span><span className={styles.addr}>ขอนแก่น · By appointment</span></li>
+              <li><span className={styles.city}>The Studio</span><span className={styles.addr}>Thailand · By appointment · นัดหมายล่วงหน้า</span></li>
               <li><span className={styles.city}>Online</span><span className={styles.addr}>Shipping across Thailand · จัดส่งทั่วไทย</span></li>
             </ul>
           </div>
@@ -63,7 +63,7 @@ export default function Footer() {
             <Link href="/journal">Journal</Link>
             <a href="https://lin.ee/tT3JcJX" target="_blank" rel="noreferrer">LINE</a>
           </div>
-          <div>Designed &amp; made in Khon Kaen, Thailand</div>
+          <div>Designed &amp; made in Thailand</div>
         </div>
       </div>
     </footer>

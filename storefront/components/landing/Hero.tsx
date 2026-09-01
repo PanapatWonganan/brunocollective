@@ -32,7 +32,7 @@ export default function Hero({ site }: { site?: Record<string, SiteImage> }) {
         <Reveal delay={3}>
           <p className={styles.tagline}>
             Born from a love of fine cloth and understated elegance —
-            designed and finished by hand in Khon Kaen.
+            designed and finished by hand in Thailand.
           </p>
         </Reveal>
         <Reveal delay={4}>
@@ -44,7 +44,7 @@ export default function Hero({ site }: { site?: Record<string, SiteImage> }) {
 
       <div className={styles.metaRow}>
         <div className={styles.left}>
-          <span className="label">Designed &amp; Made — Khon Kaen, Thailand</span>
+          <span className="label">Designed &amp; Made — Thailand</span>
         </div>
         <div className={styles.center}>
           <span className={`serif ${styles.num}`}>Bruno</span>

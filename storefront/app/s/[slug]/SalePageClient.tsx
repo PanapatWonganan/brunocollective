@@ -278,7 +278,7 @@ export default function SalePageClient({ page, isPreview, sizeChartUrl }: Props)
 
   const heroData = heroSection?.data || {};
   const heroImage = heroData.image_url || productImages[0] || "";
-  const marqueeText = `${product.name} · Limited Release · Quietly Made in Khon Kaen · `;
+  const marqueeText = `${product.name} · Limited Release · Quietly Made in Thailand · `;
 
   return (
     <main className={styles.page}>
@@ -349,7 +349,7 @@ export default function SalePageClient({ page, isPreview, sizeChartUrl }: Props)
               <span className={`serif ${styles.heroMetaNum}`}>Bruno</span>
               <span className="label">Collective</span>
             </span>
-            <span className="label">Made in Khon Kaen · งานตัดเย็บมือ</span>
+            <span className="label">Made in Thailand · งานตัดเย็บมือ</span>
           </div>
         </section>
       )}
