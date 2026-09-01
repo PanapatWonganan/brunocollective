@@ -59,6 +59,53 @@ func isOpaque(img image.Image) bool {
 	return float64(translucent)/float64(sampled) < 0.005
 }
 
+// trimTransparentBorder crops away fully-transparent margins (design-tool
+// exports often place the photo on a larger transparent canvas, e.g. a
+// 1920x1080 frame with an empty band at the bottom). Returns the image
+// unchanged when there is no alpha or nothing to trim.
+func trimTransparentBorder(img image.Image) image.Image {
+	if o, ok := img.(opaquer); ok && o.Opaque() {
+		return img
+	}
+	b := img.Bounds()
+	minX, minY := b.Max.X, b.Max.Y
+	maxX, maxY := b.Min.X-1, b.Min.Y-1
+	const step = 2 // fine enough for a crop while staying cheap
+	for y := b.Min.Y; y < b.Max.Y; y += step {
+		for x := b.Min.X; x < b.Max.X; x += step {
+			if _, _, _, a := img.At(x, y).RGBA(); a > 0 {
+				if x < minX {
+					minX = x
+				}
+				if x > maxX {
+					maxX = x
+				}
+				if y < minY {
+					minY = y
+				}
+				if y > maxY {
+					maxY = y
+				}
+			}
+		}
+	}
+	if maxX < minX || maxY < minY {
+		return img // fully transparent — leave as-is
+	}
+	// Pad by the sampling step so we never cut visible pixels.
+	r := image.Rect(minX-step, minY-step, maxX+step+1, maxY+step+1).Intersect(b)
+	if r == b || r.Dx() <= 0 || r.Dy() <= 0 {
+		return img
+	}
+	// Only crop when it actually removes a meaningful margin (>2%).
+	if float64(r.Dx()*r.Dy()) > 0.98*float64(b.Dx()*b.Dy()) {
+		return img
+	}
+	dst := image.NewNRGBA(image.Rect(0, 0, r.Dx(), r.Dy()))
+	xdraw.Draw(dst, dst.Bounds(), img, r.Min, xdraw.Src)
+	return dst
+}
+
 // flattenOnWhite composites img onto a white background so a stray alpha
 // channel doesn't turn into black fringes in the JPEG encode.
 func flattenOnWhite(img image.Image) image.Image {
@@ -126,6 +173,7 @@ func SaveOptimizedImage(fh *multipart.FileHeader, dir, base string, maxDim int) 
 		return name, copyMultipart(fh, filepath.Join(dir, name))
 	}
 
+	img = trimTransparentBorder(img)
 	img = resizeMax(img, maxDim)
 	ext := ".jpg"
 	if !isOpaque(img) {
@@ -228,7 +276,11 @@ func ConvertPNGToJPEG(path string, maxDim int) (string, bool, error) {
 	if err != nil {
 		return "", false, err
 	}
-	if format != "png" || !isOpaque(img) {
+	if format != "png" {
+		return "", false, nil
+	}
+	img = trimTransparentBorder(img)
+	if !isOpaque(img) {
 		return "", false, nil
 	}
 	img = resizeMax(img, maxDim)
