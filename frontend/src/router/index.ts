@@ -23,6 +23,7 @@ const router = createRouter({
         { path: 'auto-replies', name: 'Auto Reply', component: () => import('@/views/AutoRepliesView.vue') },
         { path: 'broadcasts', name: 'Broadcast', component: () => import('@/views/BroadcastView.vue') },
         { path: 'coupons', name: 'Coupons', component: () => import('@/views/CouponsView.vue') },
+        { path: 'affiliates', name: 'Affiliates', component: () => import('@/views/AffiliatesView.vue') },
         { path: 'sale-pages', name: 'Sale Pages', component: () => import('@/views/SalePagesView.vue') },
         { path: 'site-images', name: 'SiteImages', component: () => import('@/views/SiteImagesView.vue') },
         { path: 'receipts', name: 'Receipts', component: () => import('@/views/ReceiptsView.vue') },

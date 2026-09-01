@@ -107,7 +107,9 @@ func (h *ProductHandler) Update(c *fiber.Ctx) error {
 			"category":    updates.Category,
 			"price":       updates.Price,
 			"cost":        updates.Cost,
-			"stock":       updates.Stock,
+			// Pointer: nil clears the override (inherit), 0 = no commission.
+			"commission_percent": updates.CommissionPercent,
+			"stock":              updates.Stock,
 		}).Error; err != nil {
 			return err
 		}

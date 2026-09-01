@@ -30,6 +30,11 @@ type Order struct {
 	// coupon is later edited or deleted.
 	CouponID   *uint  `json:"coupon_id"`
 	CouponCode string `json:"coupon_code"`
+	// AffiliateID/AffiliateCode attribute the order to a referring affiliate
+	// (?ref link or typed code). Code is snapshotted like CouponCode so the
+	// order keeps it even if the affiliate is later deleted.
+	AffiliateID   *uint  `json:"affiliate_id"`
+	AffiliateCode string `json:"affiliate_code"`
 	// SalePageID marks orders placed through a sale/landing page (/s/{slug})
 	// so per-campaign conversion can be tracked. Nil for normal orders.
 	SalePageID *uint `json:"sale_page_id"`
@@ -46,11 +51,11 @@ type Order struct {
 	// slip without logging in. Empty = no public payment page for this order.
 	PaymentToken string      `json:"payment_token" gorm:"index"`
 	TotalAmount  float64     `json:"total_amount"`
-	SlipImage   string      `json:"slip_image"`
-	Notes       string      `json:"notes"`
-	Items       []OrderItem `json:"items" gorm:"foreignKey:OrderID"`
-	CreatedAt   time.Time   `json:"created_at"`
-	UpdatedAt   time.Time   `json:"updated_at"`
+	SlipImage    string      `json:"slip_image"`
+	Notes        string      `json:"notes"`
+	Items        []OrderItem `json:"items" gorm:"foreignKey:OrderID"`
+	CreatedAt    time.Time   `json:"created_at"`
+	UpdatedAt    time.Time   `json:"updated_at"`
 }
 
 type OrderItem struct {
@@ -69,11 +74,12 @@ type OrderItem struct {
 }
 
 type CreateOrderRequest struct {
-	CustomerID uint              `json:"customer_id"`
-	Notes      string            `json:"notes"`
-	CouponCode string            `json:"coupon_code"`
-	Channel    string            `json:"channel"`
-	Items      []CreateOrderItem `json:"items"`
+	CustomerID    uint              `json:"customer_id"`
+	Notes         string            `json:"notes"`
+	CouponCode    string            `json:"coupon_code"`
+	AffiliateCode string            `json:"affiliate_code"`
+	Channel       string            `json:"channel"`
+	Items         []CreateOrderItem `json:"items"`
 }
 
 type CreateOrderItem struct {

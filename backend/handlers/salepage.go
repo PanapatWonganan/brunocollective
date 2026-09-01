@@ -318,6 +318,7 @@ type salePageOrderRequest struct {
 	Bump          bool
 	BumpVariantID *uint
 	CouponCode    string
+	AffiliateCode string
 }
 
 // PublicOrder places an order from a sale page. Mirrors the storefront
@@ -344,6 +345,7 @@ func (h *SalePageHandler) PublicOrder(c *fiber.Ctx) error {
 	req.Address = strings.TrimSpace(c.FormValue("address"))
 	req.Notes = c.FormValue("notes")
 	req.CouponCode = c.FormValue("coupon_code")
+	req.AffiliateCode = c.FormValue("affiliate_code")
 	req.Quantity, _ = strconv.Atoi(c.FormValue("quantity"))
 	if req.Quantity <= 0 {
 		req.Quantity = 1
@@ -439,6 +441,11 @@ func (h *SalePageHandler) PublicOrder(c *fiber.Ctx) error {
 			if err := applyCouponToOrder(tx, &order, req.CouponCode, totalAmount); err != nil {
 				return err
 			}
+		}
+		// Affiliate attribution — independent of AllowCoupon, after the coupon
+		// so commission sees final totals.
+		if err := applyAffiliateToOrder(tx, &order, req.AffiliateCode); err != nil {
+			return err
 		}
 
 		// Funnel stats — same transaction so a failed order counts nothing.

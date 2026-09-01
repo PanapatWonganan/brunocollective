@@ -37,6 +37,7 @@ export interface CheckoutPayload {
   address: string;
   notes?: string;
   coupon_code?: string;
+  affiliate_code?: string;
   items: { product_id: number; variant_id: number | null; quantity: number }[];
 }
 

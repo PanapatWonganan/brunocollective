@@ -334,6 +334,9 @@
               <v-chip v-if="selectedOrder.channel" size="x-small" variant="tonal" color="secondary" class="mt-1">
                 {{ channelLabel(selectedOrder.channel) }}
               </v-chip>
+              <v-chip v-if="selectedOrder.affiliate_code" size="small" color="secondary" variant="tonal" prepend-icon="mdi-account-cash-outline">
+                Ref: {{ selectedOrder.affiliate_code }}
+              </v-chip>
             </div>
             <v-spacer />
             <div class="text-right">

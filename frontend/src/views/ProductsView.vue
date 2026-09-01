@@ -156,6 +156,13 @@
                 hint="ใช้คำนวณกำไร" persistent-hint
                 :rules="[v => v >= 0 || 'Invalid']" class="mb-3"
               />
+              <v-text-field
+                :model-value="formData.commission_percent ?? ''"
+                @update:model-value="(v: any) => formData.commission_percent = (v === '' || v === null) ? null : Number(v)"
+                label="ค่าคอม Affiliate" type="number" suffix="%"
+                hint="ว่าง = ใช้ % ของ affiliate, 0 = ไม่จ่าย" persistent-hint
+                class="mb-3"
+              />
             </div>
 
             <!-- Variants (size + color + stock) -->
@@ -346,7 +353,7 @@ interface Variant {
 
 interface Product {
   id?: number; name: string; sku: string; size: string; description: string;
-  category: string; price: number; cost: number; stock: number;
+  category: string; price: number; cost: number; commission_percent?: number | null; stock: number;
   image_url: string; images: string[];
   variants: Variant[]; total_stock?: number;
 }
@@ -389,7 +396,7 @@ const form = ref()
 const pendingFiles = ref<File[]>([])
 const deletingImg = ref<string | null>(null)
 
-const emptyForm = (): Product => ({ name: '', sku: '', size: '', description: '', category: '', price: 0, cost: 0, stock: 0, image_url: '', images: [], variants: [] })
+const emptyForm = (): Product => ({ name: '', sku: '', size: '', description: '', category: '', price: 0, cost: 0, commission_percent: null, stock: 0, image_url: '', images: [], variants: [] })
 const formData = ref<Product>(emptyForm())
 
 function addVariant() {

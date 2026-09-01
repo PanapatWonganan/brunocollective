@@ -50,7 +50,7 @@ func JWTAuth(cfg *config.Config) fiber.Handler {
 			return c.Status(fe.Code).JSON(fiber.Map{"error": fe.Message})
 		}
 
-		if role, _ := claims["role"].(string); role == "member" {
+		if role, _ := claims["role"].(string); role == "member" || role == "affiliate" {
 			return c.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": "admin access required"})
 		}
 		if claims["user_id"] == nil {
@@ -80,6 +80,27 @@ func MemberAuth(cfg *config.Config) fiber.Handler {
 		}
 
 		c.Locals("customer_id", uint(id))
+		return c.Next()
+	}
+}
+
+// AffiliateAuth guards the affiliate portal routes. Only tokens with
+// role=affiliate pass; the affiliate ID lands in c.Locals("affiliate_id").
+func AffiliateAuth(cfg *config.Config) fiber.Handler {
+	return func(c *fiber.Ctx) error {
+		claims, err := parseBearerToken(c, cfg)
+		if err != nil {
+			fe := err.(*fiber.Error)
+			return c.Status(fe.Code).JSON(fiber.Map{"error": fe.Message})
+		}
+
+		role, _ := claims["role"].(string)
+		id, ok := claims["affiliate_id"].(float64)
+		if role != "affiliate" || !ok || id <= 0 {
+			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "invalid affiliate token"})
+		}
+
+		c.Locals("affiliate_id", uint(id))
 		return c.Next()
 	}
 }

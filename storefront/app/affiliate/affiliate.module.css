@@ -1,0 +1,95 @@
+/* Affiliate portal — same quiet design language as the member pages */
+.page{padding:clamp(120px,16vh,170px) var(--pad) clamp(80px,11vw,140px); max-width:var(--maxw); margin:0 auto}
+.head{margin-bottom:clamp(36px,5vw,56px)}
+.title{font-size:clamp(38px,5vw,72px); margin-top:12px}
+.title em{font-style:italic;color:var(--champagne);font-weight:300}
+.lede{color:var(--ink-faint); font-size:14px; line-height:1.8; max-width:52ch; margin:16px 0 0}
+
+.card{max-width:520px; background:var(--ivory); border:1px solid var(--hairline); padding:clamp(28px,4vw,44px)}
+
+.form{display:flex; flex-direction:column; gap:20px}
+.field{display:flex; flex-direction:column; gap:8px}
+.field span{font-size:10px; letter-spacing:.28em; text-transform:uppercase; color:var(--ink-faint); font-weight:500}
+.field input{
+  font:inherit; font-size:15px; color:var(--ink);
+  background:var(--paper); border:1px solid var(--hairline);
+  padding:14px 16px; outline:none;
+  transition:border-color .3s var(--ease);
+}
+.field input:focus{border-color:var(--champagne)}
+.error{color:#9a3b3b; font-size:12px; letter-spacing:.04em; margin:0}
+.success{color:var(--champagne); font-size:12px; letter-spacing:.04em; margin:0}
+.submit{
+  display:inline-flex; align-items:center; justify-content:center; gap:.7em;
+  margin-top:6px; padding:17px;
+  background:var(--ink); color:var(--ivory); border:none; cursor:pointer;
+  font-size:11px; letter-spacing:.32em; text-transform:uppercase; font-weight:500;
+  transition:background .4s var(--ease);
+}
+.submit:hover{background:var(--ink-soft)}
+.submit:disabled{background:var(--ink-quiet); cursor:not-allowed}
+
+/* ---- Dashboard ---- */
+.dashHead{display:flex; justify-content:space-between; align-items:end; gap:24px; flex-wrap:wrap; margin-bottom:clamp(30px,4vw,44px)}
+.who{font-size:10.5px; letter-spacing:.2em; text-transform:uppercase; color:var(--ink-faint); font-weight:500; margin-top:10px}
+
+.statGrid{display:grid; grid-template-columns:repeat(5,1fr); gap:16px; margin-bottom:clamp(30px,4vw,44px)}
+.stat{background:var(--ivory); border:1px solid var(--hairline); padding:20px 18px}
+.statLabel{font-size:9.5px; letter-spacing:.26em; text-transform:uppercase; color:var(--ink-faint); font-weight:500}
+.statValue{font-family:var(--serif); font-size:clamp(22px,2.2vw,30px); margin-top:8px}
+.statHint{font-size:10.5px; color:var(--ink-quiet); margin-top:4px}
+.statHi{border-color:var(--champagne)}
+.statHi .statValue{color:var(--champagne)}
+
+.share{
+  display:flex; flex-direction:column; gap:14px;
+  background:var(--paper); border:1px solid var(--champagne);
+  padding:22px 24px; margin-bottom:clamp(30px,4vw,44px);
+}
+.shareTitle{font-size:10.5px; letter-spacing:.28em; text-transform:uppercase; color:var(--champagne); font-weight:500}
+.shareRow{display:flex; gap:10px; align-items:center; flex-wrap:wrap}
+.shareCode{
+  font-family:var(--sans); font-size:14px; letter-spacing:.12em; font-weight:600;
+  background:var(--ivory); border:1px dashed var(--hairline); padding:10px 16px;
+}
+.shareLink{font-size:12.5px; color:var(--ink-soft); word-break:break-all}
+.copyBtn{
+  font-size:10px; letter-spacing:.24em; text-transform:uppercase; font-weight:500;
+  border:1px solid var(--ink); padding:9px 16px; cursor:pointer; background:none; color:var(--ink);
+  transition:all .3s var(--ease); white-space:nowrap;
+}
+.copyBtn:hover{background:var(--ink); color:var(--ivory)}
+
+.sectionTitle{font-family:var(--serif); font-size:clamp(22px,2.4vw,30px); margin-bottom:18px}
+.tableWrap{overflow-x:auto; border:1px solid var(--hairline); background:var(--ivory); margin-bottom:clamp(30px,4vw,44px)}
+.table{width:100%; border-collapse:collapse; min-width:560px}
+.table th{
+  text-align:left; padding:14px 16px;
+  font-size:9.5px; letter-spacing:.26em; text-transform:uppercase; color:var(--ink-faint); font-weight:500;
+  border-bottom:1px solid var(--hairline);
+}
+.table td{padding:13px 16px; font-size:13.5px; border-bottom:1px solid var(--hairline-soft); color:var(--ink-soft)}
+.table tr:last-child td{border-bottom:none}
+.num{text-align:right; white-space:nowrap}
+.badge{
+  display:inline-block; font-size:9.5px; letter-spacing:.18em; text-transform:uppercase; font-weight:500;
+  padding:4px 10px; border:1px solid var(--hairline);
+}
+.badgePending{color:#B45309; border-color:#B45309}
+.badgeConfirmed{color:#2A78D6; border-color:#2A78D6}
+.badgePaid{color:#15803D; border-color:#15803D}
+.badgeCancelled{color:#DC2626; border-color:#DC2626}
+
+.panelRow{display:grid; grid-template-columns:1fr 1fr; gap:24px; align-items:start}
+.panel{background:var(--ivory); border:1px solid var(--hairline); padding:26px 24px}
+.panelTitle{font-family:var(--serif); font-size:20px; margin-bottom:16px}
+
+.signout{
+  padding:12px 18px; background:none; border:1px solid var(--ink); cursor:pointer;
+  font-size:10px; letter-spacing:.28em; text-transform:uppercase; font-weight:500; color:var(--ink);
+  transition:all .3s var(--ease);
+}
+.signout:hover{background:var(--ink); color:var(--ivory)}
+.empty{color:var(--ink-faint); font-size:14px; padding:20px 0}
+
+@media (max-width:960px){.statGrid{grid-template-columns:repeat(2,1fr)} .panelRow{grid-template-columns:1fr}}

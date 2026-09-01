@@ -139,6 +139,7 @@ export async function checkout(
   if (payload.email) form.set("email", payload.email);
   if (payload.notes) form.set("notes", payload.notes);
   if (payload.coupon_code) form.set("coupon_code", payload.coupon_code);
+  if (payload.affiliate_code) form.set("affiliate_code", payload.affiliate_code);
   form.set("items", JSON.stringify(payload.items));
   form.set("slip", slip);
 
@@ -177,6 +178,7 @@ export interface SalePageOrderPayload {
   bump: boolean;
   bumpVariantId: number | null;
   couponCode?: string;
+  affiliateCode?: string;
 }
 
 // Places an order from a sale page. Multipart so the payment slip attaches;
@@ -197,6 +199,7 @@ export async function salePageOrder(
   if (payload.bump) form.set("bump", "1");
   if (payload.bumpVariantId) form.set("bump_variant_id", String(payload.bumpVariantId));
   if (payload.couponCode) form.set("coupon_code", payload.couponCode);
+  if (payload.affiliateCode) form.set("affiliate_code", payload.affiliateCode);
   form.set("slip", slip);
 
   const res = await fetch(`/api/shop/sale-pages/${encodeURIComponent(slug)}/order`, {
@@ -430,5 +433,142 @@ export async function validateCoupon(
     return { ok: true, coupon: data };
   } catch {
     return { ok: false, error: "ใช้โค้ดไม่สำเร็จ กรุณาลองใหม่" };
+  }
+}
+
+// ---- Affiliate program ----
+// Referrers share ?ref=CODE links (see lib/affiliate.ts) and log in to their
+// own portal at /affiliate. role:"affiliate" tokens are isolated from both
+// the admin and member APIs.
+
+export const AFFILIATE_TOKEN_KEY = "bc_affiliate_token";
+
+export function getAffiliateToken(): string | null {
+  if (typeof window === "undefined") return null;
+  return localStorage.getItem(AFFILIATE_TOKEN_KEY);
+}
+
+export interface AffiliateProfile {
+  id: number;
+  code: string;
+  name: string;
+  phone: string;
+  email: string;
+  commission_percent: number;
+}
+
+export interface AffiliateStats {
+  affiliate: AffiliateProfile;
+  clicks: number;
+  pending_amount: number;
+  confirmed_amount: number;
+  paid_amount: number;
+  cancelled_amount: number;
+  orders_count: number;
+}
+
+export interface AffiliateOrderRow {
+  order_id: number;
+  created_at: string;
+  order_status: string;
+  item_count: number;
+  order_total: number;
+  commission: number;
+  commission_status: string;
+}
+
+// Pre-checkout validation for a typed referral code. Thai errors, shown as-is.
+export async function validateAffiliate(
+  code: string
+): Promise<{ ok: boolean; name?: string; code?: string; error?: string }> {
+  try {
+    const res = await fetch("/api/shop/affiliates/validate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ code }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      return { ok: false, error: data?.error || "ตรวจสอบรหัสไม่สำเร็จ กรุณาลองใหม่" };
+    }
+    return { ok: true, name: data.name, code: data.code };
+  } catch {
+    return { ok: false, error: "ตรวจสอบรหัสไม่สำเร็จ กรุณาลองใหม่" };
+  }
+}
+
+export async function affiliateLogin(
+  phone: string,
+  password: string
+): Promise<{ ok: boolean; token?: string; affiliate?: AffiliateProfile; error?: string }> {
+  try {
+    const res = await fetch("/api/shop/affiliates/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ phone, password }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      return { ok: false, error: data?.error || "เข้าสู่ระบบไม่สำเร็จ กรุณาลองใหม่" };
+    }
+    return { ok: true, token: data.token, affiliate: data.affiliate };
+  } catch {
+    return { ok: false, error: "เข้าสู่ระบบไม่สำเร็จ กรุณาลองใหม่" };
+  }
+}
+
+// Profile + real-time stats; null when the token is missing/expired.
+export async function affiliateMe(): Promise<AffiliateStats | null> {
+  const token = getAffiliateToken();
+  if (!token) return null;
+  try {
+    const res = await fetch("/api/shop/affiliates/me", {
+      headers: { Authorization: `Bearer ${token}` },
+      cache: "no-store",
+    });
+    if (!res.ok) return null;
+    return res.json();
+  } catch {
+    return null;
+  }
+}
+
+export async function affiliateOrders(): Promise<AffiliateOrderRow[]> {
+  const token = getAffiliateToken();
+  if (!token) return [];
+  try {
+    const res = await fetch("/api/shop/affiliates/me/orders", {
+      headers: { Authorization: `Bearer ${token}` },
+      cache: "no-store",
+    });
+    if (!res.ok) return [];
+    return (await res.json()) || [];
+  } catch {
+    return [];
+  }
+}
+
+export async function affiliateChangePassword(
+  currentPassword: string,
+  newPassword: string
+): Promise<{ ok: boolean; error?: string }> {
+  const token = getAffiliateToken();
+  if (!token) return { ok: false, error: "กรุณาเข้าสู่ระบบใหม่" };
+  try {
+    const res = await fetch("/api/shop/affiliates/me", {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ current_password: currentPassword, new_password: newPassword }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      return { ok: false, error: data?.error || "บันทึกไม่สำเร็จ กรุณาลองใหม่" };
+    }
+    return { ok: true };
+  } catch {
+    return { ok: false, error: "บันทึกไม่สำเร็จ กรุณาลองใหม่" };
   }
 }

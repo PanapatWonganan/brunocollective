@@ -4,7 +4,8 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useCart } from "@/lib/cart";
 import { useMember } from "@/lib/member";
-import { checkout, getSuggestions, memberCheck, validateCoupon } from "@/lib/api";
+import { checkout, getSuggestions, memberCheck, validateAffiliate, validateCoupon } from "@/lib/api";
+import { getAffiliateRef } from "@/lib/affiliate";
 import { money, imageSrc } from "@/lib/format";
 import type { CouponPreview, Product } from "@/lib/types";
 import styles from "./checkout.module.css";
@@ -32,6 +33,32 @@ export default function CheckoutPage() {
   const [coupon, setCoupon] = useState<CouponPreview | null>(null);
   const [couponError, setCouponError] = useState<string | null>(null);
   const [couponChecking, setCouponChecking] = useState(false);
+
+  // Affiliate referral — prefilled from a remembered ?ref link (30-day,
+  // last-click); typing a code overrides it. Validation is instant feedback
+  // only — the backend re-resolves the code and never fails the sale on it.
+  const [refCode, setRefCode] = useState("");
+  const [refApplied, setRefApplied] = useState<string | null>(null);
+  const [refError, setRefError] = useState<string | null>(null);
+  useEffect(() => {
+    const saved = getAffiliateRef();
+    if (saved) {
+      setRefCode(saved);
+      setRefApplied(saved);
+    }
+  }, []);
+  async function onApplyRef() {
+    const code = refCode.trim();
+    if (!code) return;
+    setRefError(null);
+    const res = await validateAffiliate(code);
+    if (res.ok && res.code) {
+      setRefApplied(res.code);
+    } else {
+      setRefApplied(null);
+      setRefError(res.error || null);
+    }
+  }
 
   // Member discount — logged-in members get it from their profile; guests get
   // it when their phone matches a member/returning customer. Display only:
@@ -154,6 +181,7 @@ export default function CheckoutPage() {
         address: form.address.trim(),
         notes: form.notes.trim() || undefined,
         coupon_code: coupon ? coupon.code : undefined,
+        affiliate_code: refApplied || getAffiliateRef() || undefined,
         items: lines.map((l) => ({
           product_id: l.product.id,
           variant_id: l.variant ? l.variant.id : null,
@@ -402,6 +430,46 @@ export default function CheckoutPage() {
               </div>
             )}
             {couponError && <p className={styles.couponError}>{couponError}</p>}
+          </div>
+
+          {/* Referral code — reuses the coupon field styling */}
+          <div className={styles.coupon}>
+            {refApplied ? (
+              <div className={styles.couponApplied}>
+                <span>รหัสผู้แนะนำ · {refApplied}</span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setRefApplied(null);
+                    setRefCode("");
+                  }}
+                >
+                  Remove
+                </button>
+              </div>
+            ) : (
+              <div className={styles.couponRow}>
+                <input
+                  value={refCode}
+                  onChange={(e) => {
+                    setRefCode(e.target.value.toUpperCase());
+                    setRefError(null);
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      onApplyRef();
+                    }
+                  }}
+                  placeholder="Referral Code · รหัสผู้แนะนำ (ถ้ามี)"
+                  aria-label="Referral code"
+                />
+                <button type="button" onClick={onApplyRef} disabled={!refCode.trim()}>
+                  Apply
+                </button>
+              </div>
+            )}
+            {refError && <p className={styles.couponError}>{refError}</p>}
           </div>
 
           <p className={styles.memberNote}>

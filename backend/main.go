@@ -76,6 +76,16 @@ func main() {
 	app.Put("/api/shop/members/me", middleware.MemberAuth(cfg), memberHandler.UpdateMe)
 	app.Get("/api/shop/members/me/orders", middleware.MemberAuth(cfg), memberHandler.MyOrders)
 
+	// Affiliate program — public track/validate for the storefront, plus the
+	// affiliate's own portal (login by phone, role:"affiliate" JWT).
+	affiliateHandler := handlers.NewAffiliateHandler(cfg)
+	app.Post("/api/shop/affiliates/track", affiliateHandler.Track)
+	app.Post("/api/shop/affiliates/validate", affiliateHandler.Validate)
+	app.Post("/api/shop/affiliates/login", affiliateHandler.Login)
+	app.Get("/api/shop/affiliates/me", middleware.AffiliateAuth(cfg), affiliateHandler.Me)
+	app.Get("/api/shop/affiliates/me/orders", middleware.AffiliateAuth(cfg), affiliateHandler.MyOrders)
+	app.Put("/api/shop/affiliates/me", middleware.AffiliateAuth(cfg), affiliateHandler.UpdateMe)
+
 	// Public sale/landing pages — rendered by the storefront at /s/{slug}.
 	salePageHandler := handlers.NewSalePageHandler(cfg, telegramNotifier)
 	app.Get("/api/shop/sale-pages/:slug", salePageHandler.PublicGet)
@@ -212,6 +222,16 @@ func main() {
 	api.Delete("/coupons/:id", couponHandler.Delete)
 	api.Post("/coupons/:id/toggle", couponHandler.Toggle)
 	api.Get("/coupons/:id/redemptions", couponHandler.Redemptions)
+
+	// Affiliates — CRUD + per-affiliate report + batch payout.
+	api.Get("/affiliates", affiliateHandler.List)
+	api.Post("/affiliates", affiliateHandler.Create)
+	api.Get("/affiliates/:id", affiliateHandler.Get)
+	api.Put("/affiliates/:id", affiliateHandler.Update)
+	api.Delete("/affiliates/:id", affiliateHandler.Delete)
+	api.Post("/affiliates/:id/toggle", affiliateHandler.Toggle)
+	api.Get("/affiliates/:id/report", affiliateHandler.Report)
+	api.Post("/affiliates/:id/pay", affiliateHandler.Pay)
 
 	// Sale pages (funnel builder) — "upload" before ":id" so it isn't swallowed.
 	api.Get("/sale-pages", salePageHandler.List)

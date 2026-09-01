@@ -60,10 +60,14 @@ type Product struct {
 	// Cost is the unit cost (ต้นทุนต่อชิ้น) used for gross-profit and stock-value
 	// analytics. 0 = unknown; analytics treat it as "no cost data" rather than
 	// 100% margin.
-	Cost     float64     `json:"cost"`
-	Stock    int         `json:"stock" gorm:"default:0"` // legacy: used only when a product has no variants
-	ImageURL string      `json:"image_url"`
-	Images   StringSlice `json:"images" gorm:"type:text"`
+	Cost float64 `json:"cost"`
+	// CommissionPercent overrides the affiliate's default commission rate for
+	// this product. nil = inherit the affiliate default; 0 = this product pays
+	// no commission at all.
+	CommissionPercent *float64    `json:"commission_percent"`
+	Stock             int         `json:"stock" gorm:"default:0"` // legacy: used only when a product has no variants
+	ImageURL          string      `json:"image_url"`
+	Images            StringSlice `json:"images" gorm:"type:text"`
 
 	// DisplayOrder controls storefront position (1 = first). 0 = unordered —
 	// those sort after every ordered product, newest first. Set in bulk by the

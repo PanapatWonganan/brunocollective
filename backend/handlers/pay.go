@@ -41,9 +41,10 @@ func (h *OrderHandler) payURL(token string) string {
 // conversation. The customer comes from the conversation's linked customer
 // and the channel is stamped from the conversation's platform.
 type ChatOrderRequest struct {
-	Notes      string                   `json:"notes"`
-	CouponCode string                   `json:"coupon_code"`
-	Items      []models.CreateOrderItem `json:"items"`
+	Notes         string                   `json:"notes"`
+	CouponCode    string                   `json:"coupon_code"`
+	AffiliateCode string                   `json:"affiliate_code"`
+	Items         []models.CreateOrderItem `json:"items"`
 }
 
 // CreateFromChat handles POST /api/chats/:id/order (admin). Same pricing
@@ -121,7 +122,11 @@ func (h *OrderHandler) CreateFromChat(c *fiber.Ctx) error {
 		if err := tx.Create(&order).Error; err != nil {
 			return err
 		}
-		return applyCouponToOrder(tx, &order, req.CouponCode, totalAmount)
+		if err := applyCouponToOrder(tx, &order, req.CouponCode, totalAmount); err != nil {
+			return err
+		}
+		// Affiliate attribution — after the coupon so commission sees final totals.
+		return applyAffiliateToOrder(tx, &order, req.AffiliateCode)
 	})
 	if err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": err.Error()})
@@ -309,7 +314,12 @@ func (h *OrderHandler) FollowupDiscount(c *fiber.Ctx) error {
 		if err := tx.Create(&coupon).Error; err != nil {
 			return err
 		}
-		return applyCouponToOrder(tx, &order, code, subtotal)
+		if err := applyCouponToOrder(tx, &order, code, subtotal); err != nil {
+			return err
+		}
+		// The follow-up discount changed the totals — refresh any pending
+		// affiliate commission amounts to match.
+		return recomputeAffiliateCommissions(tx, order.ID)
 	})
 	if err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": err.Error()})

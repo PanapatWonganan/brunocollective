@@ -6,6 +6,7 @@ import Reveal from "@/components/Reveal";
 import type { SalePage, SalePageSection, ProductVariant } from "@/lib/types";
 import type { CouponPreview } from "@/lib/types";
 import { salePageOrder, validateCoupon } from "@/lib/api";
+import { getAffiliateRef } from "@/lib/affiliate";
 import { money, imageSrc } from "@/lib/format";
 import styles from "./salepage.module.css";
 
@@ -236,6 +237,8 @@ export default function SalePageClient({ page, isPreview, sizeChartUrl }: Props)
         bump: bump && page.bump_enabled,
         bumpVariantId: bump ? bumpVariantId : null,
         couponCode: coupon?.code,
+        // Silent ?ref attribution — no extra field in the funnel form.
+        affiliateCode: getAffiliateRef() ?? undefined,
       },
       slip
     );

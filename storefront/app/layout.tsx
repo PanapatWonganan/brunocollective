@@ -2,7 +2,9 @@ import type { Metadata } from "next";
 import { Cormorant_Garamond, Inter, Playfair_Display } from "next/font/google";
 import { CartProvider } from "@/lib/cart";
 import { MemberProvider } from "@/lib/member";
+import { Suspense } from "react";
 import TopBar, { type NavFeatured } from "@/components/TopBar";
+import AffiliateRefCapture from "@/components/AffiliateRefCapture";
 import AnnouncementBar from "@/components/AnnouncementBar";
 import Footer from "@/components/Footer";
 import BagDrawer from "@/components/BagDrawer";
@@ -78,6 +80,9 @@ export default async function RootLayout({
       <body>
         <MemberProvider>
           <CartProvider>
+            <Suspense fallback={null}>
+              <AffiliateRefCapture />
+            </Suspense>
             <AnnouncementBar />
             <TopBar categories={categories} featured={featured} />
             {children}

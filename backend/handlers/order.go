@@ -180,6 +180,7 @@ func (h *OrderHandler) Create(c *fiber.Ctx) error {
 		req.CustomerID = uint(customerID)
 		req.Notes = c.FormValue("notes")
 		req.CouponCode = c.FormValue("coupon_code")
+		req.AffiliateCode = c.FormValue("affiliate_code")
 		req.Channel = c.FormValue("channel")
 		itemsJSON := c.FormValue("items")
 		if itemsJSON != "" {
@@ -254,7 +255,11 @@ func (h *OrderHandler) Create(c *fiber.Ctx) error {
 		}
 		// Apply the coupon (no-op when no code) — validates, claims a usage
 		// slot atomically, and stamps the discount onto the order.
-		return applyCouponToOrder(tx, &order, req.CouponCode, totalAmount)
+		if err := applyCouponToOrder(tx, &order, req.CouponCode, totalAmount); err != nil {
+			return err
+		}
+		// Affiliate attribution — after the coupon so commission sees final totals.
+		return applyAffiliateToOrder(tx, &order, req.AffiliateCode)
 	})
 
 	if err != nil {
@@ -359,7 +364,43 @@ func (h *OrderHandler) UpdateStatus(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "order not found"})
 	}
 
-	database.DB.Model(&order).Update("status", body.Status)
+	// Commission lifecycle rides on the status change: delivered confirms,
+	// cancelled voids, moving back out of delivered un-confirms, and
+	// un-cancelling restores. Paid rows are never touched. The independent
+	// ifs compose (e.g. cancelled → delivered restores then confirms).
+	old := order.Status
+	err = database.DB.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Model(&order).Update("status", body.Status).Error; err != nil {
+			return err
+		}
+		if order.AffiliateID == nil {
+			return nil
+		}
+		if old == models.StatusCancelled && body.Status != models.StatusCancelled {
+			if err := restoreAffiliateCommissions(tx, order.ID); err != nil {
+				return err
+			}
+		}
+		if body.Status == models.StatusDelivered && old != models.StatusDelivered {
+			if err := confirmAffiliateCommissions(tx, order.ID); err != nil {
+				return err
+			}
+		}
+		if body.Status == models.StatusCancelled && old != models.StatusCancelled {
+			if err := cancelAffiliateCommissions(tx, order.ID); err != nil {
+				return err
+			}
+		}
+		if old == models.StatusDelivered && body.Status != models.StatusDelivered && body.Status != models.StatusCancelled {
+			if err := unconfirmAffiliateCommissions(tx, order.ID); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to update status"})
+	}
 	database.DB.Preload("Customer").Preload("Items").Preload("Items.Product").First(&order, id)
 
 	h.Telegram.NotifyStatusChange(&order, body.Status)
@@ -420,6 +461,10 @@ func (h *OrderHandler) Delete(c *fiber.Ctx) error {
 		tx.Where("order_id = ?", id).Delete(&models.OrderItem{})
 		// Return the coupon usage too, mirroring the stock restoration.
 		if err := releaseCouponForOrder(tx, uint(id)); err != nil {
+			return err
+		}
+		// Drop the affiliate commission ledger with the order.
+		if err := releaseAffiliateForOrder(tx, uint(id)); err != nil {
 			return err
 		}
 		return tx.Delete(&models.Order{}, id).Error

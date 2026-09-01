@@ -31,6 +31,8 @@ func Connect(cfg *config.Config) {
 		&models.Receipt{},
 		&models.Coupon{},
 		&models.CouponRedemption{},
+		&models.Affiliate{},
+		&models.AffiliateCommission{},
 		&models.SalePage{},
 		&models.Conversation{},
 		&models.ChatMessage{},

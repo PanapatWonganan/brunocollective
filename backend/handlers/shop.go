@@ -86,13 +86,14 @@ func (h *ShopHandler) SiteImages(c *fiber.Ctx) error {
 
 // ShopCheckoutRequest is the public order payload posted from the storefront.
 type ShopCheckoutRequest struct {
-	Name       string                   `json:"name"`
-	Phone      string                   `json:"phone"`
-	Email      string                   `json:"email"`
-	Address    string                   `json:"address"`
-	Notes      string                   `json:"notes"`
-	CouponCode string                   `json:"coupon_code"`
-	Items      []models.CreateOrderItem `json:"items"`
+	Name          string                   `json:"name"`
+	Phone         string                   `json:"phone"`
+	Email         string                   `json:"email"`
+	Address       string                   `json:"address"`
+	Notes         string                   `json:"notes"`
+	CouponCode    string                   `json:"coupon_code"`
+	AffiliateCode string                   `json:"affiliate_code"`
+	Items         []models.CreateOrderItem `json:"items"`
 }
 
 // Checkout creates an order from the public storefront. It finds or creates a
@@ -111,6 +112,7 @@ func (h *ShopHandler) Checkout(c *fiber.Ctx) error {
 		req.Address = c.FormValue("address")
 		req.Notes = c.FormValue("notes")
 		req.CouponCode = c.FormValue("coupon_code")
+		req.AffiliateCode = c.FormValue("affiliate_code")
 		if itemsJSON := c.FormValue("items"); itemsJSON != "" {
 			json.Unmarshal([]byte(itemsJSON), &req.Items)
 		}
@@ -196,7 +198,11 @@ func (h *ShopHandler) Checkout(c *fiber.Ctx) error {
 		// Validate + claim the coupon inside the same transaction so the
 		// usage quota can't be oversubscribed by concurrent checkouts. A
 		// failed coupon rolls back the whole order (stock included).
-		return applyCouponToOrder(tx, &order, req.CouponCode, totalAmount)
+		if err := applyCouponToOrder(tx, &order, req.CouponCode, totalAmount); err != nil {
+			return err
+		}
+		// Affiliate attribution — after the coupon so commission sees final totals.
+		return applyAffiliateToOrder(tx, &order, req.AffiliateCode)
 	})
 
 	if err != nil {
