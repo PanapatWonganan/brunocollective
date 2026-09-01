@@ -70,9 +70,10 @@ func trimTransparentBorder(img image.Image) image.Image {
 	b := img.Bounds()
 	minX, minY := b.Max.X, b.Max.Y
 	maxX, maxY := b.Min.X-1, b.Min.Y-1
-	const step = 2 // fine enough for a crop while staying cheap
-	for y := b.Min.Y; y < b.Max.Y; y += step {
-		for x := b.Min.X; x < b.Max.X; x += step {
+	// Exact scan: padding the crop would re-introduce transparent rows that
+	// then defeat the isOpaque check downstream.
+	for y := b.Min.Y; y < b.Max.Y; y++ {
+		for x := b.Min.X; x < b.Max.X; x++ {
 			if _, _, _, a := img.At(x, y).RGBA(); a > 0 {
 				if x < minX {
 					minX = x
@@ -92,8 +93,7 @@ func trimTransparentBorder(img image.Image) image.Image {
 	if maxX < minX || maxY < minY {
 		return img // fully transparent — leave as-is
 	}
-	// Pad by the sampling step so we never cut visible pixels.
-	r := image.Rect(minX-step, minY-step, maxX+step+1, maxY+step+1).Intersect(b)
+	r := image.Rect(minX, minY, maxX+1, maxY+1).Intersect(b)
 	if r == b || r.Dx() <= 0 || r.Dy() <= 0 {
 		return img
 	}
