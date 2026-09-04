@@ -8,6 +8,7 @@ import AffiliateRefCapture from "@/components/AffiliateRefCapture";
 import AnnouncementBar from "@/components/AnnouncementBar";
 import Footer from "@/components/Footer";
 import BagDrawer from "@/components/BagDrawer";
+import MetaPixel from "@/components/MetaPixel";
 import { getProducts } from "@/lib/api";
 import type { Product } from "@/lib/types";
 import "./globals.css";
@@ -78,6 +79,7 @@ export default async function RootLayout({
       className={`${cormorant.variable} ${playfair.variable} ${inter.variable}`}
     >
       <body>
+        <MetaPixel />
         <MemberProvider>
           <CartProvider>
             <Suspense fallback={null}>

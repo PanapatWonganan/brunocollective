@@ -7,6 +7,7 @@ import type { SalePage, SalePageSection, ProductVariant } from "@/lib/types";
 import type { CouponPreview } from "@/lib/types";
 import { salePageOrder, validateCoupon } from "@/lib/api";
 import { getAffiliateRef } from "@/lib/affiliate";
+import { fbqTrack } from "@/lib/fbq";
 import { money, imageSrc } from "@/lib/format";
 import styles from "./salepage.module.css";
 
@@ -244,6 +245,15 @@ export default function SalePageClient({ page, isPreview, sizeChartUrl }: Props)
     );
     setSubmitting(false);
     if (res.ok) {
+      const ids = [String(product.id)];
+      if (bump && page.bump_enabled && bumpProduct) ids.push(String(bumpProduct.id));
+      fbqTrack("Purchase", {
+        content_ids: ids,
+        content_type: "product",
+        num_items: quantity + (bump && page.bump_enabled ? 1 : 0),
+        value: payable,
+        currency: "THB",
+      });
       setOrderId(res.orderId ?? 0);
       window.scrollTo({ top: 0, behavior: "smooth" });
     } else {

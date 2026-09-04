@@ -9,6 +9,7 @@ import {
   type ReactNode,
 } from "react";
 import type { CartLine, Product, ProductVariant } from "./types";
+import { fbqTrack } from "./fbq";
 
 const STORAGE_KEY = "bc_cart";
 
@@ -85,6 +86,13 @@ export function CartProvider({ children }: { children: ReactNode }) {
       return [...prev, { product, variant, quantity: Math.min(quantity, cap) }];
     });
     setOpen(true);
+    fbqTrack("AddToCart", {
+      content_ids: [String(product.id)],
+      content_name: product.name,
+      content_type: "product",
+      value: product.price * quantity,
+      currency: "THB",
+    });
   }
 
   function setQuantity(key: string, quantity: number) {

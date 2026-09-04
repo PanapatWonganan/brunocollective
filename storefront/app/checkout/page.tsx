@@ -6,6 +6,7 @@ import { useCart } from "@/lib/cart";
 import { useMember } from "@/lib/member";
 import { checkout, getSuggestions, memberCheck, validateAffiliate, validateCoupon } from "@/lib/api";
 import { getAffiliateRef } from "@/lib/affiliate";
+import { fbqTrack } from "@/lib/fbq";
 import { money, imageSrc } from "@/lib/format";
 import type { CouponPreview, Product } from "@/lib/types";
 import styles from "./checkout.module.css";
@@ -126,6 +127,20 @@ export default function CheckoutPage() {
     : 0;
   const payable = total - memberDiscount - discount;
 
+  // Pixel: InitiateCheckout once per visit to this page with items in the bag.
+  const checkoutTracked = useRef(false);
+  useEffect(() => {
+    if (checkoutTracked.current || lines.length === 0) return;
+    checkoutTracked.current = true;
+    fbqTrack("InitiateCheckout", {
+      content_ids: lines.map((l) => String(l.product.id)),
+      content_type: "product",
+      num_items: lines.reduce((n, l) => n + l.quantity, 0),
+      value: total,
+      currency: "THB",
+    });
+  }, [lines, total]);
+
   async function onApplyCoupon() {
     const code = couponCode.trim();
     if (!code || couponChecking) return;
@@ -192,6 +207,13 @@ export default function CheckoutPage() {
     );
     setSubmitting(false);
     if (res.ok) {
+      fbqTrack("Purchase", {
+        content_ids: lines.map((l) => String(l.product.id)),
+        content_type: "product",
+        num_items: lines.reduce((n, l) => n + l.quantity, 0),
+        value: payable,
+        currency: "THB",
+      });
       setOrderId(res.orderId ?? 0);
       clear();
     } else {
