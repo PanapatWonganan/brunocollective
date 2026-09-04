@@ -219,6 +219,7 @@ export async function salePageOrder(
 // backend response deliberately excludes phone/address.
 
 export interface PayOrderItem {
+  product_id: number;
   name: string;
   size: string;
   color: string;

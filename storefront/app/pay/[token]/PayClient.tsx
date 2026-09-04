@@ -3,7 +3,9 @@
 import { useRef, useState } from "react";
 import Link from "next/link";
 import { uploadPaySlip, type PayOrder } from "@/lib/api";
+import { fbqTrack } from "@/lib/fbq";
 import { money } from "@/lib/format";
+import ThankYou from "@/components/ThankYou";
 import styles from "./pay.module.css";
 
 // Order status → customer-facing Thai label. "pending" splits on whether a
@@ -63,9 +65,19 @@ export default function PayClient({
     if (!slip || submitting) return;
     setError(null);
     setSubmitting(true);
+    const firstSlip = !order.has_slip; // re-uploads must not double-count Purchase
     const res = await uploadPaySlip(token, slip);
     setSubmitting(false);
     if (res.ok && res.order) {
+      if (firstSlip) {
+        fbqTrack("Purchase", {
+          content_ids: res.order.items.map((it) => String(it.product_id)),
+          content_type: "product",
+          num_items: res.order.items.reduce((n, it) => n + it.quantity, 0),
+          value: res.order.total_amount,
+          currency: "THB",
+        });
+      }
       setOrder(res.order);
       setSlip(null);
       setSlipPreview(null);
@@ -73,6 +85,27 @@ export default function PayClient({
     } else {
       setError(res.error || "อัปโหลดสลิปไม่สำเร็จ กรุณาลองใหม่");
     }
+  }
+
+  // ---- Thank-you screen after the slip lands ----
+  if (justUploaded) {
+    return (
+      <ThankYou
+        orderNo={order.order_no}
+        title="ขอบคุณค่ะ"
+        titleEm="ได้รับสลิปของคุณแล้ว"
+        copy="ร้านจะตรวจสอบยอดโอนและยืนยันคำสั่งซื้อให้เร็วที่สุด หากมีข้อสงสัยทักแชทหาร้านได้เลยค่ะ"
+        productIds={order.items.map((it) => it.product_id)}
+      >
+        <button
+          type="button"
+          className={styles.backLink}
+          onClick={() => setJustUploaded(false)}
+        >
+          ดูรายละเอียดออเดอร์ / แก้ไขสลิป
+        </button>
+      </ThankYou>
+    );
   }
 
   return (

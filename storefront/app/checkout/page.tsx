@@ -9,6 +9,7 @@ import { getAffiliateRef } from "@/lib/affiliate";
 import { fbqTrack } from "@/lib/fbq";
 import { money, imageSrc } from "@/lib/format";
 import type { CouponPreview, Product } from "@/lib/types";
+import ThankYou from "@/components/ThankYou";
 import styles from "./checkout.module.css";
 
 export default function CheckoutPage() {
@@ -26,6 +27,9 @@ export default function CheckoutPage() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [orderId, setOrderId] = useState<number | null>(null);
+  // Product ids of the completed order — the bag is cleared on success, so the
+  // thank-you page needs its own copy to fetch upsell suggestions.
+  const [purchasedIds, setPurchasedIds] = useState<number[]>([]);
   const fileInput = useRef<HTMLInputElement>(null);
 
   // Coupon — previewed against the cart subtotal; the backend revalidates
@@ -214,6 +218,7 @@ export default function CheckoutPage() {
         value: payable,
         currency: "THB",
       });
+      setPurchasedIds(lines.map((l) => l.product.id));
       setOrderId(res.orderId ?? 0);
       clear();
     } else {
@@ -224,22 +229,13 @@ export default function CheckoutPage() {
   // ---- Confirmation ----
   if (orderId !== null) {
     return (
-      <main className={styles.page}>
-        <div className={styles.confirm}>
-          <span className="kicker">Order Received</span>
-          <h1 className={`display ${styles.confirmTitle}`}>
-            Thank you. <em>It is reserved.</em>
-          </h1>
-          <p className={styles.confirmCopy}>
-            Your order{orderId ? ` (N° ${orderId})` : ""} has been placed and your
-            pieces are reserved from atelier stock. We will be in touch shortly to
-            arrange payment and delivery.
-          </p>
-          <Link href="/shop" className="qlink">
-            Continue Shopping <span className="arrow">→</span>
-          </Link>
-        </div>
-      </main>
+      <ThankYou
+        orderNo={orderId || null}
+        title="Thank you."
+        titleEm="It is reserved."
+        copy="Your order has been placed and your pieces are reserved from atelier stock. We will be in touch shortly to arrange delivery."
+        productIds={purchasedIds}
+      />
     );
   }
 

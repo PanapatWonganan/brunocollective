@@ -9,6 +9,7 @@ import { salePageOrder, validateCoupon } from "@/lib/api";
 import { getAffiliateRef } from "@/lib/affiliate";
 import { fbqTrack } from "@/lib/fbq";
 import { money, imageSrc } from "@/lib/format";
+import ThankYou from "@/components/ThankYou";
 import styles from "./salepage.module.css";
 
 interface Props {
@@ -263,22 +264,16 @@ export default function SalePageClient({ page, isPreview, sizeChartUrl }: Props)
 
   // ---- Success state ----
   if (orderId !== null) {
+    const purchasedIds = [product.id];
+    if (bump && page.bump_enabled && bumpProduct) purchasedIds.push(bumpProduct.id);
     return (
-      <main className={styles.page}>
-        <div className={`wrap ${styles.confirm}`}>
-          <span className="kicker">Order Received</span>
-          <h1 className={`display ${styles.confirmTitle}`}>
-            ขอบคุณครับ <em>ออเดอร์ของคุณถูกจองแล้ว</em>
-          </h1>
-          <p className={styles.confirmCopy}>
-            คำสั่งซื้อ (N° {orderId}) ได้รับการบันทึกเรียบร้อย เราจะตรวจสอบสลิป
-            และติดต่อกลับเพื่อยืนยันการจัดส่งโดยเร็วที่สุด
-          </p>
-          <Link href="/shop" className="qlink">
-            Explore the Collection <span className="arrow">→</span>
-          </Link>
-        </div>
-      </main>
+      <ThankYou
+        orderNo={orderId || null}
+        title="ขอบคุณครับ"
+        titleEm="ออเดอร์ของคุณถูกจองแล้ว"
+        copy="ได้รับคำสั่งซื้อและสลิปเรียบร้อย เราจะตรวจสอบและติดต่อกลับเพื่อยืนยันการจัดส่งโดยเร็วที่สุด"
+        productIds={purchasedIds}
+      />
     );
   }
 

@@ -160,11 +160,12 @@ func payOrderJSON(order *models.Order) fiber.Map {
 	items := make([]fiber.Map, 0, len(order.Items))
 	for _, it := range order.Items {
 		items = append(items, fiber.Map{
-			"name":     it.Product.Name,
-			"size":     it.Size,
-			"color":    it.Color,
-			"quantity": it.Quantity,
-			"price":    it.Price,
+			"product_id": it.ProductID,
+			"name":       it.Product.Name,
+			"size":       it.Size,
+			"color":      it.Color,
+			"quantity":   it.Quantity,
+			"price":      it.Price,
 		})
 	}
 	// Legacy orders have Subtotal 0 — fall back to the total.

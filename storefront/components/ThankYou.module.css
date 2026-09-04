@@ -1,0 +1,22 @@
+.page{padding:clamp(120px,16vh,170px) var(--pad) clamp(80px,11vw,140px); max-width:var(--maxw); margin:0 auto}
+
+.confirm{max-width:620px; display:flex; flex-direction:column; gap:24px; align-items:flex-start}
+.title{font-size:clamp(40px,6vw,76px); margin-top:8px}
+.title em{font-style:italic;color:var(--champagne);font-weight:300}
+.copy{color:var(--ink-faint); font-size:15px; line-height:1.8; max-width:52ch; margin:0}
+
+.upsell{margin-top:clamp(64px,9vw,110px)}
+.upsellHead{margin-bottom:clamp(28px,4vw,44px)}
+.upsellTitle{font-size:clamp(26px,3.4vw,40px); margin-top:10px}
+.upsellTitle em{font-style:italic;color:var(--champagne);font-weight:300}
+
+.grid{
+  display:grid; grid-template-columns:repeat(4,1fr);
+  gap:clamp(32px,4vw,48px) clamp(20px,2.4vw,26px);
+}
+@media (max-width:900px){
+  .grid{grid-template-columns:repeat(2,1fr)}
+}
+@media (max-width:560px){
+  .grid{grid-template-columns:1fr 1fr; gap:20px 12px}
+}
