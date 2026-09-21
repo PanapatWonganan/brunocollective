@@ -155,7 +155,11 @@ func touchConversation(conv *models.Conversation, preview, direction string) {
 			updates["waiting_since"] = time.Now()
 		}
 	} else {
+		// An outbound message seen via the webhook = an echo of a reply typed
+		// in the Facebook/Instagram inbox app. Whoever typed it has read the
+		// thread, so the unread badge goes too — not just the waiting state.
 		updates["waiting_since"] = nil
+		updates["unread_count"] = 0
 	}
 	database.DB.Model(conv).Updates(updates)
 }
