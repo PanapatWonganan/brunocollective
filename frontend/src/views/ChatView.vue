@@ -34,7 +34,10 @@
             <v-tabs v-model="statusTab" density="compact" color="secondary" grow>
               <v-tab value="waiting" class="text-none px-1">
                 รอตอบ
-                <v-chip v-if="waitingCount" size="x-small" color="error" variant="flat" class="ml-1">{{ waitingCount }}</v-chip>
+                <v-chip
+                  v-if="waitingCount" size="x-small" variant="flat" class="ml-1"
+                  :color="waitingUnreadCount ? 'error' : 'grey-lighten-1'"
+                >{{ waitingCount }}</v-chip>
               </v-tab>
               <v-tab value="active" class="text-none px-1">กำลังคุย</v-tab>
               <v-tab value="deals" class="text-none px-1">
@@ -45,11 +48,30 @@
             </v-tabs>
             <v-divider />
           </div>
+          <div
+            v-if="statusTab === 'waiting' && filteredConversations.length"
+            class="d-flex align-center px-3 py-2 bg-grey-lighten-5"
+          >
+            <span class="text-caption text-medium-emphasis">
+              {{ waitingUnreadCount ? `ยังไม่ได้อ่าน ${waitingUnreadCount}` : 'อ่านครบแล้ว' }} · ยังไม่ตอบในระบบ {{ filteredConversations.length }}
+            </span>
+            <v-spacer />
+            <v-btn
+              size="x-small" variant="text" color="warning" class="text-none"
+              prepend-icon="mdi-check-all" :loading="bulkAnsweredSaving"
+              title="ตอบทุกคนจากแอป LINE/FB/IG ไปแล้ว — เอาออกจากคิวรอตอบทั้งหมด"
+              @click="bulkAnsweredDialog = true"
+            >ตอบที่อื่นแล้วทั้งหมด</v-btn>
+          </div>
           <div v-if="filteredConversations.length" class="conv-list">
             <div
               v-for="conv in filteredConversations" :key="conv.id"
               class="conv-item pa-3"
-              :class="{ 'conv-item--active': activeConv?.id === conv.id }"
+              :class="{
+                'conv-item--active': activeConv?.id === conv.id,
+                'conv-item--unread': conv.unread_count > 0,
+                'conv-item--seen': statusTab === 'waiting' && conv.unread_count === 0,
+              }"
               @click="openConversation(conv)"
             >
               <v-badge
@@ -76,8 +98,9 @@
                   >{{ dealLabel(conv) }}</v-chip>
                   <v-chip
                     v-if="waitingLabel(conv)" size="x-small" label variant="tonal"
-                    :color="waitingUrgent(conv) ? 'error' : 'warning'" prepend-icon="mdi-clock-outline"
-                  >{{ waitingLabel(conv) }}</v-chip>
+                    :color="conv.unread_count === 0 ? 'grey' : waitingUrgent(conv) ? 'error' : 'warning'"
+                    :prepend-icon="conv.unread_count === 0 ? 'mdi-eye-check-outline' : 'mdi-clock-outline'"
+                  >{{ conv.unread_count === 0 ? 'อ่านแล้ว · ' : '' }}{{ waitingLabel(conv) }}</v-chip>
                   <v-chip v-for="tag in conv.tags || []" :key="tag" size="x-small" label variant="tonal" color="secondary">{{ tag }}</v-chip>
                 </div>
               </div>
@@ -490,6 +513,22 @@
         </v-card-actions>
       </v-card>
     </v-dialog>
+
+    <!-- Bulk "answered elsewhere" confirm -->
+    <v-dialog v-model="bulkAnsweredDialog" max-width="420">
+      <v-card>
+        <v-card-title class="text-subtitle-1">เอาออกจากคิวรอตอบทั้งหมด?</v-card-title>
+        <v-card-text class="text-body-2">
+          แชท {{ filteredConversations.length }} รายการในแท็บนี้จะถูกนับว่าตอบแล้ว (เช่น ตอบจากแอป LINE OA ไปแล้ว)
+          ข้อความไม่หาย และถ้าลูกค้าทักมาใหม่จะกลับมาอยู่ในคิวอีกครั้ง
+        </v-card-text>
+        <v-card-actions>
+          <v-spacer />
+          <v-btn variant="text" class="text-none" @click="bulkAnsweredDialog = false">ยกเลิก</v-btn>
+          <v-btn color="warning" variant="flat" class="text-none" :loading="bulkAnsweredSaving" @click="markAllAnswered">ยืนยัน</v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
   </div>
 </template>
 
@@ -543,6 +582,9 @@ function isWaiting(c: Conversation) {
 }
 
 const waitingCount = computed(() => conversations.value.filter(isWaiting).length)
+// Waiting threads nobody has opened yet — the only ones that deserve a red badge.
+const waitingUnreadCount = computed(() =>
+  conversations.value.filter(c => isWaiting(c) && c.unread_count > 0).length)
 
 const filteredConversations = computed(() => {
   let list = conversations.value
@@ -594,6 +636,26 @@ async function markAnswered() {
     fetchConversations()
   } finally {
     answeredSaving.value = false
+  }
+}
+
+// Bulk version for the waiting tab: clears every thread currently listed
+// (respects the platform filter). Threads auto-expire after
+// CHAT_WAITING_EXPIRE_HOURS anyway; this is for clearing them right away.
+const bulkAnsweredDialog = ref(false)
+const bulkAnsweredSaving = ref(false)
+async function markAllAnswered() {
+  bulkAnsweredSaving.value = true
+  try {
+    const ids = filteredConversations.value.map(c => c.id)
+    await api.post('/chats/answered', { ids })
+    bulkAnsweredDialog.value = false
+    if (activeConv.value && ids.includes(activeConv.value.id)) {
+      activeConv.value = { ...activeConv.value, last_direction: 'out', waiting_since: null }
+    }
+    await fetchConversations()
+  } finally {
+    bulkAnsweredSaving.value = false
   }
 }
 
@@ -1096,6 +1158,7 @@ function connectWS() {
   ws.onmessage = (ev) => {
     try {
       const payload = JSON.parse(ev.data)
+      if (payload.type === 'conversations') { fetchConversations(); return }
       if (payload.type !== 'message') return
       if (activeConv.value && payload.conversation_id === activeConv.value.id) {
         // Skip our own replies — they're appended locally on send.
@@ -1188,6 +1251,9 @@ onUnmounted(() => {
 .conv-item:hover {
   background: #F6F7F9;
 }
+.conv-item--unread .conv-item-body .font-weight-medium { font-weight: 700 !important; }
+.conv-item--seen { opacity: .72; }
+.conv-item--seen.conv-item--active { opacity: 1; }
 .conv-item--active {
   background: rgba(196, 162, 77, 0.10);
 }

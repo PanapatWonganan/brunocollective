@@ -123,9 +123,16 @@ func (h *ChatHandler) Summary(c *fiber.Ctx) error {
 	var unread int64
 	database.DB.Model(&models.Conversation{}).
 		Select("COALESCE(SUM(unread_count), 0)").Scan(&unread)
+	// Threads with something the admin hasn't looked at yet — this drives
+	// the sidebar badge (not "waiting", which can't be trusted for LINE
+	// threads answered in the LINE app).
+	var unreadThreads int64
+	database.DB.Model(&models.Conversation{}).
+		Where("unread_count > 0").Count(&unreadThreads)
 	return c.JSON(fiber.Map{
-		"waiting": waiting,
-		"unread":  unread,
+		"waiting":        waiting,
+		"unread":         unread,
+		"unread_threads": unreadThreads,
 		// Whether the AI chat assistant is configured — drives the per-thread
 		// AI toggle in ChatView.
 		"ai_enabled": h.Config.AnthropicAPIKey != "",
@@ -152,6 +159,40 @@ func (h *ChatHandler) MarkAnswered(c *fiber.Ctx) error {
 	})
 	database.DB.Preload("Customer").First(&conv, id)
 	return c.JSON(conv)
+}
+
+// MarkAnsweredBulk clears the waiting state on many threads at once —
+// POST /chats/answered with {"ids":[...]} or {"all":true,"platform":"line"}
+// (platform optional). Used by the "เคลียร์ทั้งหมด" button on the waiting tab
+// after a batch of replies made in the LINE OA app.
+func (h *ChatHandler) MarkAnsweredBulk(c *fiber.Ctx) error {
+	var body struct {
+		IDs      []uint `json:"ids"`
+		All      bool   `json:"all"`
+		Platform string `json:"platform"`
+	}
+	if err := c.BodyParser(&body); err != nil || (!body.All && len(body.IDs) == 0) {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "ids or all required"})
+	}
+	q := database.DB.Model(&models.Conversation{}).
+		Where("status = ? AND last_direction = ?", "open", "in")
+	if !body.All {
+		q = q.Where("id IN ?", body.IDs)
+	} else if body.Platform != "" && body.Platform != "all" {
+		q = q.Where("platform = ?", body.Platform)
+	}
+	res := q.Updates(map[string]interface{}{
+		"waiting_since":  nil,
+		"last_direction": "out",
+		"unread_count":   0,
+	})
+	if res.Error != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to update"})
+	}
+	if h.Hub != nil {
+		h.Hub.Broadcast(fiber.Map{"type": "conversations"})
+	}
+	return c.JSON(fiber.Map{"cleared": res.RowsAffected})
 }
 
 // ToggleAI flips the AI assistant on/off for one thread (POST /chats/:id/ai).

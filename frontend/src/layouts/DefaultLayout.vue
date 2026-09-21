@@ -273,7 +273,10 @@ async function fetchNotifications() {
     const { data } = await api.get('/notifications')
     notifications.value = data.items || []
     const { data: chat } = await api.get('/chats/summary')
-    chatWaiting.value = chat.waiting || 0
+    // Badge = threads with unread messages, not "waiting for reply" — LINE
+    // replies made in the LINE OA app are invisible to us, so a waiting
+    // count would nag about chats that were already answered.
+    chatWaiting.value = chat.unread_threads || 0
   } catch {} finally {
     notifyLoading.value = false
   }

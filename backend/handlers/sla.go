@@ -16,19 +16,54 @@ import (
 // for a reply longer than cfg.ChatSLAMinutes (0 = disabled). One alert per
 // waiting period: SlaAlertedAt is stamped on alert, and replying clears
 // WaitingSince, so only a NEW unanswered inbound triggers the next alert.
-func StartChatSLAWatcher(cfg *config.Config, telegram *services.TelegramNotifier) {
+func StartChatSLAWatcher(cfg *config.Config, telegram *services.TelegramNotifier, hub *services.ChatHub) {
 	if cfg.ChatSLAMinutes <= 0 {
 		log.Println("Chat SLA alerts disabled (CHAT_SLA_MINUTES=0)")
-		return
+	} else {
+		log.Printf("Chat SLA alerts enabled (threshold %d min)", cfg.ChatSLAMinutes)
 	}
-	log.Printf("Chat SLA alerts enabled (threshold %d min)", cfg.ChatSLAMinutes)
+	if cfg.ChatWaitingExpireHours <= 0 {
+		log.Println("Chat waiting auto-expiry disabled (CHAT_WAITING_EXPIRE_HOURS=0)")
+	} else {
+		log.Printf("Chat waiting auto-expiry enabled (%d h)", cfg.ChatWaitingExpireHours)
+	}
 	go func() {
 		ticker := time.NewTicker(time.Minute)
 		defer ticker.Stop()
 		for range ticker.C {
-			checkChatSLA(cfg, telegram)
+			if cfg.ChatSLAMinutes > 0 {
+				checkChatSLA(cfg, telegram)
+			}
+			if cfg.ChatWaitingExpireHours > 0 {
+				expireChatWaiting(cfg, hub)
+			}
 		}
 	}()
+}
+
+// expireChatWaiting drops threads out of the "รอตอบ" queue once they have
+// waited cfg.ChatWaitingExpireHours with no newer inbound message. This is
+// the safety net for replies the system cannot see (LINE OA app has no echo
+// events): without it a thread answered in the LINE app stays "waiting"
+// forever. Unread counts are left alone — "unread" is about what the admin
+// has looked at, not whether the customer was answered.
+func expireChatWaiting(cfg *config.Config, hub *services.ChatHub) {
+	cutoff := time.Now().Add(-time.Duration(cfg.ChatWaitingExpireHours) * time.Hour)
+	res := database.DB.Model(&models.Conversation{}).
+		Where("status = ? AND last_direction = ?", "open", "in").
+		// Legacy rows may have last_direction set without waiting_since.
+		Where("COALESCE(waiting_since, last_message_at) <= ?", cutoff).
+		Updates(map[string]interface{}{
+			"waiting_since":  nil,
+			"last_direction": "out",
+		})
+	if res.Error != nil || res.RowsAffected == 0 {
+		return
+	}
+	log.Printf("chat: auto-expired waiting state on %d thread(s) (> %d h)", res.RowsAffected, cfg.ChatWaitingExpireHours)
+	if hub != nil {
+		hub.Broadcast(map[string]interface{}{"type": "conversations"})
+	}
 }
 
 func checkChatSLA(cfg *config.Config, telegram *services.TelegramNotifier) {

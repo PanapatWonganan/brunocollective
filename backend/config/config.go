@@ -27,6 +27,11 @@ type Config struct {
 	// ChatSLAMinutes: alert Telegram when a chat has waited this long for a
 	// reply. 0 disables the watcher.
 	ChatSLAMinutes int
+	// ChatWaitingExpireHours: a thread that has waited this long with no new
+	// inbound message is assumed answered outside the system (LINE OA app —
+	// LINE sends no echo events) and drops out of the "รอตอบ" queue on its
+	// own. 0 disables the auto-expiry.
+	ChatWaitingExpireHours int
 	// AI chat assistant (Claude). Empty API key = disabled, same graceful
 	// degradation as Telegram/LINE.
 	AnthropicAPIKey string
@@ -35,21 +40,22 @@ type Config struct {
 
 func Load() *Config {
 	return &Config{
-		Port:              getEnv("PORT", "8080"),
-		DBPath:            getEnv("DB_PATH", "inventory.db"),
-		JWTSecret:         getEnv("JWT_SECRET", "change-me-in-production"),
-		UploadDir:         getEnv("UPLOAD_DIR", "./uploads"),
-		TelegramBotToken:  getEnv("TELEGRAM_BOT_TOKEN", ""),
-		TelegramChatID:    getEnv("TELEGRAM_CHAT_ID", ""),
-		BaseURL:           getEnv("BASE_URL", "http://localhost:8080"),
-		LineChannelSecret: getEnv("LINE_CHANNEL_SECRET", ""),
-		LineChannelToken:  getEnv("LINE_CHANNEL_ACCESS_TOKEN", ""),
-		MetaAppSecret:     getEnv("META_APP_SECRET", ""),
-		MetaVerifyToken:   getEnv("META_VERIFY_TOKEN", ""),
-		MetaPageToken:     getEnv("META_PAGE_ACCESS_TOKEN", ""),
-		ChatSLAMinutes:    getEnvInt("CHAT_SLA_MINUTES", 10),
-		AnthropicAPIKey:   getEnv("ANTHROPIC_API_KEY", ""),
-		AIModel:           getEnv("AI_MODEL", "claude-opus-5"),
+		Port:                   getEnv("PORT", "8080"),
+		DBPath:                 getEnv("DB_PATH", "inventory.db"),
+		JWTSecret:              getEnv("JWT_SECRET", "change-me-in-production"),
+		UploadDir:              getEnv("UPLOAD_DIR", "./uploads"),
+		TelegramBotToken:       getEnv("TELEGRAM_BOT_TOKEN", ""),
+		TelegramChatID:         getEnv("TELEGRAM_CHAT_ID", ""),
+		BaseURL:                getEnv("BASE_URL", "http://localhost:8080"),
+		LineChannelSecret:      getEnv("LINE_CHANNEL_SECRET", ""),
+		LineChannelToken:       getEnv("LINE_CHANNEL_ACCESS_TOKEN", ""),
+		MetaAppSecret:          getEnv("META_APP_SECRET", ""),
+		MetaVerifyToken:        getEnv("META_VERIFY_TOKEN", ""),
+		MetaPageToken:          getEnv("META_PAGE_ACCESS_TOKEN", ""),
+		ChatSLAMinutes:         getEnvInt("CHAT_SLA_MINUTES", 10),
+		ChatWaitingExpireHours: getEnvInt("CHAT_WAITING_EXPIRE_HOURS", 12),
+		AnthropicAPIKey:        getEnv("ANTHROPIC_API_KEY", ""),
+		AIModel:                getEnv("AI_MODEL", "claude-opus-5"),
 	}
 }
 

@@ -265,6 +265,7 @@ func main() {
 	api.Post("/chats/:id/ai", chatHandler.ToggleAI)
 	// Manual "answered elsewhere" — LINE OA app replies never reach webhooks.
 	api.Post("/chats/:id/answered", chatHandler.MarkAnswered)
+	api.Post("/chats/answered", chatHandler.MarkAnsweredBulk)
 
 	// Comment auto-reply rules — "logs" before ":id" so it isn't swallowed.
 	api.Get("/auto-replies", autoReplyHandler.List)
@@ -293,7 +294,7 @@ func main() {
 	api.Post("/orders/:id/receipt", receiptHandler.Issue)
 
 	// Chat SLA watcher — Telegram alert when chats wait too long for a reply.
-	handlers.StartChatSLAWatcher(cfg, telegramNotifier)
+	handlers.StartChatSLAWatcher(cfg, telegramNotifier, chatHub)
 
 	// Daily summary scheduler (8:00 AM Bangkok time)
 	go func() {
