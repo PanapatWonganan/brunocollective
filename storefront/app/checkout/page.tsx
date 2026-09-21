@@ -8,6 +8,7 @@ import { checkout, getSuggestions, memberCheck, validateAffiliate, validateCoupo
 import { getAffiliateRef } from "@/lib/affiliate";
 import { fbqTrack } from "@/lib/fbq";
 import { money, imageSrc } from "@/lib/format";
+import { productPath } from "@/lib/paths";
 import type { CouponPreview, Product } from "@/lib/types";
 import ThankYou from "@/components/ThankYou";
 import styles from "./checkout.module.css";
@@ -394,7 +395,7 @@ export default function CheckoutPage() {
                     <div className={styles.itemMeta}>{money(p.price)}</div>
                   </div>
                   {p.variants && p.variants.length > 0 ? (
-                    <Link href={`/product/${p.id}`} className={styles.crosssellBtn}>
+                    <Link href={productPath(p)} className={styles.crosssellBtn}>
                       เลือกไซส์
                     </Link>
                   ) : (

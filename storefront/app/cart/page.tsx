@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useCart, lineKey } from "@/lib/cart";
 import { money, imageSrc } from "@/lib/format";
+import { productPath } from "@/lib/paths";
 import styles from "./cart.module.css";
 
 export default function CartPage() {
@@ -33,7 +34,7 @@ export default function CartPage() {
                 : "";
               return (
                 <div key={key} className={styles.line}>
-                  <Link href={`/product/${l.product.id}`} className={styles.thumb}>
+                  <Link href={productPath(l.product)} className={styles.thumb}>
                     <div
                       style={{
                         backgroundImage: l.product.image_url
@@ -43,7 +44,7 @@ export default function CartPage() {
                     />
                   </Link>
                   <div className={styles.body}>
-                    <Link href={`/product/${l.product.id}`} className={styles.name}>
+                    <Link href={productPath(l.product)} className={styles.name}>
                       {l.product.name}
                     </Link>
                     {variantLabel && <div className={styles.unit}>{variantLabel}</div>}

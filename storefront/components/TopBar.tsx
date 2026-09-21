@@ -5,11 +5,13 @@ import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useCart } from "@/lib/cart";
 import { imageSrc } from "@/lib/format";
+import { productPath, collectionPath } from "@/lib/paths";
 import styles from "./TopBar.module.css";
 
 // Featured product for the mega-menu image tile (admin-uploaded photo).
 export interface NavFeatured {
   id: number;
+  slug: string;
   name: string;
   image: string;
 }
@@ -70,7 +72,7 @@ export default function TopBar({
                   </li>
                   {categories.slice(0, 6).map((c) => (
                     <li key={c}>
-                      <Link href={`/shop?cat=${encodeURIComponent(c)}`}>{c}</Link>
+                      <Link href={collectionPath(c)}>{c}</Link>
                     </li>
                   ))}
                 </ul>
@@ -91,7 +93,7 @@ export default function TopBar({
               </div>
               {featured && featured.image && (
                 <div className={styles.megaFeat}>
-                  <Link href={`/product/${featured.id}`}>
+                  <Link href={productPath(featured)}>
                     <div
                       className={styles.megaImg}
                       style={{ backgroundImage: `url('${imageSrc(featured.image)}')` }}
@@ -194,7 +196,7 @@ export default function TopBar({
               {categories.slice(0, 6).map((c) => (
                 <Link
                   key={c}
-                  href={`/shop?cat=${encodeURIComponent(c)}`}
+                  href={collectionPath(c)}
                   onClick={() => setMenuOpen(false)}
                 >
                   {c}

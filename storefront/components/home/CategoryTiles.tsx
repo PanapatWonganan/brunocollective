@@ -1,6 +1,7 @@
 import Link from "next/link";
 import Reveal from "@/components/Reveal";
 import { imageSrc } from "@/lib/format";
+import { collectionPath } from "@/lib/paths";
 import type { Product } from "@/lib/types";
 import s from "./home.module.css";
 
@@ -42,7 +43,7 @@ export default function CategoryTiles({ products }: { products: Product[] }) {
             >
               <Link
                 className={s.catCard}
-                href={`/shop?cat=${encodeURIComponent(name)}`}
+                href={collectionPath(name)}
               >
                 <div
                   className={s.catImg}

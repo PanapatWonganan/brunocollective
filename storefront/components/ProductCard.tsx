@@ -5,6 +5,7 @@ import { useCart } from "@/lib/cart";
 import { money, imageSrc } from "@/lib/format";
 import type { Product } from "@/lib/types";
 import Rating from "./Rating";
+import { productPath } from "@/lib/paths";
 import styles from "./ProductCard.module.css";
 
 export default function ProductCard({ product }: { product: Product }) {
@@ -17,7 +18,7 @@ export default function ProductCard({ product }: { product: Product }) {
 
   return (
     <figure className={styles.card}>
-      <Link href={`/product/${product.id}`} className={styles.imgbox} aria-label={product.name}>
+      <Link href={productPath(product)} className={styles.imgbox} aria-label={product.name}>
         {cover ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
@@ -36,7 +37,7 @@ export default function ProductCard({ product }: { product: Product }) {
       <figcaption className={styles.cap}>
         <div className={styles.name}>
           {product.sku && <small>{product.sku}</small>}
-          <Link href={`/product/${product.id}`}>{product.name}</Link>
+          <Link href={productPath(product)}>{product.name}</Link>
         </div>
         <div className={styles.side}>
           <div className={styles.price}>{money(product.price)}</div>
@@ -44,7 +45,7 @@ export default function ProductCard({ product }: { product: Product }) {
         </div>
       </figcaption>
       {hasVariants ? (
-        <Link href={`/product/${product.id}`} className={styles.add} aria-disabled={soldOut}>
+        <Link href={productPath(product)} className={styles.add} aria-disabled={soldOut}>
           {soldOut ? "Sold Out" : "Choose Options"}
         </Link>
       ) : (

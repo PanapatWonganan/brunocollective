@@ -71,10 +71,16 @@ func (h *ProductHandler) Create(c *fiber.Ctx) error {
 	if product.Name == "" {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "name is required"})
 	}
+	assignProductSlug(&product)
 
 	// GORM creates the nested Variants alongside the product (full-save association).
 	if err := database.DB.Create(&product).Error; err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to create product"})
+	}
+	// A purely non-Latin name falls back to product-{id}, which needs the id.
+	if product.Slug == "" || product.Slug == "product-0" || strings.HasPrefix(product.Slug, "product-0-") {
+		assignProductSlug(&product)
+		database.DB.Model(&product).Update("slug", product.Slug)
 	}
 
 	product.ComputeTotalStock()
@@ -97,6 +103,15 @@ func (h *ProductHandler) Update(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid request body"})
 	}
 
+	// Slug: keep the owner's text if given, else regenerate from the (possibly
+	// renamed) product name; always de-duplicated against other products.
+	updates.ID = existing.ID
+	updates.SKU = strings.TrimSpace(updates.SKU)
+	if strings.TrimSpace(updates.Slug) == "" && existing.Slug != "" && Slugify(updates.Name) == Slugify(existing.Name) {
+		updates.Slug = existing.Slug // name unchanged and no new slug typed: keep the URL stable
+	}
+	assignProductSlug(&updates)
+
 	// Scalar fields: GORM Updates skips zero values, so use a map for the fields
 	// that legitimately may be set to a zero/empty value (e.g. clearing size, or
 	// stock going to 0). Images are managed via the dedicated upload endpoints.
@@ -104,6 +119,7 @@ func (h *ProductHandler) Update(c *fiber.Ctx) error {
 		if err := tx.Model(&existing).Updates(map[string]interface{}{
 			"name":        updates.Name,
 			"sku":         updates.SKU,
+			"slug":        updates.Slug,
 			"size":        updates.Size,
 			"description": updates.Description,
 			"category":    updates.Category,

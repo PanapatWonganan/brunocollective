@@ -139,6 +139,16 @@
               </div>
             </v-alert>
             <v-text-field v-model="formData.sku" label="Base SKU" hint="optional — variants can have their own SKU" class="mb-1" />
+            <v-text-field
+              v-model="formData.slug"
+              label="URL หน้าร้าน (slug)"
+              prefix="brunocollective.io/products/"
+              :hint="formData.slug ? 'ใช้ a-z 0-9 และขีด (-) เท่านั้น — เปลี่ยนแล้วลิงก์เก่าจะใช้ไม่ได้' : 'ว่าง = สร้างจากชื่อสินค้าอัตโนมัติ (ชื่อไทยล้วนจะได้ product-{sku} — ควรตั้งเป็นภาษาอังกฤษเอง)'"
+              persistent-hint
+              placeholder="bruno-essential-t-shirt"
+              class="mb-1"
+              @blur="formData.slug = slugify(formData.slug)"
+            />
             <v-textarea v-model="formData.description" label="Description" rows="2" class="mb-1" />
             <v-combobox
               v-model="formData.category"
@@ -361,7 +371,7 @@ interface Variant {
 
 interface Product {
   id?: number; name: string; sku: string; size: string; description: string;
-  category: string; price: number; cost: number; commission_percent?: number | null;
+  slug?: string; category: string; price: number; cost: number; commission_percent?: number | null;
   rating_override?: number | null; rating?: number; rating_count?: number; stock: number;
   image_url: string; images: string[];
   variants: Variant[]; total_stock?: number;
@@ -405,7 +415,12 @@ const form = ref()
 const pendingFiles = ref<File[]>([])
 const deletingImg = ref<string | null>(null)
 
-const emptyForm = (): Product => ({ name: '', sku: '', size: '', description: '', category: '', price: 0, cost: 0, commission_percent: null, rating_override: null, stock: 0, image_url: '', images: [], variants: [] })
+const emptyForm = (): Product => ({ name: '', sku: '', slug: '', size: '', description: '', category: '', price: 0, cost: 0, commission_percent: null, rating_override: null, stock: 0, image_url: '', images: [], variants: [] })
+
+// Mirrors the backend Slugify (handlers/slug.go): lowercase a-z0-9, hyphens between.
+function slugify(s: string | undefined): string {
+  return (s || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '')
+}
 const formData = ref<Product>(emptyForm())
 
 // Explains the auto rating so the owner knows what "blank" will show.

@@ -55,15 +55,22 @@ func (h *ShopHandler) Products(c *fiber.Ctx) error {
 	return c.JSON(out)
 }
 
-// Product returns a single product for the detail page.
+// Product returns a single product for the detail page. The path segment is
+// either a numeric id (legacy /product/{id} links, admin tools) or the URL
+// slug (storefront /products/{slug}).
 func (h *ShopHandler) Product(c *fiber.Ctx) error {
-	id, err := strconv.Atoi(c.Params("id"))
-	if err != nil {
+	key := c.Params("id")
+	q := database.DB.Preload("Variants")
+	if id, err := strconv.Atoi(key); err == nil {
+		q = q.Where("id = ?", id)
+	} else if slug := Slugify(key); slug != "" {
+		q = q.Where("slug = ?", slug)
+	} else {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid id"})
 	}
 
 	var product models.Product
-	if err := database.DB.Preload("Variants").First(&product, id).Error; err != nil {
+	if err := q.First(&product).Error; err != nil {
 		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "product not found"})
 	}
 

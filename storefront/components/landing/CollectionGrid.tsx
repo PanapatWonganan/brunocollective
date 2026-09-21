@@ -5,6 +5,7 @@ import Reveal from "@/components/Reveal";
 import { useCart } from "@/lib/cart";
 import { money, imageSrc } from "@/lib/format";
 import type { Product } from "@/lib/types";
+import { productPath } from "@/lib/paths";
 import s from "./CollectionGrid.module.css";
 
 // The design lays seven pieces out asymmetrically (c-1 … c-7). We map however
@@ -50,7 +51,7 @@ export default function CollectionGrid({ products }: { products: Product[] }) {
                   delay={([undefined, 2, 3][i % 3]) as 2 | 3 | undefined}
                   className={PLACEMENTS[i % PLACEMENTS.length]}
                 >
-                  <Link href={`/product/${p.id}`} className={s.imgbox} aria-label={p.name}>
+                  <Link href={productPath(p)} className={s.imgbox} aria-label={p.name}>
                     <div
                       className={s.img}
                       style={{
@@ -63,12 +64,12 @@ export default function CollectionGrid({ products }: { products: Product[] }) {
                   <figcaption className={s.cap}>
                     <div className={s.name}>
                       <small>N° {NUMERALS[i]} — Bruno Collective</small>
-                      <Link href={`/product/${p.id}`}>{p.name}</Link>
+                      <Link href={productPath(p)}>{p.name}</Link>
                     </div>
                     <div className={s.price}>{money(p.price)}</div>
                   </figcaption>
                   {hasVariants ? (
-                    <Link href={`/product/${p.id}`} className={s.add} aria-disabled={soldOut}>
+                    <Link href={productPath(p)} className={s.add} aria-disabled={soldOut}>
                       {soldOut ? "Sold Out" : "Choose Options"}
                     </Link>
                   ) : (

@@ -5,6 +5,8 @@ import { getSiteImages } from "@/lib/api";
 import { imageSrc } from "@/lib/format";
 import { ESSAYS, em, essayBySlug } from "@/lib/journal";
 import Reveal from "@/components/Reveal";
+import JsonLd from "@/components/JsonLd";
+import { absoluteUrl, SITE_NAME, SITE_URL } from "@/lib/site";
 import styles from "./article.module.css";
 
 interface Params {
@@ -39,8 +41,21 @@ export default async function JournalArticle({ params }: Params) {
   const read = slot?.caption_b || essay.read;
   const next = ESSAYS[(index + 1) % ESSAYS.length];
 
+  const articleLd = {
+    "@context": "https://schema.org",
+    "@type": "Article",
+    headline: essay.title.replace(/\*/g, ""),
+    description: essay.summary,
+    image: cover.startsWith("http") ? cover : absoluteUrl(cover),
+    url: absoluteUrl(`/journal/${essay.slug}`),
+    inLanguage: "th",
+    author: { "@type": "Organization", name: SITE_NAME, "@id": `${SITE_URL}/#organization` },
+    publisher: { "@id": `${SITE_URL}/#organization` },
+  };
+
   return (
     <main className={styles.page}>
+      <JsonLd data={articleLd} />
       <article>
         <header className={styles.head}>
           <div className={styles.crumb}>

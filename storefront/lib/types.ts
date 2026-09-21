@@ -11,6 +11,8 @@ export interface Product {
   id: number;
   name: string;
   sku: string;
+  // URL key for /products/{slug}; generated server-side from the name.
+  slug: string;
   size: string;
   description: string;
   category: string;

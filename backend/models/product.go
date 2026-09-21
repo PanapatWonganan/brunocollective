@@ -51,6 +51,10 @@ type Product struct {
 	ID          uint   `json:"id" gorm:"primaryKey"`
 	Name        string `json:"name" gorm:"not null"`
 	SKU         string `json:"sku" gorm:"uniqueIndex"`
+	// Slug is the storefront URL key (/products/{slug}); ASCII-only, unique
+	// (enforced in handlers/slug.go — not a DB unique index so legacy blank
+	// rows migrate cleanly). Generated from the name when left blank.
+	Slug string `json:"slug" gorm:"index"`
 	Size        string `json:"size"` // legacy: single-size garments without variants
 	Description string `json:"description"`
 	// Category groups products for analytics (เสื้อยืด, กางเกง, เดรส, …).
