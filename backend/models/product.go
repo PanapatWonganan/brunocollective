@@ -65,6 +65,10 @@ type Product struct {
 	// this product. nil = inherit the affiliate default; 0 = this product pays
 	// no commission at all.
 	CommissionPercent *float64    `json:"commission_percent"`
+	// RatingOverride pins the storefront star rating for this product (set in
+	// the admin product form). nil = derive from sales volume automatically.
+	// The review count shown beside the stars is always real units sold.
+	RatingOverride    *float64    `json:"rating_override"`
 	Stock             int         `json:"stock" gorm:"default:0"` // legacy: used only when a product has no variants
 	ImageURL          string      `json:"image_url"`
 	Images            StringSlice `json:"images" gorm:"type:text"`
@@ -83,10 +87,11 @@ type Product struct {
 	TotalStock int `json:"total_stock" gorm:"-"`
 
 	// Rating / RatingCount are the storefront's social-proof stars. Customers
-	// don't submit reviews — the rating is derived from real sales volume
-	// (see handlers/rating.go) and always sits in the 4.5–5.0 band; the count
-	// is units sold on non-cancelled orders. 0/0 = no sales yet (stars hidden).
-	// Not persisted — computed by the public shop handlers.
+	// don't submit reviews — the rating is RatingOverride when set, otherwise
+	// derived from real sales volume (see handlers/rating.go, 4.5–5.0 band);
+	// the count is always units sold on non-cancelled orders. 0 rating = no
+	// sales and no override (stars hidden). Not persisted — computed by the
+	// shop handlers and the admin product list.
 	Rating      float64 `json:"rating" gorm:"-"`
 	RatingCount int     `json:"rating_count" gorm:"-"`
 

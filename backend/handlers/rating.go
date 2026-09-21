@@ -21,10 +21,18 @@ import (
 // the band (4.75). Tuned for a small label: ~8 units → 4.8, ~30 → 4.9, ~90 → 5.0.
 const ratingHalfwayUnits = 8.0
 
-// ratingFor maps units sold to a 4.5–5.0 star rating (one decimal). A tiny
-// id-based offset keeps products with identical sales from all showing the
-// exact same number, which would look generated.
-func ratingFor(productID uint, units int) float64 {
+// ratingFor returns the star rating to show: the admin override when set
+// (clamped to 0–5, one decimal), otherwise a 4.5–5.0 value mapped from units
+// sold. A tiny id-based offset keeps products with identical sales from all
+// showing the exact same number, which would look generated.
+func ratingFor(productID uint, override *float64, units int) float64 {
+	if override != nil && *override > 0 {
+		r := math.Round(*override*10) / 10
+		if r > 5 {
+			r = 5
+		}
+		return r
+	}
 	if units <= 0 {
 		return 0
 	}
@@ -73,7 +81,7 @@ func applyRatings(products []models.Product) {
 	for i := range products {
 		units := sold[products[i].ID]
 		products[i].RatingCount = units
-		products[i].Rating = ratingFor(products[i].ID, units)
+		products[i].Rating = ratingFor(products[i].ID, products[i].RatingOverride, units)
 	}
 }
 
@@ -86,5 +94,5 @@ func applyRating(p *models.Product) {
 		Select("COALESCE(SUM(order_items.quantity), 0)").
 		Scan(&units)
 	p.RatingCount = units
-	p.Rating = ratingFor(p.ID, units)
+	p.Rating = ratingFor(p.ID, p.RatingOverride, units)
 }

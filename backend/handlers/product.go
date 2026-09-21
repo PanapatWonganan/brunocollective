@@ -42,6 +42,7 @@ func (h *ProductHandler) List(c *fiber.Ctx) error {
 	for i := range products {
 		products[i].ComputeTotalStock()
 	}
+	applyRatings(products) // so the admin form can show the current auto rating
 	return c.JSON(products)
 }
 
@@ -57,6 +58,7 @@ func (h *ProductHandler) Get(c *fiber.Ctx) error {
 	}
 
 	product.ComputeTotalStock()
+	applyRating(&product)
 	return c.JSON(product)
 }
 
@@ -109,7 +111,9 @@ func (h *ProductHandler) Update(c *fiber.Ctx) error {
 			"cost":        updates.Cost,
 			// Pointer: nil clears the override (inherit), 0 = no commission.
 			"commission_percent": updates.CommissionPercent,
-			"stock":              updates.Stock,
+			// Pointer: nil = auto rating from sales, value = pinned stars.
+			"rating_override": updates.RatingOverride,
+			"stock":           updates.Stock,
 		}).Error; err != nil {
 			return err
 		}

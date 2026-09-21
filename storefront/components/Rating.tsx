@@ -12,9 +12,14 @@ export default function Rating({
   count: number;
   size?: "sm" | "md";
 }) {
-  if (!value || !count) return null;
+  // value is 0 when the product has no sales and no admin override → hidden.
+  // An admin-pinned rating shows even before the first sale (count omitted).
+  if (!value) return null;
   const pct = Math.max(0, Math.min(100, (value / 5) * 100));
-  const label = `${value.toFixed(1)} จาก 5 ดาว จากยอดขาย ${count} ชิ้น`;
+  const label =
+    count > 0
+      ? `${value.toFixed(1)} จาก 5 ดาว จากยอดขาย ${count} ชิ้น`
+      : `${value.toFixed(1)} จาก 5 ดาว`;
 
   return (
     <span className={`${styles.rating} ${size === "md" ? styles.md : ""}`} aria-label={label} title={label}>
@@ -23,7 +28,8 @@ export default function Rating({
         <span className={styles.fill} style={{ width: `${pct}%` }}>★★★★★</span>
       </span>
       <span className={styles.text} aria-hidden="true">
-        {value.toFixed(1)} <span className={styles.count}>({count})</span>
+        {value.toFixed(1)}
+        {count > 0 && <span className={styles.count}> ({count})</span>}
       </span>
     </span>
   );

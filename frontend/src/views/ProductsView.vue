@@ -164,6 +164,14 @@
                 class="mb-3"
               />
             </div>
+            <v-text-field
+              :model-value="formData.rating_override ?? ''"
+              @update:model-value="(v: any) => formData.rating_override = (v === '' || v === null) ? null : Number(v)"
+              label="ดาวหน้าร้าน (Rating)" type="number" step="0.1" min="1" max="5"
+              prepend-inner-icon="mdi-star" :hint="ratingHint" persistent-hint
+              :rules="[v => v === '' || v === null || (v >= 1 && v <= 5) || '1–5 เท่านั้น']"
+              class="mb-3"
+            />
 
             <!-- Variants (size + color + stock) -->
             <div class="d-flex align-center mb-2">
@@ -353,7 +361,8 @@ interface Variant {
 
 interface Product {
   id?: number; name: string; sku: string; size: string; description: string;
-  category: string; price: number; cost: number; commission_percent?: number | null; stock: number;
+  category: string; price: number; cost: number; commission_percent?: number | null;
+  rating_override?: number | null; rating?: number; rating_count?: number; stock: number;
   image_url: string; images: string[];
   variants: Variant[]; total_stock?: number;
 }
@@ -396,8 +405,18 @@ const form = ref()
 const pendingFiles = ref<File[]>([])
 const deletingImg = ref<string | null>(null)
 
-const emptyForm = (): Product => ({ name: '', sku: '', size: '', description: '', category: '', price: 0, cost: 0, commission_percent: null, stock: 0, image_url: '', images: [], variants: [] })
+const emptyForm = (): Product => ({ name: '', sku: '', size: '', description: '', category: '', price: 0, cost: 0, commission_percent: null, rating_override: null, stock: 0, image_url: '', images: [], variants: [] })
 const formData = ref<Product>(emptyForm())
+
+// Explains the auto rating so the owner knows what "blank" will show.
+const ratingHint = computed(() => {
+  const p = editingProduct.value
+  const sold = p?.rating_count ?? 0
+  if (!p) return 'ว่าง = คำนวณอัตโนมัติจากยอดขาย (4.5–5) — จำนวนในวงเล็บนับจากยอดขายจริงเสมอ'
+  if (formData.value.rating_override != null) return `กำหนดเอง — จำนวนที่โชว์ยังเป็นยอดขายจริง (${sold} ชิ้น)`
+  if (sold === 0) return 'ว่าง = อัตโนมัติ — ยังไม่มียอดขาย จึงยังไม่แสดงดาว'
+  return `ว่าง = อัตโนมัติ ตอนนี้ ${p.rating?.toFixed(1)} ดาว จากยอดขาย ${sold} ชิ้น`
+})
 
 function addVariant() {
   formData.value.variants.push({ size: '', color: '', sku: '', stock: 0 })
