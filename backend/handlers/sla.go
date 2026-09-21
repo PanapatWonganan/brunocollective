@@ -45,8 +45,8 @@ func StartChatSLAWatcher(cfg *config.Config, telegram *services.TelegramNotifier
 // waited cfg.ChatWaitingExpireHours with no newer inbound message. This is
 // the safety net for replies the system cannot see (LINE OA app has no echo
 // events): without it a thread answered in the LINE app stays "waiting"
-// forever. Unread counts are left alone — "unread" is about what the admin
-// has looked at, not whether the customer was answered.
+// forever. Unread counts on equally old threads are zeroed too, so the
+// sidebar badge only ever shows recent, unhandled chats.
 func expireChatWaiting(cfg *config.Config, hub *services.ChatHub) {
 	cutoff := time.Now().Add(-time.Duration(cfg.ChatWaitingExpireHours) * time.Hour)
 	res := database.DB.Model(&models.Conversation{}).
@@ -57,10 +57,20 @@ func expireChatWaiting(cfg *config.Config, hub *services.ChatHub) {
 			"waiting_since":  nil,
 			"last_direction": "out",
 		})
-	if res.Error != nil || res.RowsAffected == 0 {
+	// Stale unread: a thread nobody opened here for that long was handled
+	// elsewhere (LINE app) — keeping it "unread" only inflates the sidebar
+	// badge with hundreds of old chats.
+	unreadRes := database.DB.Model(&models.Conversation{}).
+		Where("unread_count > 0 AND last_message_at <= ?", cutoff).
+		Update("unread_count", 0)
+	if res.Error != nil && unreadRes.Error != nil {
 		return
 	}
-	log.Printf("chat: auto-expired waiting state on %d thread(s) (> %d h)", res.RowsAffected, cfg.ChatWaitingExpireHours)
+	if res.RowsAffected == 0 && unreadRes.RowsAffected == 0 {
+		return
+	}
+	log.Printf("chat: auto-expired waiting on %d, unread on %d thread(s) (> %d h)",
+		res.RowsAffected, unreadRes.RowsAffected, cfg.ChatWaitingExpireHours)
 	if hub != nil {
 		hub.Broadcast(map[string]interface{}{"type": "conversations"})
 	}
