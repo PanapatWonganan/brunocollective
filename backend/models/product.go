@@ -82,6 +82,14 @@ type Product struct {
 	// variants). Not persisted — computed by handlers for list/shop display.
 	TotalStock int `json:"total_stock" gorm:"-"`
 
+	// Rating / RatingCount are the storefront's social-proof stars. Customers
+	// don't submit reviews — the rating is derived from real sales volume
+	// (see handlers/rating.go) and always sits in the 4.5–5.0 band; the count
+	// is units sold on non-cancelled orders. 0/0 = no sales yet (stars hidden).
+	// Not persisted — computed by the public shop handlers.
+	Rating      float64 `json:"rating" gorm:"-"`
+	RatingCount int     `json:"rating_count" gorm:"-"`
+
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
 }

@@ -51,6 +51,7 @@ func (h *ShopHandler) Products(c *fiber.Ctx) error {
 			out = append(out, products[i])
 		}
 	}
+	applyRatings(out)
 	return c.JSON(out)
 }
 
@@ -67,6 +68,7 @@ func (h *ShopHandler) Product(c *fiber.Ctx) error {
 	}
 
 	product.ComputeTotalStock()
+	applyRating(&product)
 	return c.JSON(product)
 }
 

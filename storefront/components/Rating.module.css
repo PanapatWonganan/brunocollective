@@ -1,0 +1,12 @@
+.rating{
+  display:inline-flex; align-items:center; gap:7px;
+  font-family:var(--sans); white-space:nowrap; line-height:1;
+}
+.stars{position:relative; display:inline-block; font-size:12px; letter-spacing:1px; color:var(--hairline)}
+.base{display:block}
+.fill{position:absolute; inset:0 auto 0 0; overflow:hidden; color:var(--champagne); white-space:nowrap}
+.text{font-size:11px; letter-spacing:.06em; color:var(--ink-soft); font-weight:500}
+.count{color:var(--ink-faint); font-weight:400}
+
+.md .stars{font-size:15px; letter-spacing:1.5px}
+.md .text{font-size:12.5px}

@@ -6,6 +6,7 @@ import { money, imageSrc } from "@/lib/format";
 import AddToBag from "@/components/AddToBag";
 import ProductGallery from "@/components/ProductGallery";
 import Accordion from "@/components/Accordion";
+import Rating from "@/components/Rating";
 import ProductRow from "@/components/home/ProductRow";
 import styles from "./product.module.css";
 
@@ -78,7 +79,10 @@ export default async function ProductPage({ params }: Params) {
           <div className={styles.sub}>
             {product.sku ? `${product.sku} — ` : ""}Bruno Collective · Made in Thailand
           </div>
-          <div className={styles.price}>{money(product.price)}</div>
+          <div className={styles.priceRow}>
+            <div className={styles.price}>{money(product.price)}</div>
+            <Rating value={product.rating} count={product.rating_count} size="md" />
+          </div>
           <div className={styles.tax}>ราคารวมทุกอย่างแล้ว — ไม่มีบวกเพิ่มหน้างาน</div>
 
           <AddToBag product={product} sizeChartUrl={sizeChartUrl} />

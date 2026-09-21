@@ -20,6 +20,10 @@ export interface Product {
   images: string[];
   variants: ProductVariant[] | null;
   total_stock: number;
+  // Derived server-side from real sales volume (4.5–5.0); rating_count is
+  // units sold. 0/0 = no sales yet — the UI hides the stars.
+  rating: number;
+  rating_count: number;
   created_at: string;
   updated_at: string;
 }

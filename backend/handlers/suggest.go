@@ -119,5 +119,6 @@ func (h *ShopHandler) Suggest(c *fiber.Ctx) error {
 			break
 		}
 	}
+	applyRatings(out)
 	return c.JSON(out)
 }

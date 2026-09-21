@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useCart } from "@/lib/cart";
 import { money, imageSrc } from "@/lib/format";
 import type { Product } from "@/lib/types";
+import Rating from "./Rating";
 import styles from "./ProductCard.module.css";
 
 export default function ProductCard({ product }: { product: Product }) {
@@ -37,7 +38,10 @@ export default function ProductCard({ product }: { product: Product }) {
           {product.sku && <small>{product.sku}</small>}
           <Link href={`/product/${product.id}`}>{product.name}</Link>
         </div>
-        <div className={styles.price}>{money(product.price)}</div>
+        <div className={styles.side}>
+          <div className={styles.price}>{money(product.price)}</div>
+          <Rating value={product.rating} count={product.rating_count} />
+        </div>
       </figcaption>
       {hasVariants ? (
         <Link href={`/product/${product.id}`} className={styles.add} aria-disabled={soldOut}>
