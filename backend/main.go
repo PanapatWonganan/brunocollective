@@ -258,6 +258,7 @@ func main() {
 	// payment link (/pay/{token}) to push into the chat.
 	api.Post("/chats/:id/order", orderHandler.CreateFromChat)
 	api.Post("/chats/:id/read", chatHandler.MarkRead)
+	api.Post("/chats/:id/typing", chatHandler.Typing)
 	api.Put("/chats/:id/status", chatHandler.UpdateStatus)
 	api.Put("/chats/:id/tags", chatHandler.UpdateTags)
 	api.Put("/chats/:id/customer", chatHandler.LinkCustomer)

@@ -106,9 +106,34 @@ func (h *ChatHandler) MarkRead(c *fiber.Ctx) error {
 	if err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid id"})
 	}
-	if err := database.DB.Model(&models.Conversation{}).Where("id = ?", id).
-		Update("unread_count", 0).Error; err != nil {
+	var conv models.Conversation
+	if err := database.DB.First(&conv, id).Error; err != nil {
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "conversation not found"})
+	}
+	if err := database.DB.Model(&conv).Update("unread_count", 0).Error; err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to update"})
+	}
+	// Let the customer see "Seen" in Messenger/IG, like the native inbox does.
+	if (conv.Platform == "facebook" || conv.Platform == "instagram") && conv.UnreadCount > 0 {
+		go h.Meta.SenderAction(conv.ExternalID, "mark_seen")
+	}
+	return c.JSON(fiber.Map{"message": "ok"})
+}
+
+// Typing forwards a "typing…" indicator to the customer while the admin is
+// composing (POST /chats/:id/typing). Meta only; LINE has no such signal.
+// The client throttles this — Meta's indicator lasts ~20s per call.
+func (h *ChatHandler) Typing(c *fiber.Ctx) error {
+	id, err := strconv.Atoi(c.Params("id"))
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid id"})
+	}
+	var conv models.Conversation
+	if err := database.DB.First(&conv, id).Error; err != nil {
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "conversation not found"})
+	}
+	if conv.Platform == "facebook" || conv.Platform == "instagram" {
+		go h.Meta.SenderAction(conv.ExternalID, "typing_on")
 	}
 	return c.JSON(fiber.Map{"message": "ok"})
 }

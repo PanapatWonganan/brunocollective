@@ -76,28 +76,81 @@ func (m *MetaClient) SendText(recipientID, text string) (string, error) {
 	if !m.enabled {
 		return "", fmt.Errorf("Facebook/Instagram ยังไม่ได้ตั้งค่า (META_APP_SECRET / META_PAGE_ACCESS_TOKEN)")
 	}
+	mid, code, sub, err := m.sendMessage(recipientID, text, "")
+	if err == nil {
+		return mid, nil
+	}
+	// Outside Meta's 24-hour window (last customer message > 24h ago). A page
+	// granted the Human Agent permission may still reply for 7 days with the
+	// HUMAN_AGENT tag — try that once; without the permission Meta rejects
+	// the tagged send too and we return a clear Thai message.
+	if code == 10 && sub == 2018278 {
+		if mid, _, _, err2 := m.sendMessage(recipientID, text, "HUMAN_AGENT"); err2 == nil {
+			return mid, nil
+		}
+		return "", fmt.Errorf("ส่งไม่ได้ — ลูกค้าไม่ได้ทักมาเกิน 24 ชม. แล้ว (กฎของ Meta) ต้องรอลูกค้าทักมาก่อน หรือตอบจากแอป Meta Business Suite")
+	}
+	return "", err
+}
+
+// sendMessage posts one Send API call. tag = "" for a normal RESPONSE, or a
+// message tag (e.g. HUMAN_AGENT) which switches messaging_type to MESSAGE_TAG.
+// Returns Meta's error code/subcode so callers can react to specific failures.
+func (m *MetaClient) sendMessage(recipientID, text, tag string) (mid string, code, subcode int, err error) {
 	payload := map[string]interface{}{
 		"recipient":      map[string]string{"id": recipientID},
 		"messaging_type": "RESPONSE",
 		"message":        map[string]string{"text": text},
+	}
+	if tag != "" {
+		payload["messaging_type"] = "MESSAGE_TAG"
+		payload["tag"] = tag
 	}
 	body, _ := json.Marshal(payload)
 
 	url := metaGraphBase + "/me/messages?access_token=" + m.pageToken
 	resp, err := m.http.Post(url, "application/json", bytes.NewReader(body))
 	if err != nil {
-		return "", err
+		return "", 0, 0, err
 	}
 	defer resp.Body.Close()
 	respBody, _ := io.ReadAll(io.LimitReader(resp.Body, 2048))
 	if resp.StatusCode >= 300 {
-		return "", fmt.Errorf("Meta send failed (%d): %s", resp.StatusCode, string(respBody))
+		var ge struct {
+			Error struct {
+				Message      string `json:"message"`
+				Code         int    `json:"code"`
+				ErrorSubcode int    `json:"error_subcode"`
+			} `json:"error"`
+		}
+		_ = json.Unmarshal(respBody, &ge)
+		return "", ge.Error.Code, ge.Error.ErrorSubcode,
+			fmt.Errorf("Meta send failed (%d): %s", resp.StatusCode, string(respBody))
 	}
 	var result struct {
 		MessageID string `json:"message_id"`
 	}
 	_ = json.Unmarshal(respBody, &result)
-	return result.MessageID, nil
+	return result.MessageID, 0, 0, nil
+}
+
+// SenderAction sends a presence signal to the customer: "mark_seen" (blue
+// "Seen" in Messenger/IG), "typing_on" (auto-expires after ~20s) or
+// "typing_off". Best-effort — failures are only logged.
+func (m *MetaClient) SenderAction(recipientID, action string) {
+	if !m.enabled {
+		return
+	}
+	body, _ := json.Marshal(map[string]interface{}{
+		"recipient":     map[string]string{"id": recipientID},
+		"sender_action": action,
+	})
+	url := metaGraphBase + "/me/messages?access_token=" + m.pageToken
+	resp, err := m.http.Post(url, "application/json", bytes.NewReader(body))
+	if err != nil {
+		return
+	}
+	resp.Body.Close()
 }
 
 // MetaProfile is the subset of profile fields we keep. `name` works for

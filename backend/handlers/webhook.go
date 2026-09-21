@@ -298,7 +298,12 @@ type metaMessaging struct {
 		ID string `json:"id"`
 	} `json:"recipient"`
 	Timestamp int64 `json:"timestamp"`
-	Message   struct {
+	// Read receipt (webhook field message_reads / messaging_seen): every
+	// message we sent up to Watermark (ms) has been seen by the customer.
+	Read struct {
+		Watermark int64 `json:"watermark"`
+	} `json:"read"`
+	Message struct {
 		MID         string `json:"mid"`
 		Text        string `json:"text"`
 		IsEcho      bool   `json:"is_echo"`
@@ -369,6 +374,25 @@ func (h *WebhookHandler) MetaWebhook(c *fiber.Ctx) error {
 	return c.SendStatus(fiber.StatusOK)
 }
 
+// handleMetaRead stores the customer's read watermark on the thread and
+// nudges admin screens so "ลูกค้าอ่านแล้ว" shows up live.
+func (h *WebhookHandler) handleMetaRead(platform string, ev metaMessaging) {
+	if ev.Sender.ID == "" {
+		return
+	}
+	var conv models.Conversation
+	if err := database.DB.Where("platform = ? AND external_id = ?", platform, ev.Sender.ID).
+		First(&conv).Error; err != nil {
+		return
+	}
+	readAt := time.UnixMilli(ev.Read.Watermark)
+	if conv.CustomerReadAt != nil && !readAt.After(*conv.CustomerReadAt) {
+		return
+	}
+	database.DB.Model(&conv).Update("customer_read_at", readAt)
+	h.Hub.Broadcast(fiber.Map{"type": "conversations"})
+}
+
 // metaChange is one entry.changes item — FB page feed events (field
 // "feed") and Instagram comment events (field "comments").
 type metaChange struct {
@@ -429,8 +453,11 @@ func (h *WebhookHandler) handleMetaChange(platform, accountID string, ch metaCha
 }
 
 func (h *WebhookHandler) handleMetaMessage(platform string, ev metaMessaging) {
-	// Delivery/read receipts and postbacks carry no message — skip.
 	if ev.Message.MID == "" {
+		if ev.Read.Watermark > 0 {
+			h.handleMetaRead(platform, ev)
+		}
+		// Delivery receipts and postbacks carry no message — skip.
 		return
 	}
 	// Dedupe: webhook redeliveries, and echoes of replies we sent ourselves

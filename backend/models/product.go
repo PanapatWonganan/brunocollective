@@ -48,13 +48,13 @@ func (s *StringSlice) Scan(value interface{}) error {
 }
 
 type Product struct {
-	ID          uint   `json:"id" gorm:"primaryKey"`
-	Name        string `json:"name" gorm:"not null"`
-	SKU         string `json:"sku" gorm:"uniqueIndex"`
+	ID   uint   `json:"id" gorm:"primaryKey"`
+	Name string `json:"name" gorm:"not null"`
+	SKU  string `json:"sku" gorm:"uniqueIndex"`
 	// Slug is the storefront URL key (/products/{slug}); ASCII-only, unique
 	// (enforced in handlers/slug.go — not a DB unique index so legacy blank
 	// rows migrate cleanly). Generated from the name when left blank.
-	Slug string `json:"slug" gorm:"index"`
+	Slug        string `json:"slug" gorm:"index"`
 	Size        string `json:"size"` // legacy: single-size garments without variants
 	Description string `json:"description"`
 	// Category groups products for analytics (เสื้อยืด, กางเกง, เดรส, …).
@@ -68,14 +68,14 @@ type Product struct {
 	// CommissionPercent overrides the affiliate's default commission rate for
 	// this product. nil = inherit the affiliate default; 0 = this product pays
 	// no commission at all.
-	CommissionPercent *float64    `json:"commission_percent"`
+	CommissionPercent *float64 `json:"commission_percent"`
 	// RatingOverride pins the storefront star rating for this product (set in
 	// the admin product form). nil = derive from sales volume automatically.
 	// The review count shown beside the stars is always real units sold.
-	RatingOverride    *float64    `json:"rating_override"`
-	Stock             int         `json:"stock" gorm:"default:0"` // legacy: used only when a product has no variants
-	ImageURL          string      `json:"image_url"`
-	Images            StringSlice `json:"images" gorm:"type:text"`
+	RatingOverride *float64    `json:"rating_override"`
+	Stock          int         `json:"stock" gorm:"default:0"` // legacy: used only when a product has no variants
+	ImageURL       string      `json:"image_url"`
+	Images         StringSlice `json:"images" gorm:"type:text"`
 
 	// DisplayOrder controls storefront position (1 = first). 0 = unordered —
 	// those sort after every ordered product, newest first. Set in bulk by the

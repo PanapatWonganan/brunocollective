@@ -44,6 +44,10 @@ type Conversation struct {
 	// current waiting period. Re-alerts happen only when a NEW period starts
 	// (WaitingSince moves past it after a reply + new inbound).
 	SlaAlertedAt *time.Time `json:"sla_alerted_at"`
+	// CustomerReadAt is the platform's read receipt (Meta `read.watermark`):
+	// every message of ours created at or before it has been seen by the
+	// customer. LINE has no read receipts, so it stays nil there.
+	CustomerReadAt *time.Time `json:"customer_read_at"`
 
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`

@@ -227,9 +227,22 @@
                   <div class="bubble-time text-caption">
                     <span v-if="sourceLabel(msg.source)">{{ sourceLabel(msg.source) }} · </span>{{ formatTime(msg.created_at) }}
                   </div>
+                  <div v-if="msg.id === lastReadOutId" class="bubble-seen text-caption">
+                    <v-icon icon="mdi-check-all" size="12" class="mr-1" />ลูกค้าอ่านแล้ว {{ formatTime(activeConv.customer_read_at!) }}
+                  </div>
                 </div>
               </div>
             </div>
+
+            <!-- Meta 24-hour messaging window -->
+            <v-alert
+              v-if="metaWindowClosed"
+              type="warning" variant="tonal" density="compact" class="mx-3 mb-2"
+              icon="mdi-clock-alert-outline"
+            >
+              ลูกค้าไม่ได้ทักมาเกิน 24 ชม. แล้ว — Meta อาจไม่ให้ส่งข้อความจากระบบ
+              ถ้าส่งไม่ผ่านให้ตอบจากแอป Meta Business Suite แทน (ระบบจะเห็นคำตอบนั้นเอง)
+            </v-alert>
 
             <!-- Composer -->
             <v-divider />
@@ -252,6 +265,7 @@
               <v-textarea
                 v-model="draft" placeholder="พิมพ์ข้อความตอบกลับ..." rows="1" auto-grow max-rows="4"
                 hide-details density="compact" @keydown.enter.exact.prevent="sendReply"
+                @input="pingTyping"
               />
               <v-btn
                 color="primary" icon="mdi-send" :loading="sending"
@@ -544,6 +558,7 @@ interface Conversation {
   unread_count: number; last_message_text: string; last_message_at: string;
   status: string; last_direction: string; waiting_since: string | null; tags: string[] | null;
   ai_disabled?: boolean;
+  customer_read_at?: string | null;
 }
 interface CannedReply { id: number; title: string; text: string }
 interface ChatMessage {
@@ -773,6 +788,42 @@ async function sendReply() {
   } finally {
     sending.value = false
   }
+}
+
+// ── Meta niceties: read receipt, typing indicator, 24h window ──
+// Id of the newest outbound message the customer has seen (FB/IG only) —
+// the "ลูกค้าอ่านแล้ว" line renders under that one bubble.
+const lastReadOutId = computed<number | null>(() => {
+  const readAt = activeConv.value?.customer_read_at
+  if (!readAt) return null
+  const t = new Date(readAt).getTime()
+  for (let i = messages.value.length - 1; i >= 0; i--) {
+    const m = messages.value[i]
+    if (m.direction === 'out' && new Date(m.created_at).getTime() <= t) return m.id
+  }
+  return null
+})
+
+// Meta blocks page-initiated messages once the customer has been silent
+// for 24h (a HUMAN_AGENT retry happens server-side if the page has that
+// permission). Warn before the admin types a long reply into a wall.
+const metaWindowClosed = computed(() => {
+  const c = activeConv.value
+  if (!c || (c.platform !== 'facebook' && c.platform !== 'instagram')) return false
+  let lastIn = 0
+  for (const m of messages.value) if (m.direction === 'in') lastIn = new Date(m.created_at).getTime()
+  return lastIn > 0 && Date.now() - lastIn > 24 * 3600000
+})
+
+// Forward "typing…" to Messenger/IG while composing, at most every 12s
+// (Meta's indicator lasts ~20s). Server ignores it for LINE.
+let typingSentAt = 0
+function pingTyping() {
+  const c = activeConv.value
+  if (!c || (c.platform !== 'facebook' && c.platform !== 'instagram')) return
+  if (!draft.value.trim() || Date.now() - typingSentAt < 12000) return
+  typingSentAt = Date.now()
+  api.post(`/chats/${c.id}/typing`).catch(() => {})
 }
 
 function scrollToBottom() {
@@ -1251,6 +1302,7 @@ onUnmounted(() => {
 .conv-item:hover {
   background: #F6F7F9;
 }
+.bubble-seen { opacity: .65; margin-top: 2px; display: flex; align-items: center; justify-content: flex-end; }
 .conv-item--unread .conv-item-body .font-weight-medium { font-weight: 700 !important; }
 .conv-item--seen { opacity: .72; }
 .conv-item--seen.conv-item--active { opacity: 1; }
