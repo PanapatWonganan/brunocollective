@@ -3,7 +3,7 @@
 import Link from "next/link";
 import Reveal from "@/components/Reveal";
 import { useCart } from "@/lib/cart";
-import { money, imageSrc } from "@/lib/format";
+import { imageSrc, priceLabel } from "@/lib/format";
 import type { Product } from "@/lib/types";
 import { productPath } from "@/lib/paths";
 import s from "./CollectionGrid.module.css";
@@ -66,7 +66,7 @@ export default function CollectionGrid({ products }: { products: Product[] }) {
                       <small>N° {NUMERALS[i]} — Bruno Collective</small>
                       <Link href={productPath(p)}>{p.name}</Link>
                     </div>
-                    <div className={s.price}>{money(p.price)}</div>
+                    <div className={s.price}>{priceLabel(p)}</div>
                   </figcaption>
                   {hasVariants ? (
                     <Link href={productPath(p)} className={s.add} aria-disabled={soldOut}>

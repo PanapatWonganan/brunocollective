@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useCart } from "@/lib/cart";
-import { imageSrc } from "@/lib/format";
+import { imageSrc, money, priceRange, unitPrice } from "@/lib/format";
 import type { Product, ProductVariant } from "@/lib/types";
 import styles from "./AddToBag.module.css";
 
@@ -59,6 +59,12 @@ export default function AddToBag({
   const showSizeChart =
     !!sizeChartUrl && (sizes.length > 0 || (!hasVariants && !!product.size));
 
+  // Variants may carry their own price (per-colour pricing); once the shopper
+  // has picked one, show the exact figure — the page header shows the range.
+  const { min: minPrice, max: maxPrice } = priceRange(product);
+  const hasPriceRange = minPrice !== maxPrice;
+  const selectedPrice = selected ? unitPrice(product, selected) : null;
+
   const stock = hasVariants ? (selected ? selected.stock : 0) : Math.max(product.stock, 0);
   const soldOut = hasVariants ? product.total_stock <= 0 : product.stock <= 0;
   const canAdd = !soldOut && !needsSize && !needsColor && stock > 0;
@@ -94,7 +100,7 @@ export default function AddToBag({
       {showSizeChart && (
         <div className={styles.sizeChart}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={imageSrc(sizeChartUrl!)} alt="ตารางไซส์เสื้อ" loading="lazy" />
+          <img src={imageSrc(sizeChartUrl!)} alt="ตารางไซส์" loading="lazy" />
         </div>
       )}
 
@@ -116,6 +122,13 @@ export default function AddToBag({
               </button>
             ))}
           </div>
+        </div>
+      )}
+
+      {hasPriceRange && selectedPrice != null && (
+        <div className={styles.selPrice}>
+          <span className={styles.optLabel}>Price</span>
+          <strong>{money(selectedPrice)}</strong>
         </div>
       )}
 

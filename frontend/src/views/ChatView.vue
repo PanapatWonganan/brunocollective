@@ -865,7 +865,7 @@ async function saveLink() {
 // ── Create order from chat (ปิดการขายในแชท) ──
 interface OrderProduct {
   id: number; name: string; price: number; stock: number;
-  variants?: { id: number; size: string; color: string; stock: number }[];
+  variants?: { id: number; size: string; color: string; stock: number; price?: number }[];
 }
 const orderDialog = ref(false)
 const products = ref<OrderProduct[]>([])
@@ -926,9 +926,10 @@ async function checkOrderMember() {
 function variantsFor(productId: number) {
   return products.value.find(p => p.id === productId)?.variants || []
 }
-function variantLabel(v: { size: string; color: string; stock: number }) {
+function variantLabel(v: { size: string; color: string; stock: number; price?: number }) {
   const label = [v.size, v.color].filter(Boolean).join(' / ') || 'One size'
-  return `${label} — เหลือ ${v.stock}`
+  const price = Number(v.price) > 0 ? ` · ฿${fmtMoney(Number(v.price))}` : ''
+  return `${label}${price} — เหลือ ${v.stock}`
 }
 function fmtMoney(n: number) {
   return n.toLocaleString('th-TH', { maximumFractionDigits: 2 })
@@ -937,7 +938,10 @@ function fmtMoney(n: number) {
 const orderSubtotal = computed(() =>
   orderItems.value.reduce((sum, it) => {
     const p = products.value.find(pp => pp.id === it.product_id)
-    return sum + (p ? p.price * (it.quantity || 0) : 0)
+    if (!p) return sum
+    const v = (p.variants || []).find(vv => vv.id === it.variant_id)
+    const unit = v && Number(v.price) > 0 ? Number(v.price) : p.price
+    return sum + unit * (it.quantity || 0)
   }, 0))
 const orderMemberDiscount = computed(() =>
   orderCustomerIsMember.value ? Math.round(orderSubtotal.value * 5) / 100 : 0)

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useCart } from "@/lib/cart";
-import { money, imageSrc } from "@/lib/format";
+import { imageSrc, priceLabel } from "@/lib/format";
 import type { Product } from "@/lib/types";
 import Rating from "./Rating";
 import { productPath } from "@/lib/paths";
@@ -40,7 +40,7 @@ export default function ProductCard({ product }: { product: Product }) {
           <Link href={productPath(product)}>{product.name}</Link>
         </div>
         <div className={styles.side}>
-          <div className={styles.price}>{money(product.price)}</div>
+          <div className={styles.price}>{priceLabel(product)}</div>
           <Rating value={product.rating} count={product.rating_count} />
         </div>
       </figcaption>

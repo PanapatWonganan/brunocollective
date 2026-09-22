@@ -7,7 +7,7 @@ import { useMember } from "@/lib/member";
 import { checkout, getSuggestions, memberCheck, validateAffiliate, validateCoupon } from "@/lib/api";
 import { getAffiliateRef } from "@/lib/affiliate";
 import { fbqTrack } from "@/lib/fbq";
-import { money, imageSrc } from "@/lib/format";
+import { money, imageSrc, unitPrice } from "@/lib/format";
 import { productPath } from "@/lib/paths";
 import type { CouponPreview, Product } from "@/lib/types";
 import ThankYou from "@/components/ThankYou";
@@ -372,7 +372,7 @@ export default function CheckoutPage() {
                       {variantLabel ? `${variantLabel} · ` : ""}Qty {l.quantity}
                     </div>
                   </div>
-                  <div className={styles.itemPrice}>{money(l.product.price * l.quantity)}</div>
+                  <div className={styles.itemPrice}>{money(unitPrice(l.product, l.variant) * l.quantity)}</div>
                 </div>
               );
             })}

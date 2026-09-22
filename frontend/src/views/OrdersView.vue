@@ -731,7 +731,10 @@ const createError = ref('')
 const createSubtotal = computed(() =>
   orderForm.value.items.reduce((sum, item) => {
     const p = products.value.find((x: any) => x.id === item.product_id)
-    return sum + (p ? p.price * (item.quantity || 0) : 0)
+    if (!p) return sum
+    const v = (p.variants || []).find((vv: any) => vv.id === item.variant_id)
+    const unit = v && Number(v.price) > 0 ? Number(v.price) : p.price
+    return sum + unit * (item.quantity || 0)
   }, 0)
 )
 
@@ -785,7 +788,8 @@ function variantsFor(productId: number): any[] {
 
 function variantLabel(v: any): string {
   const label = [v.size, v.color].filter(Boolean).join(' / ') || 'One size'
-  return `${label} — stock ${v.stock}`
+  const price = Number(v.price) > 0 ? ` · ${formatCurrency(Number(v.price))}` : ''
+  return `${label}${price} — stock ${v.stock}`
 }
 
 function formatCurrency(n: number) {

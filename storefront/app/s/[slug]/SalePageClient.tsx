@@ -8,7 +8,7 @@ import type { CouponPreview } from "@/lib/types";
 import { salePageOrder, validateCoupon } from "@/lib/api";
 import { getAffiliateRef } from "@/lib/affiliate";
 import { fbqTrack } from "@/lib/fbq";
-import { money, imageSrc } from "@/lib/format";
+import { money, imageSrc, unitPrice as variantUnitPrice } from "@/lib/format";
 import ThankYou from "@/components/ThankYou";
 import styles from "./salepage.module.css";
 
@@ -125,12 +125,15 @@ export default function SalePageClient({ page, isPreview, sizeChartUrl }: Props)
   const countdown = useCountdown(page.countdown_ends_at);
   const offerEnded = countdown.ended;
 
-  const unitPrice = page.offer_price ?? product.price;
-  const catalogPrice = product.price;
-  const hasDiscountedOffer = page.offer_price != null && page.offer_price < catalogPrice;
-
   const selectedVariant: ProductVariant | null =
     variants.find((v) => v.id === variantId) || null;
+  // Catalog price follows the chosen variant (per-colour pricing); the page's
+  // offer price, when set, overrides it for every variant — same rule as the
+  // server applies when the order is placed.
+  const catalogPrice = variantUnitPrice(product, selectedVariant);
+  const unitPrice = page.offer_price ?? catalogPrice;
+  const hasDiscountedOffer = page.offer_price != null && page.offer_price < catalogPrice;
+
   const stockLeft = selectedVariant
     ? selectedVariant.stock
     : product.total_stock || product.stock;
@@ -469,7 +472,7 @@ export default function SalePageClient({ page, isPreview, sizeChartUrl }: Props)
                   {showSizeChart && (
                     <div className={styles.sizeChart}>
                       {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={imageSrc(sizeChartUrl!)} alt="ตารางไซส์เสื้อ" loading="lazy" />
+                      <img src={imageSrc(sizeChartUrl!)} alt="ตารางไซส์" loading="lazy" />
                     </div>
                   )}
 

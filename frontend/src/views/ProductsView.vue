@@ -88,7 +88,7 @@
           <template v-slot:item.variants="{ item }">
             <div v-if="item.variants && item.variants.length" class="d-flex flex-wrap ga-1 py-2">
               <v-chip v-for="(v, i) in item.variants" :key="i" variant="tonal" size="x-small" label color="secondary">
-                {{ [v.size, v.color].filter(Boolean).join(' · ') || 'One size' }} · {{ v.stock }}
+                {{ [v.size, v.color].filter(Boolean).join(' · ') || 'One size' }} · {{ v.stock }}<template v-if="v.price && v.price !== item.price"> · ฿{{ v.price }}</template>
               </v-chip>
             </div>
             <span v-else class="text-medium-emphasis text-caption">
@@ -96,7 +96,7 @@
             </span>
           </template>
           <template v-slot:item.price="{ item }">
-            <span class="font-weight-medium">{{ formatCurrency(item.price) }}</span>
+            <span class="font-weight-medium">{{ priceLabel(item) }}</span>
           </template>
           <template v-slot:item.total_stock="{ item }">
             <v-chip
@@ -207,6 +207,9 @@
                 style="max-width: 260px;"
               />
             </div>
+            <div v-if="formData.variants.length" class="text-caption text-medium-emphasis mb-2">
+              ช่อง Price ต่อ variant ใส่เฉพาะเมื่อราคาต่างจากราคาหลัก (เช่น แหวนสีทองแพงกว่าสีเงิน) — เว้น 0 = ใช้ราคาหลัก ฿{{ formData.price || 0 }}
+            </div>
             <div v-for="(v, i) in formData.variants" :key="i" class="variant-row mb-2">
               <v-combobox
                 v-model="v.size" :items="sizeOptions" label="Size" density="compact"
@@ -215,6 +218,10 @@
               <v-text-field v-model="v.color" label="Color" density="compact" hide-details class="variant-color" />
               <v-text-field v-model="v.sku" label="SKU" density="compact" hide-details class="variant-sku" />
               <v-text-field v-model.number="v.stock" label="Stock" type="number" density="compact" hide-details class="variant-stock" />
+              <v-text-field
+                v-model.number="v.price" label="Price" type="number" prefix="฿" density="compact" hide-details
+                class="variant-price" :placeholder="String(formData.price || 0)"
+              />
               <v-btn icon="mdi-close" size="small" variant="text" color="error" @click="removeVariant(i)" />
             </div>
 
@@ -367,6 +374,7 @@ import api from '@/services/api'
 
 interface Variant {
   id?: number; product_id?: number; size: string; color: string; sku: string; stock: number;
+  price?: number; // per-variant override; 0/undefined = product price
 }
 
 interface Product {
@@ -385,14 +393,23 @@ const headers = [
   { title: '', key: 'actions', sortable: false, align: 'end' as const, width: '100px' },
 ]
 
-const sizeOptions = ['S', 'M', 'L', 'XL', 'XXL', 'Free Size', '38', '39', '40', '41', '42', '43', '44', '45']
+const sizeOptions = ['S', 'M', 'L', 'XL', 'XXL', 'Free Size', '38', '39', '40', '41', '42', '43', '44', '45', '5', '6', '7', '8', '9', '10']
 
-const categoryOptions = ['เสื้อยืด', 'เสื้อเชิ้ต', 'เสื้อกันหนาว', 'กางเกง', 'กระโปรง', 'เดรส', 'รองเท้า', 'กระเป๋า', 'เครื่องประดับ', 'อื่นๆ']
+const categoryOptions = ['เสื้อยืด', 'เสื้อเชิ้ต', 'เสื้อกันหนาว', 'กางเกง', 'กระโปรง', 'เดรส', 'รองเท้า', 'กระเป๋า', 'แหวน', 'เครื่องประดับ', 'อื่นๆ']
 
 // Total stock for a product: sum of variant stock, else the legacy stock field.
 function totalStock(p: Product): number {
   if (p.variants && p.variants.length) return p.variants.reduce((n, v) => n + (Number(v.stock) || 0), 0)
   return Number(p.stock) || 0
+}
+
+// Price cell: a single price, or "min – max" when variants carry their own prices.
+function priceLabel(p: Product): string {
+  const prices = (p.variants || []).map(v => (Number(v.price) > 0 ? Number(v.price) : p.price))
+  const min = Math.min(p.price, ...prices)
+  const max = Math.max(p.price, ...prices)
+  if (!p.variants?.length || min === max) return formatCurrency(p.price)
+  return `${formatCurrency(min)} – ${formatCurrency(max)}`
 }
 
 // Short summary of variants for the list, e.g. "S·Black 5, M·White 3".
@@ -434,7 +451,7 @@ const ratingHint = computed(() => {
 })
 
 function addVariant() {
-  formData.value.variants.push({ size: '', color: '', sku: '', stock: 0 })
+  formData.value.variants.push({ size: '', color: '', sku: '', stock: 0, price: 0 })
 }
 function removeVariant(index: number) {
   formData.value.variants.splice(index, 1)
@@ -673,8 +690,9 @@ onMounted(fetchProducts)
 .variant-color { max-width: 130px; }
 .variant-sku { flex: 1; min-width: 90px; }
 .variant-stock { max-width: 90px; }
+.variant-price { max-width: 120px; }
 @media (max-width: 600px) {
   .variant-row { flex-wrap: wrap; }
-  .variant-size, .variant-color, .variant-sku, .variant-stock { max-width: none; flex: 1 1 40%; }
+  .variant-size, .variant-color, .variant-sku, .variant-stock, .variant-price { max-width: none; flex: 1 1 40%; }
 }
 </style>

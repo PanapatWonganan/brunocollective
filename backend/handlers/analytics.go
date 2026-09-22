@@ -329,6 +329,13 @@ func (h *AnalyticsHandler) Inventory(c *fiber.Ctx) error {
 			unitValue = p.Price
 		}
 		row.StockValue = float64(p.TotalStock) * unitValue
+		if p.Cost == 0 && len(p.Variants) > 0 {
+			// No cost data: value stock at each variant's own selling price.
+			row.StockValue = 0
+			for _, v := range p.Variants {
+				row.StockValue += float64(v.Stock) * v.UnitPrice(p.Price)
+			}
+		}
 
 		if s, ok := soldAll[p.ID]; ok {
 			row.SoldTotal = s.Sold

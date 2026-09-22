@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { notFound, permanentRedirect } from "next/navigation";
 import Link from "next/link";
 import { getProduct, getRelated, getSiteImages, sizeChartFor } from "@/lib/api";
-import { money, imageSrc } from "@/lib/format";
+import { money, imageSrc, priceLabel, priceRange } from "@/lib/format";
 import AddToBag from "@/components/AddToBag";
 import ProductGallery from "@/components/ProductGallery";
 import Accordion from "@/components/Accordion";
@@ -61,6 +61,7 @@ export default async function ProductPage({ params }: Params) {
   const sizeChartUrl = sizeChartFor(product.category, siteImages);
 
   const stock = product.variants?.length ? product.total_stock : product.stock;
+  const { min: minPrice, max: maxPrice } = priceRange(product);
 
   // Structured data for rich results + AI answer engines: Product (price,
   // availability, brand) and the breadcrumb trail. No AggregateRating —
@@ -77,16 +78,29 @@ export default async function ProductPage({ params }: Params) {
     url,
     brand: { "@type": "Brand", name: SITE_NAME },
     category: product.category || undefined,
-    offers: {
-      "@type": "Offer",
-      url,
-      priceCurrency: "THB",
-      price: product.price,
-      availability:
-        stock > 0 ? "https://schema.org/InStock" : "https://schema.org/OutOfStock",
-      itemCondition: "https://schema.org/NewCondition",
-      seller: { "@type": "Organization", name: SITE_NAME },
-    },
+    // Variants with their own prices are advertised as a price range.
+    offers:
+      minPrice === maxPrice
+        ? {
+            "@type": "Offer",
+            url,
+            priceCurrency: "THB",
+            price: product.price,
+            availability:
+              stock > 0 ? "https://schema.org/InStock" : "https://schema.org/OutOfStock",
+            itemCondition: "https://schema.org/NewCondition",
+            seller: { "@type": "Organization", name: SITE_NAME },
+          }
+        : {
+            "@type": "AggregateOffer",
+            url,
+            priceCurrency: "THB",
+            lowPrice: minPrice,
+            highPrice: maxPrice,
+            offerCount: product.variants?.length ?? 1,
+            availability:
+              stock > 0 ? "https://schema.org/InStock" : "https://schema.org/OutOfStock",
+          },
   };
   const crumbs = [
     { name: "Home", item: absoluteUrl("/") },
@@ -136,7 +150,7 @@ export default async function ProductPage({ params }: Params) {
             {product.sku ? `${product.sku} — ` : ""}Bruno Collective · Made in Thailand
           </div>
           <div className={styles.priceRow}>
-            <div className={styles.price}>{money(product.price)}</div>
+            <div className={styles.price}>{priceLabel(product)}</div>
             <Rating value={product.rating} count={product.rating_count} size="md" />
           </div>
           <div className={styles.tax}>ราคารวมทุกอย่างแล้ว — ไม่มีบวกเพิ่มหน้างาน</div>

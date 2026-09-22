@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import ProductCard from "@/components/ProductCard";
 import type { Product } from "@/lib/types";
+import { priceRange } from "@/lib/format";
 import styles from "./shop.module.css";
 
 // THB price buckets for the filter sidebar.
@@ -129,7 +130,8 @@ export default function ShopClient({
       if (prices.length) {
         const inBucket = prices.some((i) => {
           const b = PRICE_BUCKETS[i];
-          return p.price >= b.min && p.price <= b.max;
+          const { min, max } = priceRange(p);
+          return max >= b.min && min <= b.max;
         });
         if (!inBucket) return false;
       }

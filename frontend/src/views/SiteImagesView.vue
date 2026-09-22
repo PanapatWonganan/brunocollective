@@ -152,6 +152,8 @@ const groups = [
         capALabel: 'Caption A (unused)', capBLabel: 'Caption B (unused)' },
       { key: 'size_chart_shoes', label: 'ตารางไซส์รองเท้า', hint: 'Shown instead of the shirt chart when the product category is รองเท้า. Leave empty to hide.',
         capALabel: 'Caption A (unused)', capBLabel: 'Caption B (unused)' },
+      { key: 'size_chart_rings', label: 'ตารางไซส์แหวน', hint: 'Shown instead of the shirt chart when the product category is แหวน / เครื่องประดับ / จิวเวอรี่ (or contains "ring"). Leave empty to hide.',
+        capALabel: 'Caption A (unused)', capBLabel: 'Caption B (unused)' },
     ],
   },
 ]

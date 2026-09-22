@@ -5,6 +5,9 @@ export interface ProductVariant {
   color: string;
   sku: string;
   stock: number;
+  // Per-variant price override (e.g. a gold colourway costing more than
+  // silver); 0 = same as the product price. Use unitPrice() from lib/format.
+  price: number;
 }
 
 export interface Product {

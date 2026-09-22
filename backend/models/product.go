@@ -103,6 +103,23 @@ type Product struct {
 	UpdatedAt time.Time `json:"updated_at"`
 }
 
+// PriceRange returns the lowest and highest selling price across the
+// product's variants (variants without their own price inherit Price). Both
+// equal Price for variant-less products or when no variant overrides it.
+func (p *Product) PriceRange() (min, max float64) {
+	min, max = p.Price, p.Price
+	for _, v := range p.Variants {
+		u := v.UnitPrice(p.Price)
+		if u < min {
+			min = u
+		}
+		if u > max {
+			max = u
+		}
+	}
+	return min, max
+}
+
 // ComputeTotalStock sets TotalStock from variants, falling back to the legacy
 // Stock field when the product has no variants. Call after loading a product.
 func (p *Product) ComputeTotalStock() {

@@ -40,16 +40,29 @@ export interface SiteImage {
 }
 
 // Pick the inline size chart for a product by its category: รองเท้า (shoes)
-// gets its own chart, every other sized category uses the shirt chart.
-// Returns "" when the matching chart hasn't been uploaded (chart hidden).
+// and แหวน/เครื่องประดับ (rings, jewellery) get their own charts, every other
+// sized category uses the shirt chart. Returns "" when the matching chart
+// hasn't been uploaded (chart hidden).
+export function sizeChartKey(category: string | undefined): string {
+  const cat = (category || "").toLowerCase();
+  if (cat.includes("รองเท้า") || cat.includes("shoe")) return "size_chart_shoes";
+  if (
+    cat.includes("แหวน") ||
+    cat.includes("เครื่องประดับ") ||
+    cat.includes("จิวเวอ") ||
+    cat.includes("ring") ||
+    cat.includes("jewel")
+  ) {
+    return "size_chart_rings";
+  }
+  return "size_chart";
+}
+
 export function sizeChartFor(
   category: string | undefined,
   site: Record<string, SiteImage>
 ): string {
-  const cat = (category || "").toLowerCase();
-  const isShoes = cat.includes("รองเท้า") || cat.includes("shoe");
-  const key = isShoes ? "size_chart_shoes" : "size_chart";
-  return site[key]?.image_url || "";
+  return site[sizeChartKey(category)]?.image_url || "";
 }
 
 // Editable storefront images keyed by slot (hero, lookbook_1…6, journal_1…3).

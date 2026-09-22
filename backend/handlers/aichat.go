@@ -43,6 +43,9 @@ func buildAIShopContext() string {
 				if label == "" {
 					label = "One size"
 				}
+				if v.Price > 0 && v.Price != p.Price {
+					label += fmt.Sprintf(" ฿%.0f", v.Price)
+				}
 				if v.Stock > 0 {
 					parts = append(parts, fmt.Sprintf("%s เหลือ %d", label, v.Stock))
 				} else {

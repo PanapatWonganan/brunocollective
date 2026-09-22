@@ -28,6 +28,11 @@
   border:1px solid var(--hairline);
 }
 
+/* Exact price of the chosen variant (shown only when variants differ) */
+.selPrice{margin:0 0 18px}
+.selPrice .optLabel{margin-bottom:6px}
+.selPrice strong{font-size:17px; letter-spacing:.1em; font-weight:500; color:var(--ink)}
+
 .row{display:flex; gap:16px; align-items:stretch}
 .stepper{display:flex; align-items:center; gap:18px; border:1px solid var(--hairline); padding:0 18px}
 .stepper button{font-size:18px; color:var(--ink); line-height:1}

@@ -9,6 +9,7 @@ import {
   type ReactNode,
 } from "react";
 import type { CartLine, Product, ProductVariant } from "./types";
+import { unitPrice } from "./format";
 import { fbqTrack } from "./fbq";
 
 const STORAGE_KEY = "bc_cart";
@@ -90,7 +91,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
       content_ids: [String(product.id)],
       content_name: product.name,
       content_type: "product",
-      value: product.price * quantity,
+      value: unitPrice(product, variant) * quantity,
       currency: "THB",
     });
   }
@@ -127,7 +128,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
   const value = useMemo<CartContextValue>(() => {
     const count = lines.reduce((n, l) => n + l.quantity, 0);
-    const total = lines.reduce((n, l) => n + l.quantity * l.product.price, 0);
+    const total = lines.reduce((n, l) => n + l.quantity * unitPrice(l.product, l.variant), 0);
     return { lines, count, total, add, setQuantity, remove, clear, open, setOpen };
   }, [lines, open]);
 

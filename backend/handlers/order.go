@@ -295,7 +295,8 @@ func fileRename(oldPath, newPath string) error {
 // inside the caller's transaction so a later failure rolls back the deduction.
 // Shared by the admin order handler, the public storefront checkout, and sale
 // pages. priceOverride replaces the catalog price (sale-page offer/bump
-// pricing) — pass nil to sell at the product's normal price.
+// pricing) — pass nil to sell at the product's normal price, which is the
+// variant's own price when it has one (per-colour pricing), else Product.Price.
 func buildOrderItem(tx *gorm.DB, item models.CreateOrderItem, priceOverride *float64) (models.OrderItem, float64, error) {
 	if item.Quantity <= 0 {
 		return models.OrderItem{}, 0, fiber.NewError(fiber.StatusBadRequest, "quantity must be positive")
@@ -331,6 +332,10 @@ func buildOrderItem(tx *gorm.DB, item models.CreateOrderItem, priceOverride *flo
 		orderItem.VariantID = item.VariantID
 		orderItem.Size = variant.Size
 		orderItem.Color = variant.Color
+		if priceOverride == nil {
+			price = variant.UnitPrice(product.Price)
+			orderItem.Price = price
+		}
 	} else {
 		// Legacy / variant-less product: deduct the product-level stock.
 		if product.Stock < item.Quantity {

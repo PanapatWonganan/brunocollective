@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useCart, lineKey } from "@/lib/cart";
 import { useMember } from "@/lib/member";
-import { money, imageSrc } from "@/lib/format";
+import { money, imageSrc, unitPrice } from "@/lib/format";
 import styles from "./BagDrawer.module.css";
 
 export default function BagDrawer() {
@@ -72,7 +72,7 @@ export default function BagDrawer() {
                       {variantLabel && (
                         <div className={styles.lineMeta}>{variantLabel}</div>
                       )}
-                      <div className={styles.lineMeta}>{money(l.product.price)}</div>
+                      <div className={styles.lineMeta}>{money(unitPrice(l.product, l.variant))}</div>
                       <div className={styles.qtyRow}>
                         <div className={styles.stepper}>
                           <button

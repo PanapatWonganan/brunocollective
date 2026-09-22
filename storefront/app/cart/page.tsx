@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useCart, lineKey } from "@/lib/cart";
-import { money, imageSrc } from "@/lib/format";
+import { money, imageSrc, unitPrice } from "@/lib/format";
 import { productPath } from "@/lib/paths";
 import styles from "./cart.module.css";
 
@@ -48,7 +48,7 @@ export default function CartPage() {
                       {l.product.name}
                     </Link>
                     {variantLabel && <div className={styles.unit}>{variantLabel}</div>}
-                    <div className={styles.unit}>{money(l.product.price)}</div>
+                    <div className={styles.unit}>{money(unitPrice(l.product, l.variant))}</div>
                     <div className={styles.controls}>
                       <div className={styles.stepper}>
                         <button onClick={() => setQuantity(key, l.quantity - 1)} aria-label="Decrease">−</button>
@@ -66,7 +66,7 @@ export default function CartPage() {
                       </button>
                     </div>
                   </div>
-                  <div className={styles.lineTotal}>{money(l.product.price * l.quantity)}</div>
+                  <div className={styles.lineTotal}>{money(unitPrice(l.product, l.variant) * l.quantity)}</div>
                 </div>
               );
             })}
