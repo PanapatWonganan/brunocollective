@@ -43,30 +43,47 @@ type Config struct {
 	TryOnModel            string
 	TryOnDailyLimit       int
 	TryOnMemberDailyLimit int
+	// Live (webcam) try-on via Decart's realtime lucy-vton model. Empty key
+	// = hidden. Billed per streamed second (~$0.02/s), so sessions are
+	// capped: seconds per session and sessions per day, guest vs member.
+	DecartAPIKey            string
+	LiveTryOnModel          string
+	LiveTryOnSessionSeconds int
+	LiveTryOnMemberSeconds  int
+	LiveTryOnDailySessions  int
+	LiveTryOnMemberSessions int
+	LiveTryOnAllowedOrigins string // comma-separated web origins the token may be used from
 }
 
 func Load() *Config {
 	return &Config{
-		Port:                   getEnv("PORT", "8080"),
-		DBPath:                 getEnv("DB_PATH", "inventory.db"),
-		JWTSecret:              getEnv("JWT_SECRET", "change-me-in-production"),
-		UploadDir:              getEnv("UPLOAD_DIR", "./uploads"),
-		TelegramBotToken:       getEnv("TELEGRAM_BOT_TOKEN", ""),
-		TelegramChatID:         getEnv("TELEGRAM_CHAT_ID", ""),
-		BaseURL:                getEnv("BASE_URL", "http://localhost:8080"),
-		LineChannelSecret:      getEnv("LINE_CHANNEL_SECRET", ""),
-		LineChannelToken:       getEnv("LINE_CHANNEL_ACCESS_TOKEN", ""),
-		MetaAppSecret:          getEnv("META_APP_SECRET", ""),
-		MetaVerifyToken:        getEnv("META_VERIFY_TOKEN", ""),
-		MetaPageToken:          getEnv("META_PAGE_ACCESS_TOKEN", ""),
-		ChatSLAMinutes:         getEnvInt("CHAT_SLA_MINUTES", 10),
-		ChatWaitingExpireHours: getEnvInt("CHAT_WAITING_EXPIRE_HOURS", 12),
-		AnthropicAPIKey:        getEnv("ANTHROPIC_API_KEY", ""),
-		AIModel:                getEnv("AI_MODEL", "claude-opus-5"),
-		GeminiAPIKey:           getEnv("GEMINI_API_KEY", ""),
-		TryOnModel:             getEnv("TRYON_MODEL", "gemini-3.1-flash-image"),
-		TryOnDailyLimit:        getEnvInt("TRYON_DAILY_LIMIT", 5),
-		TryOnMemberDailyLimit:  getEnvInt("TRYON_MEMBER_DAILY_LIMIT", 20),
+		Port:                    getEnv("PORT", "8080"),
+		DBPath:                  getEnv("DB_PATH", "inventory.db"),
+		JWTSecret:               getEnv("JWT_SECRET", "change-me-in-production"),
+		UploadDir:               getEnv("UPLOAD_DIR", "./uploads"),
+		TelegramBotToken:        getEnv("TELEGRAM_BOT_TOKEN", ""),
+		TelegramChatID:          getEnv("TELEGRAM_CHAT_ID", ""),
+		BaseURL:                 getEnv("BASE_URL", "http://localhost:8080"),
+		LineChannelSecret:       getEnv("LINE_CHANNEL_SECRET", ""),
+		LineChannelToken:        getEnv("LINE_CHANNEL_ACCESS_TOKEN", ""),
+		MetaAppSecret:           getEnv("META_APP_SECRET", ""),
+		MetaVerifyToken:         getEnv("META_VERIFY_TOKEN", ""),
+		MetaPageToken:           getEnv("META_PAGE_ACCESS_TOKEN", ""),
+		ChatSLAMinutes:          getEnvInt("CHAT_SLA_MINUTES", 10),
+		ChatWaitingExpireHours:  getEnvInt("CHAT_WAITING_EXPIRE_HOURS", 12),
+		AnthropicAPIKey:         getEnv("ANTHROPIC_API_KEY", ""),
+		AIModel:                 getEnv("AI_MODEL", "claude-opus-5"),
+		GeminiAPIKey:            getEnv("GEMINI_API_KEY", ""),
+		TryOnModel:              getEnv("TRYON_MODEL", "gemini-3.1-flash-image"),
+		TryOnDailyLimit:         getEnvInt("TRYON_DAILY_LIMIT", 5),
+		TryOnMemberDailyLimit:   getEnvInt("TRYON_MEMBER_DAILY_LIMIT", 20),
+		DecartAPIKey:            getEnv("DECART_API_KEY", ""),
+		LiveTryOnModel:          getEnv("LIVE_TRYON_MODEL", "lucy-vton-latest"),
+		LiveTryOnSessionSeconds: getEnvInt("LIVE_TRYON_SESSION_SECONDS", 45),
+		LiveTryOnMemberSeconds:  getEnvInt("LIVE_TRYON_MEMBER_SECONDS", 120),
+		LiveTryOnDailySessions:  getEnvInt("LIVE_TRYON_DAILY_SESSIONS", 3),
+		LiveTryOnMemberSessions: getEnvInt("LIVE_TRYON_MEMBER_SESSIONS", 10),
+		LiveTryOnAllowedOrigins: getEnv("LIVE_TRYON_ALLOWED_ORIGINS", ""),
 	}
 }
 

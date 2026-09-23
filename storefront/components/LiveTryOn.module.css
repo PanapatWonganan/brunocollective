@@ -1,0 +1,49 @@
+/* Shares the photo try-on's look; only the video stage is new. */
+.trigger{composes: trigger from "./TryOn.module.css"; margin-top:10px}
+.triggerIcon{composes: triggerIcon from "./TryOn.module.css"; color:#B4413C}
+.scrim{composes: scrim from "./TryOn.module.css"}
+.dialog{composes: dialog from "./TryOn.module.css"}
+.head{composes: head from "./TryOn.module.css"}
+.kicker{composes: kicker from "./TryOn.module.css"}
+.title{composes: title from "./TryOn.module.css"}
+.close{composes: close from "./TryOn.module.css"}
+.body{composes: body from "./TryOn.module.css"}
+.thumbs{composes: thumbs from "./TryOn.module.css"; margin-top:12px}
+.thumb{composes: thumb from "./TryOn.module.css"}
+.thumbOn{composes: thumbOn from "./TryOn.module.css"}
+.spinner{composes: spinner from "./TryOn.module.css"; border-color:rgba(255,255,255,.35); border-top-color:#fff}
+.error{composes: error from "./TryOn.module.css"}
+.fine{composes: fine from "./TryOn.module.css"; margin-top:12px}
+.foot{composes: foot from "./TryOn.module.css"}
+.quota{composes: quota from "./TryOn.module.css"}
+.privacy{composes: privacy from "./TryOn.module.css"}
+.actions{composes: actions from "./TryOn.module.css"}
+.primary{composes: primary from "./TryOn.module.css"}
+.ghost{composes: ghost from "./TryOn.module.css"}
+
+.note{margin:10px 0 0; font-size:12.5px; color:var(--champagne)}
+
+/* Video stage: 16:9 on desktop, taller on phones (front camera is portrait-ish) */
+.stage{
+  position:relative; width:100%; aspect-ratio:16/9; background:#0f1524;
+  border:1px solid var(--hairline); overflow:hidden;
+}
+@media (max-width:640px){ .stage{aspect-ratio:4/5} }
+.localVideo,.outVideo{
+  position:absolute; inset:0; width:100%; height:100%; object-fit:cover; display:block;
+}
+.localVideo{transform:scaleX(-1); opacity:.55}
+.outVideo{opacity:0; transition:opacity .4s var(--ease)}
+.outVideoOn{opacity:1}
+.overlay{
+  position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center;
+  gap:12px; padding:24px; text-align:center; color:#fff; background:rgba(15,21,36,.45);
+}
+.overlay p{margin:0; font-size:13px; line-height:1.7; text-shadow:0 1px 2px rgba(0,0,0,.4)}
+.hud{
+  position:absolute; top:12px; left:12px; display:flex; align-items:center; gap:8px;
+  padding:6px 10px; background:rgba(15,21,36,.7); color:#fff;
+  font-size:10.5px; letter-spacing:.2em; text-transform:uppercase; font-weight:500;
+}
+.liveDot{width:8px; height:8px; border-radius:50%; background:#e34948; animation:blink 1.2s infinite}
+@keyframes blink{50%{opacity:.3}}

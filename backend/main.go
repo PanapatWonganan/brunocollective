@@ -106,6 +106,12 @@ func main() {
 	app.Post("/api/shop/try-on", tryOnHandler.Generate)
 	app.Get("/api/shop/try-on/jobs/:id", tryOnHandler.Job)
 
+	// Live webcam try-on (Decart realtime) — the browser streams to Decart
+	// directly; we only mint capped client tokens. Hidden without DECART_API_KEY.
+	liveTryOnHandler := handlers.NewLiveTryOnHandler(cfg, services.NewDecartClient(cfg))
+	app.Get("/api/shop/live-tryon", liveTryOnHandler.Status)
+	app.Post("/api/shop/live-tryon/token", liveTryOnHandler.Token)
+
 	// AI chat assistant (Claude) — answers inbox questions from live stock
 	// when no keyword rule matches. Disabled without ANTHROPIC_API_KEY.
 	aiClient := services.NewAIClient(cfg)

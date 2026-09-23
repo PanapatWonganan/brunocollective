@@ -664,3 +664,54 @@ export async function generateTryOn(
   }
   return { ok: false, error: "ใช้เวลานานผิดปกติ กรุณาลองใหม่อีกครั้ง" };
 }
+
+// ── Live webcam try-on (ลองใส่สด, Decart realtime) ─────────────────────────
+
+export interface LiveTryOnStatus {
+  enabled: boolean;
+  remaining?: number;
+  limit?: number;
+  session_seconds?: number;
+  member?: boolean;
+  model?: string;
+}
+
+export async function getLiveTryOnStatus(): Promise<LiveTryOnStatus> {
+  try {
+    const token = getMemberToken();
+    const res = await fetch("/api/shop/live-tryon", {
+      cache: "no-store",
+      headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+    });
+    if (!res.ok) return { enabled: false };
+    return res.json();
+  } catch {
+    return { enabled: false };
+  }
+}
+
+export interface LiveTryOnToken {
+  ok: boolean;
+  api_key?: string;
+  model?: string;
+  session_seconds?: number;
+  remaining?: number;
+  error?: string;
+}
+
+// One session = one short-lived Decart client token, counted against the
+// caller's daily budget server-side.
+export async function createLiveTryOnToken(): Promise<LiveTryOnToken> {
+  const token = getMemberToken();
+  try {
+    const res = await fetch("/api/shop/live-tryon/token", {
+      method: "POST",
+      headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) return { ok: false, error: data.error || "ระบบลองใส่สดขัดข้อง กรุณาลองใหม่", remaining: data.remaining };
+    return { ok: true, ...data };
+  } catch {
+    return { ok: false, error: "เชื่อมต่อไม่ได้ กรุณาลองใหม่" };
+  }
+}
