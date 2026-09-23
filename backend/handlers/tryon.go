@@ -165,11 +165,17 @@ func (h *TryOnHandler) Status(c *fiber.Ctx) error {
 		return c.JSON(fiber.Map{"enabled": false})
 	}
 	key, limit := h.quotaKey(c)
+	member := strings.HasPrefix(key, "member:")
+	remaining := h.remaining(key, limit)
+	if h.Config.TryOnMembersOnly && !member {
+		remaining = 0
+	}
 	return c.JSON(fiber.Map{
-		"enabled":   true,
-		"remaining": h.remaining(key, limit),
-		"limit":     limit,
-		"member":    strings.HasPrefix(key, "member:"),
+		"enabled":      true,
+		"members_only": h.Config.TryOnMembersOnly,
+		"remaining":    remaining,
+		"limit":        limit,
+		"member":       member,
 	})
 }
 
@@ -179,6 +185,9 @@ func (h *TryOnHandler) Status(c *fiber.Ctx) error {
 func (h *TryOnHandler) Generate(c *fiber.Ctx) error {
 	if !h.enabled() {
 		return c.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{"error": "ฟีเจอร์ลองใส่ยังไม่เปิดใช้งาน"})
+	}
+	if h.Config.TryOnMembersOnly && middleware.OptionalMemberID(c, h.Config) == 0 {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "ลองใส่สำหรับสมาชิกเท่านั้น — สมัครสมาชิกฟรีแล้วลองได้เลย", "members_only": true})
 	}
 
 	productID, _ := strconv.Atoi(c.FormValue("product_id"))

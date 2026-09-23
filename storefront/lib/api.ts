@@ -592,6 +592,7 @@ export async function affiliateChangePassword(
 
 export interface TryOnStatus {
   enabled: boolean;
+  members_only?: boolean;
   remaining?: number;
   limit?: number;
   member?: boolean;

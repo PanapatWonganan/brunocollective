@@ -40,6 +40,7 @@ type Config struct {
 	// the storefront. Limits are generations per day: per IP for guests, per
 	// customer for logged-in members. Each generation is billed by Google.
 	GeminiAPIKey          string
+	TryOnMembersOnly      bool // guests see the button but must sign up first
 	TryOnModel            string
 	TryOnDailyLimit       int
 	TryOnMemberDailyLimit int
@@ -75,6 +76,7 @@ func Load() *Config {
 		AnthropicAPIKey:         getEnv("ANTHROPIC_API_KEY", ""),
 		AIModel:                 getEnv("AI_MODEL", "claude-opus-5"),
 		GeminiAPIKey:            getEnv("GEMINI_API_KEY", ""),
+		TryOnMembersOnly:        getEnv("TRYON_MEMBERS_ONLY", "true") != "false",
 		TryOnModel:              getEnv("TRYON_MODEL", "gemini-3.1-flash-image"),
 		TryOnDailyLimit:         getEnvInt("TRYON_DAILY_LIMIT", 5),
 		TryOnMemberDailyLimit:   getEnvInt("TRYON_MEMBER_DAILY_LIMIT", 20),

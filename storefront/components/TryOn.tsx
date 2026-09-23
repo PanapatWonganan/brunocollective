@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { generateTryOn, getTryOnStatus, type TryOnStatus } from "@/lib/api";
 import { imageSrc } from "@/lib/format";
 import type { Product } from "@/lib/types";
@@ -69,6 +70,8 @@ export default function TryOn({ product }: { product: Product }) {
   const [error, setError] = useState<string | null>(null);
   const [elapsed, setElapsed] = useState(0);
   const fileInput = useRef<HTMLInputElement>(null);
+  const pathname = usePathname();
+  const memberHref = `/member?next=${encodeURIComponent(pathname || "/")}`;
 
   // Product images the shopper can try (first = primary).
   const gallery = Array.from(
@@ -102,6 +105,7 @@ export default function TryOn({ product }: { product: Product }) {
 
   const remaining = status.remaining ?? 0;
   const exhausted = remaining <= 0;
+  const needsMember = !!status.members_only && !status.member;
 
   async function onPick(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -148,7 +152,10 @@ export default function TryOn({ product }: { product: Product }) {
         <span className={styles.triggerIcon} aria-hidden>✦</span>
         <span>
           <strong>ลองใส่ดูก่อน — Virtual Try-On</strong>
-          <small>อัปโหลดรูปตัวเอง แล้วดูว่าใส่ชิ้นนี้เป็นยังไง (ใช้เวลาประมาณ 1 นาที)</small>
+          <small>
+            อัปโหลดรูปตัวเอง แล้วดูว่าใส่ชิ้นนี้เป็นยังไง (ใช้เวลาประมาณ 1 นาที
+            {needsMember ? " · สำหรับสมาชิก" : ""})
+          </small>
         </span>
         <span className="arrow">→</span>
       </button>
@@ -256,14 +263,10 @@ export default function TryOn({ product }: { product: Product }) {
 
             <div className={styles.foot}>
               <div className={styles.quota}>
-                {exhausted ? (
-                  status.member ? (
-                    "วันนี้ครบจำนวนแล้ว พรุ่งนี้ลองใหม่ได้"
-                  ) : (
-                    <>
-                      วันนี้ครบจำนวนแล้ว — <Link href="/member">สมัครสมาชิก</Link> เพื่อลองได้มากขึ้น
-                    </>
-                  )
+                {needsMember ? (
+                  "ลองใส่เปิดให้สมาชิกเท่านั้น — สมัครฟรี ได้ส่วนลด 5% ทุกออเดอร์ด้วย"
+                ) : exhausted ? (
+                  "วันนี้ครบจำนวนแล้ว พรุ่งนี้ลองใหม่ได้"
                 ) : (
                   `ลองได้อีก ${remaining} ครั้งวันนี้`
                 )}
@@ -278,6 +281,10 @@ export default function TryOn({ product }: { product: Product }) {
                     บันทึกรูป
                   </a>
                 </div>
+              ) : needsMember ? (
+                <Link href={memberHref} className={styles.primary}>
+                  สมัคร / เข้าสู่ระบบสมาชิก <span className="arrow">→</span>
+                </Link>
               ) : (
                 <button
                   type="button"
