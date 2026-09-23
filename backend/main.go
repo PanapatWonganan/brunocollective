@@ -105,6 +105,8 @@ func main() {
 	app.Get("/api/shop/try-on", tryOnHandler.Status)
 	app.Post("/api/shop/try-on", tryOnHandler.Generate)
 	app.Get("/api/shop/try-on/jobs/:id", tryOnHandler.Job)
+	app.Get("/api/shop/products/:id/garment", tryOnHandler.Garment)
+	go tryOnHandler.WarmGarments()
 
 	// Live webcam try-on (Decart realtime) — the browser streams to Decart
 	// directly; we only mint capped client tokens. Hidden without DECART_API_KEY.

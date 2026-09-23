@@ -3,6 +3,7 @@ package handlers
 import (
 	"context"
 	"crypto/rand"
+	"crypto/sha1"
 	"encoding/base64"
 	"encoding/hex"
 	"errors"
@@ -42,6 +43,8 @@ type TryOnHandler struct {
 
 	jobsMu sync.Mutex
 	jobs   map[string]*tryOnJob
+
+	cutoutMu sync.Mutex // serialises garment cutout generation
 }
 
 // tryOnJob is one in-flight or finished generation. Generation takes
@@ -213,23 +216,8 @@ func (h *TryOnHandler) Generate(c *fiber.Ctx) error {
 
 	// Garment image: the requested gallery image when it belongs to this
 	// product, else the primary image.
-	garmentURL := product.ImageURL
-	if want := strings.TrimSpace(c.FormValue("image")); want != "" {
-		if want == product.ImageURL {
-			garmentURL = want
-		} else {
-			for _, u := range product.Images {
-				if u == want {
-					garmentURL = want
-					break
-				}
-			}
-		}
-	}
-	if garmentURL == "" && len(product.Images) > 0 {
-		garmentURL = product.Images[0]
-	}
-	garment, garmentMime, err := h.loadProductImage(garmentURL)
+	garmentURL := pickGarmentURL(&product, c.FormValue("image"))
+	garment, garmentMime, err := h.garmentImage(context.Background(), &product, garmentURL)
 	if err != nil {
 		log.Printf("try-on: product %d image %q: %v", product.ID, garmentURL, err)
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "สินค้านี้ยังไม่มีรูปสำหรับลองใส่"})
@@ -322,6 +310,132 @@ func (h *TryOnHandler) sweepJobsLocked() {
 		if (j.Status != "pending" && now.Sub(j.Done) > tryOnJobTTL) || now.Sub(j.Created) > 3*tryOnJobTTL {
 			delete(h.jobs, id)
 		}
+	}
+}
+
+// pickGarmentURL returns the requested gallery image when it belongs to the
+// product, else the primary image.
+func pickGarmentURL(product *models.Product, want string) string {
+	want = strings.TrimSpace(want)
+	if want != "" {
+		if want == product.ImageURL {
+			return want
+		}
+		for _, u := range product.Images {
+			if u == want {
+				return want
+			}
+		}
+	}
+	if product.ImageURL != "" {
+		return product.ImageURL
+	}
+	if len(product.Images) > 0 {
+		return product.Images[0]
+	}
+	return ""
+}
+
+// garmentCachePath is where the clean cutout of a product image lives.
+func (h *TryOnHandler) garmentCachePath(url string) string {
+	sum := sha1.Sum([]byte(url))
+	return filepath.Join(h.Config.UploadDir, "tryon_garment_"+hex.EncodeToString(sum[:8])+".jpg")
+}
+
+// garmentImage returns the clean "item only" reference for a product image:
+// the cached cutout when present, else it generates one (once per image),
+// falling back to the raw product photo if generation fails.
+func (h *TryOnHandler) garmentImage(ctx context.Context, product *models.Product, url string) ([]byte, string, error) {
+	if url == "" {
+		return nil, "", errors.New("no image")
+	}
+	cache := h.garmentCachePath(url)
+	if data, err := os.ReadFile(cache); err == nil && len(data) > 0 {
+		return data, "image/jpeg", nil
+	}
+	raw, mime, err := h.loadProductImage(url)
+	if err != nil {
+		return nil, "", err
+	}
+	h.cutoutMu.Lock() // one cutout at a time (cost + rate limits)
+	defer h.cutoutMu.Unlock()
+	if data, err := os.ReadFile(cache); err == nil && len(data) > 0 {
+		return data, "image/jpeg", nil // generated while we waited
+	}
+	cctx, cancel := context.WithTimeout(ctx, 150*time.Second)
+	defer cancel()
+	started := time.Now()
+	res, err := h.Client.Cutout(cctx, raw, mime, product.Name, product.Category)
+	if err != nil {
+		log.Printf("try-on: cutout for %q failed after %s (using raw photo): %v", url, time.Since(started).Round(time.Millisecond), err)
+		return raw, mime, nil
+	}
+	jpg, err := services.NormalizeJPEG(res.Data, tryOnPhotoMaxDim)
+	if err != nil {
+		return raw, mime, nil
+	}
+	if err := os.WriteFile(cache, jpg, 0o644); err != nil {
+		log.Printf("try-on: cutout cache write: %v", err)
+	}
+	log.Printf("try-on: cutout for product %d %q in %s", product.ID, url, time.Since(started).Round(time.Millisecond))
+	return jpg, "image/jpeg", nil
+}
+
+// Garment — GET /api/shop/products/:id/garment?image=: the clean cutout of a
+// product image (generated on first request). Used by the live try-on as
+// the reference image Decart sees.
+func (h *TryOnHandler) Garment(c *fiber.Ctx) error {
+	id, _ := strconv.Atoi(c.Params("id"))
+	var product models.Product
+	if err := database.DB.First(&product, id).Error; err != nil {
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "ไม่พบสินค้า"})
+	}
+	url := pickGarmentURL(&product, c.Query("image"))
+	var data []byte
+	var mime string
+	var err error
+	if h.enabled() {
+		data, mime, err = h.garmentImage(context.Background(), &product, url)
+	} else {
+		data, mime, err = h.loadProductImage(url)
+	}
+	if err != nil {
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "สินค้านี้ยังไม่มีรูป"})
+	}
+	c.Set("Content-Type", mime)
+	c.Set("Cache-Control", "public, max-age=3600")
+	return c.Send(data)
+}
+
+// WarmGarments pre-generates cutouts for every product image in the
+// background (one at a time, cached on disk, so it only costs on first run
+// per image) so shoppers never wait for the extra step.
+func (h *TryOnHandler) WarmGarments() {
+	if !h.enabled() {
+		return
+	}
+	var products []models.Product
+	database.DB.Order("display_order ASC, id ASC").Find(&products)
+	n := 0
+	for i := range products {
+		p := &products[i]
+		urls := append([]string{}, p.ImageURL)
+		urls = append(urls, p.Images...)
+		for _, u := range urls {
+			if u == "" {
+				continue
+			}
+			if _, err := os.Stat(h.garmentCachePath(u)); err == nil {
+				continue
+			}
+			if _, _, err := h.garmentImage(context.Background(), p, u); err == nil {
+				n++
+			}
+			time.Sleep(2 * time.Second)
+		}
+	}
+	if n > 0 {
+		log.Printf("try-on: warmed %d garment cutouts", n)
 	}
 }
 

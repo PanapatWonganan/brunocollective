@@ -73,10 +73,11 @@ func tryOnPrompt(productName, category string) string {
 		placement = "Image 2 is a garment. Replace only the clothing the garment would cover; keep other clothing (e.g. trousers under a shirt) unless the garment replaces it."
 	}
 	return "Virtual try-on for the clothing brand Bruno Collective. " +
-		"Image 1 is a photo of a customer. Image 2 is the product photo of \"" + productName + "\". " +
+		"Image 1 (labelled CUSTOMER) is the shopper — this person is the ONLY person allowed in the output. " +
+		"Image 2 (labelled PRODUCT) shows the item \"" + productName + "\" for sale; if a model or mannequin appears in image 2, ignore that person completely — take only the item itself. " +
 		placement + " " +
-		"Generate one photorealistic image of the SAME person from image 1 wearing the product from image 2. " +
-		"Keep the person's face, skin tone, body shape, hair, pose, background and lighting exactly as in image 1. " +
+		"Generate one photorealistic image of the CUSTOMER from image 1 wearing the PRODUCT from image 2. " +
+		"Keep the customer's face, skin tone, body shape, hair, pose, background and lighting exactly as in image 1; never output the model or background from image 2. " +
 		"Reproduce the product's colour, material, print, shape and fit faithfully — do not invent logos, text or design details. " +
 		"Do not add any text, watermark or extra people. Output only the final image."
 }
@@ -124,12 +125,57 @@ func (t *TryOnClient) Generate(ctx context.Context, person []byte, personMime st
 		Parts []geminiPart `json:"parts"`
 	}, 1)
 	req.Contents[0].Parts = []geminiPart{
+		{Text: "Image 1 — CUSTOMER (keep this person, their pose and background):"},
 		{InlineData: &geminiInlineData{MimeType: personMime, Data: base64.StdEncoding.EncodeToString(person)}},
+		{Text: "Image 2 — PRODUCT (take only the item; ignore any person shown):"},
 		{InlineData: &geminiInlineData{MimeType: garmentMime, Data: base64.StdEncoding.EncodeToString(garment)}},
 		{Text: tryOnPrompt(productName, category)},
 	}
 	req.GenerationConfig.ResponseModalities = []string{"IMAGE"}
 
+	return t.run(ctx, req)
+}
+
+// Cutout turns a product photo into a clean catalogue image of the item
+// alone (flat / ghost-mannequin on white, no model) — the ideal reference
+// for both the photo try-on and Decart's live try-on. Product photos that
+// show a model wearing the piece otherwise confuse the try-on model about
+// which person to dress.
+func (t *TryOnClient) Cutout(ctx context.Context, product []byte, productMime, productName, category string) (*TryOnResult, error) {
+	if !t.Enabled() {
+		return nil, errors.New("try-on disabled")
+	}
+	cat := strings.ToLower(category)
+	item := "garment"
+	switch {
+	case strings.Contains(cat, "แหวน") || strings.Contains(cat, "ring"):
+		item = "ring"
+	case strings.Contains(cat, "เครื่องประดับ") || strings.Contains(cat, "jewel") || strings.Contains(cat, "สร้อย"):
+		item = "piece of jewellery"
+	case strings.Contains(cat, "รองเท้า") || strings.Contains(cat, "shoe"):
+		item = "pair of shoes"
+	case strings.Contains(cat, "กระเป๋า") || strings.Contains(cat, "bag"):
+		item = "bag"
+	}
+	prompt := "Product photo of \"" + productName + "\". Output a clean e-commerce catalogue image of ONLY the " + item + " from this photo: " +
+		"the item alone, front view, laid flat or ghost-mannequin style, centred on a plain white background. " +
+		"No person, no body parts, no hands, no hanger, no props, no text. " +
+		"Preserve the exact colour, fabric texture, print, logo placement, neckline, sleeve length and proportions. " +
+		"If several colour variants are shown, output only the single most prominent one. Output only the image."
+	var req geminiRequest
+	req.Contents = make([]struct {
+		Parts []geminiPart `json:"parts"`
+	}, 1)
+	req.Contents[0].Parts = []geminiPart{
+		{InlineData: &geminiInlineData{MimeType: productMime, Data: base64.StdEncoding.EncodeToString(product)}},
+		{Text: prompt},
+	}
+	req.GenerationConfig.ResponseModalities = []string{"IMAGE"}
+	return t.run(ctx, req)
+}
+
+// run posts one generateContent request and returns the first image part.
+func (t *TryOnClient) run(ctx context.Context, req geminiRequest) (*TryOnResult, error) {
 	body, err := json.Marshal(req)
 	if err != nil {
 		return nil, err

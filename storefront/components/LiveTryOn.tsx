@@ -121,8 +121,13 @@ export default function LiveTryOn({ product }: { product: Product }) {
   // Never leave a stream running when the page unmounts.
   useEffect(() => () => stopAll("idle"), [stopAll]);
 
+  // Clean "item only" reference (backend cuts the garment out of the product
+  // photo and caches it) — Decart wants the garment alone on a plain
+  // background; a photo of a model wearing it confuses the try-on.
   async function garmentBlob(url: string): Promise<Blob> {
-    const res = await fetch(imageSrc(url));
+    const res = await fetch(
+      `/api/shop/products/${product.id}/garment?image=${encodeURIComponent(url)}`
+    );
     if (!res.ok) throw new Error("garment");
     return res.blob();
   }
@@ -146,7 +151,9 @@ export default function LiveTryOn({ product }: { product: Product }) {
         localVideo.current.play().catch(() => {});
       }
 
-      // 2. Session token (counts against today's budget).
+      // 2. Reference image first (the first request per image can take a
+      //    while when the cutout is generated), then the session token.
+      const blob = await garmentBlob(garment);
       const tok = await createLiveTryOnToken();
       if (!tok.ok || !tok.api_key) {
         if (tok.remaining != null) setStatus((s) => (s ? { ...s, remaining: tok.remaining } : s));
@@ -157,7 +164,6 @@ export default function LiveTryOn({ product }: { product: Product }) {
 
       // 3. Connect; the garment goes in as the initial state so the first
       //    frames already show it.
-      const blob = await garmentBlob(garment);
       const client = createDecartClient({ apiKey: tok.api_key });
       const rtc = (await client.realtime.connect(stream, {
         model: models.realtime(realtimeModelId(tok.model)),
