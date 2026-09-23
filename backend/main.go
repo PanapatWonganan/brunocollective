@@ -113,6 +113,7 @@ func main() {
 	liveTryOnHandler := handlers.NewLiveTryOnHandler(cfg, services.NewDecartClient(cfg))
 	app.Get("/api/shop/live-tryon", liveTryOnHandler.Status)
 	app.Post("/api/shop/live-tryon/token", liveTryOnHandler.Token)
+	app.Post("/api/shop/live-tryon/sessions/:id/end", liveTryOnHandler.End)
 
 	// AI chat assistant (Claude) — answers inbox questions from live stock
 	// when no keyword rule matches. Disabled without ANTHROPIC_API_KEY.
@@ -174,6 +175,7 @@ func main() {
 
 	// Dashboard
 	dashboardHandler := handlers.NewDashboardHandler()
+	api.Get("/live-tryon/usage", liveTryOnHandler.Usage)
 	api.Get("/dashboard", dashboardHandler.Stats)
 	api.Get("/dashboard/charts", dashboardHandler.Charts)
 	api.Get("/notifications", dashboardHandler.Notifications)

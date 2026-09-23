@@ -1,15 +1,29 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense, useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { memberLogin, memberRegister } from "@/lib/api";
 import { useMember } from "@/lib/member";
 import styles from "./member.module.css";
 
 type Mode = "login" | "register";
 
+// useSearchParams (the ?next= redirect) needs a Suspense boundary for the
+// static prerender of this page.
 export default function MemberPage() {
+  return (
+    <Suspense fallback={null}>
+      <MemberPageInner />
+    </Suspense>
+  );
+}
+
+function MemberPageInner() {
   const router = useRouter();
+  const params = useSearchParams();
+  // Where to go after signing in — only same-site paths are honoured.
+  const rawNext = params.get("next") || "";
+  const nextPath = rawNext.startsWith("/") && !rawNext.startsWith("//") ? rawNext : "/member/account";
   const { member, ready, signIn } = useMember();
   const [mode, setMode] = useState<Mode>("login");
   const [form, setForm] = useState({
@@ -24,8 +38,8 @@ export default function MemberPage() {
 
   // Already signed in — go straight to the account page.
   useEffect(() => {
-    if (ready && member) router.replace("/member/account");
-  }, [ready, member, router]);
+    if (ready && member) router.replace(nextPath);
+  }, [ready, member, router, nextPath]);
 
   function update(field: keyof typeof form) {
     return (e: React.ChangeEvent<HTMLInputElement>) =>
@@ -55,7 +69,7 @@ export default function MemberPage() {
 
     if (res.ok && res.token && res.member) {
       signIn(res.token, res.member);
-      router.replace("/member/account");
+      router.replace(nextPath);
     } else {
       setError(res.error || "ไม่สำเร็จ กรุณาลองใหม่");
     }

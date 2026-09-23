@@ -28,6 +28,7 @@ func Connect(cfg *config.Config) {
 		&models.Order{},
 		&models.OrderItem{},
 		&models.SiteImage{},
+		&models.LiveTryOnSession{},
 		&models.Receipt{},
 		&models.Coupon{},
 		&models.CouponRedemption{},

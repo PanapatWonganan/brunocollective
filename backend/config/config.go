@@ -47,6 +47,7 @@ type Config struct {
 	// = hidden. Billed per streamed second (~$0.02/s), so sessions are
 	// capped: seconds per session and sessions per day, guest vs member.
 	DecartAPIKey            string
+	LiveTryOnMembersOnly    bool // guests see the button but must sign up first
 	LiveTryOnModel          string
 	LiveTryOnSessionSeconds int
 	LiveTryOnMemberSeconds  int
@@ -78,11 +79,12 @@ func Load() *Config {
 		TryOnDailyLimit:         getEnvInt("TRYON_DAILY_LIMIT", 5),
 		TryOnMemberDailyLimit:   getEnvInt("TRYON_MEMBER_DAILY_LIMIT", 20),
 		DecartAPIKey:            getEnv("DECART_API_KEY", ""),
+		LiveTryOnMembersOnly:    getEnv("LIVE_TRYON_MEMBERS_ONLY", "true") != "false",
 		LiveTryOnModel:          getEnv("LIVE_TRYON_MODEL", "lucy-vton-latest"),
-		LiveTryOnSessionSeconds: getEnvInt("LIVE_TRYON_SESSION_SECONDS", 45),
-		LiveTryOnMemberSeconds:  getEnvInt("LIVE_TRYON_MEMBER_SECONDS", 120),
-		LiveTryOnDailySessions:  getEnvInt("LIVE_TRYON_DAILY_SESSIONS", 3),
-		LiveTryOnMemberSessions: getEnvInt("LIVE_TRYON_MEMBER_SESSIONS", 10),
+		LiveTryOnSessionSeconds: getEnvInt("LIVE_TRYON_SESSION_SECONDS", 20),
+		LiveTryOnMemberSeconds:  getEnvInt("LIVE_TRYON_MEMBER_SECONDS", 20),
+		LiveTryOnDailySessions:  getEnvInt("LIVE_TRYON_DAILY_SESSIONS", 2),
+		LiveTryOnMemberSessions: getEnvInt("LIVE_TRYON_MEMBER_SESSIONS", 4),
 		LiveTryOnAllowedOrigins: getEnv("LIVE_TRYON_ALLOWED_ORIGINS", ""),
 	}
 }

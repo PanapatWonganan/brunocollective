@@ -2,8 +2,10 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import {
   createLiveTryOnToken,
+  endLiveTryOnSession,
   getLiveTryOnStatus,
   type LiveTryOnStatus,
 } from "@/lib/api";
@@ -52,6 +54,31 @@ function realtimeModelId(id: string | undefined): RealtimeModelId {
 
 type Phase = "idle" | "starting" | "live" | "ended" | "error";
 
+// Person presence (MediaPipe pose, same approach as Decart's example): poll
+// the local camera once a second; after NO_PERSON_MISSES misses in a row
+// the session stops so an empty frame never burns streaming time.
+const DETECT_INTERVAL_MS = 1000;
+const NO_PERSON_MISSES = 3;
+interface PoseDetector {
+  detectForVideo(video: HTMLVideoElement, ts: number): { landmarks: unknown[] };
+  close(): void;
+}
+async function loadPoseDetector(): Promise<PoseDetector> {
+  const { PoseLandmarker, FilesetResolver } = await import("@mediapipe/tasks-vision");
+  const vision = await FilesetResolver.forVisionTasks(
+    "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.35/wasm"
+  );
+  return PoseLandmarker.createFromOptions(vision, {
+    baseOptions: {
+      modelAssetPath:
+        "https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task",
+      delegate: "GPU",
+    },
+    runningMode: "VIDEO",
+    numPoses: 1,
+  });
+}
+
 export default function LiveTryOn({ product }: { product: Product }) {
   const [status, setStatus] = useState<LiveTryOnStatus | null>(null);
   const [open, setOpen] = useState(false);
@@ -71,19 +98,34 @@ export default function LiveTryOn({ product }: { product: Product }) {
   const rt = useRef<RtClient | null>(null);
   const cam = useRef<MediaStream | null>(null);
   const timer = useRef<number | null>(null);
+  const detector = useRef<PoseDetector | null>(null);
+  const detectTimer = useRef<number | null>(null);
+  const sessionId = useRef<number | null>(null);
+  const billedSec = useRef(0);
+  const pathname = usePathname();
+  const memberHref = `/member?next=${encodeURIComponent(pathname || "/")}`;
 
   useEffect(() => {
     if (!isGarment(product.category)) return;
     getLiveTryOnStatus().then(setStatus);
   }, [product.category]);
 
-  const stopAll = useCallback((next: Phase) => {
+  const stopAll = useCallback((next: Phase, reason = "closed") => {
     if (timer.current) {
       window.clearInterval(timer.current);
       timer.current = null;
     }
+    if (detectTimer.current) {
+      window.clearInterval(detectTimer.current);
+      detectTimer.current = null;
+    }
     const client = rt.current;
     rt.current = null;
+    // Cost tracking: report what the SDK says was generated (once).
+    if (sessionId.current != null) {
+      endLiveTryOnSession(sessionId.current, billedSec.current, reason);
+      sessionId.current = null;
+    }
     try {
       client?.disconnect();
     } catch {
@@ -118,8 +160,24 @@ export default function LiveTryOn({ product }: { product: Product }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
-  // Never leave a stream running when the page unmounts.
-  useEffect(() => () => stopAll("idle"), [stopAll]);
+  // Never leave a stream running when the page unmounts, and stop the
+  // moment the tab is hidden (phone locked, app switched) — billing is per
+  // second whether or not anyone is watching.
+  useEffect(() => {
+    const onVis = () => {
+      if (document.visibilityState === "hidden" && rt.current) {
+        stopAll("ended", "hidden");
+        setNote("หยุดเพราะสลับหน้าจอ — กดลองอีกครั้งได้");
+      }
+    };
+    document.addEventListener("visibilitychange", onVis);
+    return () => {
+      document.removeEventListener("visibilitychange", onVis);
+      stopAll("idle", "unmount");
+      detector.current?.close();
+      detector.current = null;
+    };
+  }, [stopAll]);
 
   // Clean "item only" reference (backend cuts the garment out of the product
   // photo and caches it) — Decart wants the garment alone on a plain
@@ -136,7 +194,13 @@ export default function LiveTryOn({ product }: { product: Product }) {
     setError(null);
     setNote("");
     setPhase("starting");
+    billedSec.current = 0;
     try {
+      // 0. Warm the person detector in parallel (non-fatal if it fails).
+      const detectorReady = detector.current
+        ? Promise.resolve(detector.current)
+        : loadPoseDetector().then((d) => (detector.current = d)).catch(() => null);
+
       // 1. Camera first — if the shopper declines, no session is spent.
       const { createDecartClient, models } = await import("@decartai/sdk");
       const model = models.realtime("lucy-vton-latest");
@@ -154,13 +218,14 @@ export default function LiveTryOn({ product }: { product: Product }) {
       // 2. Reference image first (the first request per image can take a
       //    while when the cutout is generated), then the session token.
       const blob = await garmentBlob(garment);
-      const tok = await createLiveTryOnToken();
+      const tok = await createLiveTryOnToken(product.id);
       if (!tok.ok || !tok.api_key) {
         if (tok.remaining != null) setStatus((s) => (s ? { ...s, remaining: tok.remaining } : s));
         throw new Error(tok.error || "ระบบลองใส่สดขัดข้อง");
       }
       setStatus((s) => (s ? { ...s, remaining: tok.remaining ?? s.remaining } : s));
-      const cap = tok.session_seconds || status?.session_seconds || 45;
+      sessionId.current = tok.session_id ?? null;
+      const cap = tok.session_seconds || status?.session_seconds || 20;
 
       // 3. Connect; the garment goes in as the initial state so the first
       //    frames already show it.
@@ -182,11 +247,41 @@ export default function LiveTryOn({ product }: { product: Product }) {
         initialState: { prompt: { text: garmentPrompt(product), enhance: false }, image: blob },
       })) as unknown as RtClient;
       rt.current = rtc;
+      // Billed time as the SDK sees it (used for the cost log).
+      rtc.on("generationTick", (t) => {
+        const s = (t as { seconds?: number })?.seconds;
+        if (typeof s === "number") billedSec.current = s;
+      });
+      rtc.on("generationEnded", (t) => {
+        const s = (t as { seconds?: number })?.seconds;
+        if (typeof s === "number") billedSec.current = s;
+      });
       // Server-side end (session cap reached, quota) — terminal, no reconnect.
       rtc.on("sessionEnded", () => {
-        if (rt.current) stopAll("ended");
+        if (rt.current) stopAll("ended", "server");
       });
       rtc.on("error", () => setNote("สัญญาณสะดุด กำลังเชื่อมต่อใหม่…"));
+
+      // Person watchdog: stop when nobody has been in frame for a few seconds.
+      detectorReady.then((d) => {
+        if (!d || !rt.current || !localVideo.current) return;
+        let misses = 0;
+        detectTimer.current = window.setInterval(() => {
+          const v = localVideo.current;
+          if (!v || v.readyState < 2 || !rt.current) return;
+          try {
+            const res = d.detectForVideo(v, performance.now());
+            if (res.landmarks.length > 0) {
+              misses = 0;
+            } else if (++misses >= NO_PERSON_MISSES) {
+              stopAll("ended", "no_person");
+              setNote("ไม่เห็นคนในเฟรม เลยหยุดให้เพื่อไม่ให้เสียเวลาลอง — กดลองอีกครั้งได้");
+            }
+          } catch {
+            /* detector hiccup — ignore this tick */
+          }
+        }, DETECT_INTERVAL_MS);
+      });
 
       // 4. Countdown mirrors the server-side cap Decart enforces.
       setSecondsLeft(cap);
@@ -195,11 +290,11 @@ export default function LiveTryOn({ product }: { product: Product }) {
       timer.current = window.setInterval(() => {
         const left = Math.max(0, cap - Math.round((Date.now() - startedAt) / 1000));
         setSecondsLeft(left);
-        if (left <= 0) stopAll("ended");
+        if (left <= 0) stopAll("ended", "timeout");
       }, 500);
     } catch (e) {
       const msg = e instanceof Error ? e.message : "";
-      stopAll("error");
+      stopAll("error", "error");
       if (/NotAllowed|Permission|denied/i.test(msg)) {
         setError("ไม่ได้รับอนุญาตให้ใช้กล้อง — เปิดสิทธิ์กล้องให้เว็บนี้แล้วลองใหม่");
       } else if (/NotFound|Devices/i.test(msg)) {
@@ -240,7 +335,8 @@ export default function LiveTryOn({ product }: { product: Product }) {
 
   const remaining = status.remaining ?? 0;
   const exhausted = remaining <= 0;
-  const sessionSec = status.session_seconds ?? 45;
+  const sessionSec = status.session_seconds ?? 20;
+  const needsMember = !!status.members_only && !status.member;
 
   return (
     <>
@@ -248,7 +344,10 @@ export default function LiveTryOn({ product }: { product: Product }) {
         <span className={styles.triggerIcon} aria-hidden>◉</span>
         <span>
           <strong>ลองใส่สดผ่านกล้อง — Live Try-On</strong>
-          <small>เปิดกล้องหน้า แล้วเห็นตัวเองใส่ชิ้นนี้ทันที ({sessionSec} วินาทีต่อครั้ง)</small>
+          <small>
+            เปิดกล้องหน้า แล้วเห็นตัวเองใส่ชิ้นนี้ทันที ({sessionSec} วินาทีต่อครั้ง
+            {needsMember ? " · สำหรับสมาชิก" : ""})
+          </small>
         </span>
         <span className="arrow">→</span>
       </button>
@@ -286,9 +385,11 @@ export default function LiveTryOn({ product }: { product: Product }) {
                 {phase === "idle" && (
                   <div className={styles.overlay}>
                     <p>
-                      กด &quot;เริ่ม&quot; แล้วอนุญาตให้ใช้กล้อง — ยืนให้เห็นลำตัว แสงสว่าง
+                      {needsMember
+                        ? "สมัครสมาชิกฟรี แล้วเปิดกล้องลองใส่ได้ทันที"
+                        : "กด \"เริ่ม\" แล้วอนุญาตให้ใช้กล้อง — ยืนให้เห็นลำตัว แสงสว่าง"}
                       <br />
-                      ภาพจากกล้องจะถูกส่งไปประมวลผลสด ไม่มีการบันทึกไว้
+                      ภาพจากกล้องจะถูกส่งไปประมวลผลสด ไม่มีการบันทึกไว้ และจะหยุดเองเมื่อไม่เห็นคนในเฟรม
                     </p>
                   </div>
                 )}
@@ -339,14 +440,12 @@ export default function LiveTryOn({ product }: { product: Product }) {
 
             <div className={styles.foot}>
               <div className={styles.quota}>
-                {exhausted ? (
-                  status.member ? (
-                    "วันนี้ครบจำนวนแล้ว พรุ่งนี้ลองใหม่ได้"
-                  ) : (
-                    <>
-                      วันนี้ครบจำนวนแล้ว — <Link href="/member">สมัครสมาชิก</Link> เพื่อลองได้นานขึ้น
-                    </>
-                  )
+                {needsMember ? (
+                  <>
+                    ลองใส่สดเปิดให้สมาชิกเท่านั้น — สมัครฟรี ได้ส่วนลด 5% ทุกออเดอร์ด้วย
+                  </>
+                ) : exhausted ? (
+                  "วันนี้ครบจำนวนแล้ว พรุ่งนี้ลองใหม่ได้"
                 ) : (
                   `ลองได้อีก ${remaining} ครั้งวันนี้ · ครั้งละ ${sessionSec} วินาที`
                 )}
@@ -361,6 +460,10 @@ export default function LiveTryOn({ product }: { product: Product }) {
                     หยุด
                   </button>
                 </div>
+              ) : needsMember ? (
+                <Link href={memberHref} className={styles.primary}>
+                  สมัคร / เข้าสู่ระบบสมาชิก <span className="arrow">→</span>
+                </Link>
               ) : (
                 <button
                   type="button"

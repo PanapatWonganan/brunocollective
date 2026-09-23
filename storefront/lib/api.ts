@@ -669,6 +669,7 @@ export async function generateTryOn(
 
 export interface LiveTryOnStatus {
   enabled: boolean;
+  members_only?: boolean;
   remaining?: number;
   limit?: number;
   session_seconds?: number;
@@ -696,20 +697,43 @@ export interface LiveTryOnToken {
   model?: string;
   session_seconds?: number;
   remaining?: number;
+  session_id?: number;
+  members_only?: boolean;
   error?: string;
+}
+
+// Report the seconds the SDK says were generated (cost tracking). Uses
+// keepalive so it survives the tab closing.
+export function endLiveTryOnSession(sessionId: number, seconds: number, reason: string): void {
+  const token = getMemberToken();
+  try {
+    fetch(`/api/shop/live-tryon/sessions/${sessionId}/end`, {
+      method: "POST",
+      keepalive: true,
+      headers: {
+        "Content-Type": "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: JSON.stringify({ seconds, reason }),
+    }).catch(() => {});
+  } catch {
+    /* ignore */
+  }
 }
 
 // One session = one short-lived Decart client token, counted against the
 // caller's daily budget server-side.
-export async function createLiveTryOnToken(): Promise<LiveTryOnToken> {
+export async function createLiveTryOnToken(productId: number): Promise<LiveTryOnToken> {
   const token = getMemberToken();
   try {
-    const res = await fetch("/api/shop/live-tryon/token", {
+    const res = await fetch(`/api/shop/live-tryon/token?product_id=${productId}`, {
       method: "POST",
       headers: token ? { Authorization: `Bearer ${token}` } : undefined,
     });
     const data = await res.json().catch(() => ({}));
-    if (!res.ok) return { ok: false, error: data.error || "ระบบลองใส่สดขัดข้อง กรุณาลองใหม่", remaining: data.remaining };
+    if (!res.ok) {
+      return { ok: false, error: data.error || "ระบบลองใส่สดขัดข้อง กรุณาลองใหม่", remaining: data.remaining, members_only: data.members_only };
+    }
     return { ok: true, ...data };
   } catch {
     return { ok: false, error: "เชื่อมต่อไม่ได้ กรุณาลองใหม่" };
