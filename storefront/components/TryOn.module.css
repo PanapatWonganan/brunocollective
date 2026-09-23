@@ -1,0 +1,110 @@
+/* ── Trigger under Add to Bag ── */
+.trigger{
+  width:100%; display:flex; align-items:center; gap:14px; text-align:left;
+  margin:18px 0 0; padding:16px 18px;
+  border:1px solid var(--hairline); background:var(--ivory); color:var(--ink);
+  transition:border-color .3s var(--ease), background .3s var(--ease), gap .3s var(--ease);
+}
+.trigger:hover{border-color:var(--ink); gap:18px}
+.trigger > span:nth-child(2){flex:1; display:flex; flex-direction:column; gap:3px}
+.trigger strong{font-size:11px; letter-spacing:.22em; text-transform:uppercase; font-weight:500}
+.trigger small{font-size:12.5px; color:var(--ink-faint); line-height:1.5}
+.triggerIcon{color:var(--champagne); font-size:16px}
+
+/* ── Dialog ── */
+.scrim{
+  position:fixed; inset:0; z-index:70;
+  background:rgba(31,42,64,.5); backdrop-filter:blur(3px);
+  display:flex; align-items:center; justify-content:center; padding:16px;
+  animation:fade .3s var(--ease);
+}
+@keyframes fade{from{opacity:0}to{opacity:1}}
+.dialog{
+  width:min(720px, 100%); max-height:calc(100dvh - 32px);
+  background:var(--paper); border:1px solid var(--hairline);
+  display:flex; flex-direction:column; overflow:hidden;
+  animation:rise .4s var(--ease);
+}
+@keyframes rise{from{transform:translateY(12px); opacity:0}to{transform:none; opacity:1}}
+.head{
+  display:flex; align-items:flex-start; justify-content:space-between; gap:16px;
+  padding:22px 24px 18px; border-bottom:1px solid var(--hairline);
+}
+.kicker{font-size:10px; letter-spacing:.3em; text-transform:uppercase; color:var(--champagne); font-weight:500}
+.title{font-family:var(--serif); font-size:22px; line-height:1.15; margin-top:4px}
+.close{font-size:14px; color:var(--ink-faint); padding:4px}
+.close:hover{color:var(--ink)}
+
+.body{padding:20px 24px; overflow-y:auto; flex:1}
+.grid{display:grid; grid-template-columns:1fr 1fr; gap:18px}
+.pane{display:flex; flex-direction:column; gap:10px; min-width:0}
+.paneLabel{font-size:10px; letter-spacing:.28em; text-transform:uppercase; color:var(--ink-faint); font-weight:500}
+
+.drop{
+  aspect-ratio:3/4; width:100%; border:1px dashed var(--hairline); background:var(--ivory);
+  display:flex; align-items:center; justify-content:center; overflow:hidden; padding:0;
+  transition:border-color .3s var(--ease);
+}
+.drop:hover:not(:disabled){border-color:var(--ink)}
+.dropHas{border-style:solid}
+.drop img{width:100%; height:100%; object-fit:cover; display:block}
+.dropHint{display:flex; flex-direction:column; gap:8px; padding:20px; text-align:center}
+.dropHint strong{font-size:11px; letter-spacing:.22em; text-transform:uppercase; font-weight:500; color:var(--ink)}
+.dropHint small{font-size:12px; color:var(--ink-faint); line-height:1.6}
+.link{align-self:flex-start; font-size:11px; letter-spacing:.16em; text-transform:uppercase; color:var(--ink-faint); text-decoration:underline; text-underline-offset:3px}
+.link:hover{color:var(--ink)}
+
+.garment{aspect-ratio:3/4; width:100%; border:1px solid var(--hairline); background:var(--ivory); overflow:hidden}
+.garment img{width:100%; height:100%; object-fit:cover; display:block}
+.thumbs{display:flex; gap:6px; flex-wrap:wrap}
+.thumb{width:44px; height:56px; border:1px solid var(--hairline); padding:0; overflow:hidden; opacity:.7; transition:opacity .2s, border-color .2s}
+.thumb img{width:100%; height:100%; object-fit:cover; display:block}
+.thumb:hover{opacity:1}
+.thumbOn{opacity:1; border-color:var(--ink)}
+
+.working{
+  display:flex; align-items:center; gap:12px; margin-top:18px;
+  font-size:13px; color:var(--ink-faint);
+}
+.spinner{
+  width:16px; height:16px; border-radius:50%;
+  border:1.5px solid var(--hairline); border-top-color:var(--ink);
+  animation:spin .8s linear infinite;
+}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+.resultWrap{display:flex; flex-direction:column; align-items:center; gap:12px}
+.resultImg{max-width:100%; max-height:min(64vh, 640px); border:1px solid var(--hairline); display:block}
+.fine{margin:0; font-size:11.5px; color:var(--ink-quiet); text-align:center; line-height:1.6}
+
+.error{margin:16px 0 0; font-size:13px; color:#B4413C; line-height:1.6}
+
+.foot{
+  display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap;
+  padding:16px 24px 20px; border-top:1px solid var(--hairline); background:var(--ivory);
+}
+.quota{display:flex; flex-direction:column; gap:4px; font-size:12px; color:var(--ink-faint); line-height:1.5}
+.quota a{color:var(--ink); text-decoration:underline; text-underline-offset:3px}
+.privacy{font-size:11px; color:var(--ink-quiet)}
+.actions{display:flex; gap:10px}
+.primary{
+  display:inline-flex; align-items:center; gap:.7em;
+  padding:15px 26px; background:var(--ink); color:var(--ivory);
+  font-size:11px; letter-spacing:.3em; text-transform:uppercase; font-weight:500;
+  transition:background .3s var(--ease);
+}
+.primary:hover:not(:disabled){background:var(--ink-soft)}
+.primary:disabled{opacity:.4; cursor:not-allowed}
+.ghost{
+  padding:15px 22px; border:1px solid var(--hairline); color:var(--ink);
+  font-size:11px; letter-spacing:.3em; text-transform:uppercase; font-weight:500;
+}
+.ghost:hover{border-color:var(--ink)}
+
+@media (max-width:640px){
+  .grid{grid-template-columns:1fr 1fr; gap:10px}
+  .head,.body,.foot{padding-left:16px; padding-right:16px}
+  .foot{flex-direction:column; align-items:stretch}
+  .primary,.ghost{justify-content:center; text-align:center}
+  .actions{flex-direction:column}
+}

@@ -99,6 +99,13 @@ func main() {
 	app.Get("/api/pay/:token", orderHandler.PayGet)
 	app.Post("/api/pay/:token/slip", orderHandler.PayUploadSlip)
 
+	// Virtual try-on (Gemini image model) — public, per-day throttled.
+	// Hidden on the storefront without GEMINI_API_KEY.
+	tryOnHandler := handlers.NewTryOnHandler(cfg, services.NewTryOnClient(cfg))
+	app.Get("/api/shop/try-on", tryOnHandler.Status)
+	app.Post("/api/shop/try-on", tryOnHandler.Generate)
+	app.Get("/api/shop/try-on/jobs/:id", tryOnHandler.Job)
+
 	// AI chat assistant (Claude) — answers inbox questions from live stock
 	// when no keyword rule matches. Disabled without ANTHROPIC_API_KEY.
 	aiClient := services.NewAIClient(cfg)

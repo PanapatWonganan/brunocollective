@@ -1,6 +1,7 @@
 package services
 
 import (
+	"bytes"
 	"fmt"
 	"image"
 	_ "image/gif" // decode support
@@ -132,6 +133,22 @@ func resizeMax(img image.Image, maxDim int) image.Image {
 	dst := image.NewNRGBA(image.Rect(0, 0, nw, nh))
 	xdraw.CatmullRom.Scale(dst, dst.Bounds(), img, b, xdraw.Src, nil)
 	return dst
+}
+
+// NormalizeJPEG decodes an image held in memory, scales it to fit maxDim and
+// re-encodes it as an opaque JPEG. Used for customer try-on photos, which
+// must never touch disk. Returns an error for undecodable input.
+func NormalizeJPEG(data []byte, maxDim int) ([]byte, error) {
+	img, _, err := image.Decode(bytes.NewReader(data))
+	if err != nil {
+		return nil, fmt.Errorf("decode: %w", err)
+	}
+	img = resizeMax(img, maxDim)
+	var buf bytes.Buffer
+	if err := jpeg.Encode(&buf, flattenOnWhite(img), &jpeg.Options{Quality: JPEGQuality}); err != nil {
+		return nil, err
+	}
+	return buf.Bytes(), nil
 }
 
 func copyMultipart(fh *multipart.FileHeader, dst string) error {

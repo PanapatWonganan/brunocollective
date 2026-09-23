@@ -36,6 +36,13 @@ type Config struct {
 	// degradation as Telegram/LINE.
 	AnthropicAPIKey string
 	AIModel         string
+	// Virtual try-on (Gemini image model). Empty API key = feature hidden on
+	// the storefront. Limits are generations per day: per IP for guests, per
+	// customer for logged-in members. Each generation is billed by Google.
+	GeminiAPIKey          string
+	TryOnModel            string
+	TryOnDailyLimit       int
+	TryOnMemberDailyLimit int
 }
 
 func Load() *Config {
@@ -56,6 +63,10 @@ func Load() *Config {
 		ChatWaitingExpireHours: getEnvInt("CHAT_WAITING_EXPIRE_HOURS", 12),
 		AnthropicAPIKey:        getEnv("ANTHROPIC_API_KEY", ""),
 		AIModel:                getEnv("AI_MODEL", "claude-opus-5"),
+		GeminiAPIKey:           getEnv("GEMINI_API_KEY", ""),
+		TryOnModel:             getEnv("TRYON_MODEL", "gemini-3.1-flash-image"),
+		TryOnDailyLimit:        getEnvInt("TRYON_DAILY_LIMIT", 5),
+		TryOnMemberDailyLimit:  getEnvInt("TRYON_MEMBER_DAILY_LIMIT", 20),
 	}
 }
 

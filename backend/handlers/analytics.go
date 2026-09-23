@@ -178,7 +178,7 @@ func (h *AnalyticsHandler) Overview(c *fiber.Ctx) error {
 		Joins("JOIN products ON products.id = order_items.product_id").
 		Where("orders.status != ? AND orders.created_at >= ? AND orders.created_at < ?", models.StatusCancelled, from, to).
 		Select("CASE WHEN COALESCE(products.category, '') = '' THEN 'ไม่ระบุหมวด' ELSE products.category END as category, " +
-			"COALESCE(SUM("+itemNetRevenue+"), 0) as revenue, " +
+			"COALESCE(SUM(" + itemNetRevenue + "), 0) as revenue, " +
 			"COALESCE(SUM(order_items.quantity), 0) as units").
 		Group("category").
 		Order("revenue DESC").
@@ -690,7 +690,7 @@ func (h *AnalyticsHandler) Products(c *fiber.Ctx) error {
 		Joins("JOIN products ON products.id = order_items.product_id").
 		Where("orders.status != ?", models.StatusCancelled).
 		Select("order_items.product_id as product_id, products.name as name, products.category as category, " +
-			"COALESCE(SUM("+itemNetRevenue+"), 0) as revenue, " +
+			"COALESCE(SUM(" + itemNetRevenue + "), 0) as revenue, " +
 			"COALESCE(SUM(order_items.quantity), 0) as units").
 		Group("order_items.product_id").
 		Order("revenue DESC").

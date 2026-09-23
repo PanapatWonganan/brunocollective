@@ -84,6 +84,26 @@ func MemberAuth(cfg *config.Config) fiber.Handler {
 	}
 }
 
+// OptionalMemberID returns the customer id from a member bearer token when
+// one is present and valid, else 0. For public routes that behave slightly
+// differently for signed-in members (e.g. try-on quota) without requiring
+// login.
+func OptionalMemberID(c *fiber.Ctx, cfg *config.Config) uint {
+	if c.Get("Authorization") == "" {
+		return 0
+	}
+	claims, err := parseBearerToken(c, cfg)
+	if err != nil {
+		return 0
+	}
+	role, _ := claims["role"].(string)
+	id, ok := claims["customer_id"].(float64)
+	if role != "member" || !ok || id <= 0 {
+		return 0
+	}
+	return uint(id)
+}
+
 // AffiliateAuth guards the affiliate portal routes. Only tokens with
 // role=affiliate pass; the affiliate ID lands in c.Locals("affiliate_id").
 func AffiliateAuth(cfg *config.Config) fiber.Handler {

@@ -586,3 +586,81 @@ export async function affiliateChangePassword(
     return { ok: false, error: "บันทึกไม่สำเร็จ กรุณาลองใหม่" };
   }
 }
+
+// ── Virtual try-on (ลองใส่ดู) ─────────────────────────────────────────────
+// Backed by a Gemini image model; hidden when the backend has no key.
+
+export interface TryOnStatus {
+  enabled: boolean;
+  remaining?: number;
+  limit?: number;
+  member?: boolean;
+}
+
+export async function getTryOnStatus(): Promise<TryOnStatus> {
+  try {
+    const token = getMemberToken();
+    const res = await fetch("/api/shop/try-on", {
+      cache: "no-store",
+      headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+    });
+    if (!res.ok) return { enabled: false };
+    return res.json();
+  } catch {
+    return { enabled: false };
+  }
+}
+
+export interface TryOnResult {
+  ok: boolean;
+  image?: string; // data: URL
+  remaining?: number;
+  error?: string;
+}
+
+// photo: a JPEG blob already downscaled by the caller (see TryOn component).
+// Generation takes ~1 minute, so the backend hands back a job id and we poll
+// it every 2s; onTick reports elapsed seconds for the UI.
+export async function generateTryOn(
+  productId: number,
+  photo: Blob,
+  image?: string,
+  onTick?: (elapsedSec: number) => void
+): Promise<TryOnResult> {
+  const fd = new FormData();
+  fd.append("product_id", String(productId));
+  fd.append("photo", photo, "photo.jpg");
+  if (image) fd.append("image", image);
+  const token = getMemberToken();
+  const headers = token ? { Authorization: `Bearer ${token}` } : undefined;
+  let jobId: string;
+  try {
+    const res = await fetch("/api/shop/try-on", { method: "POST", body: fd, headers });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || !data.job_id) {
+      return { ok: false, error: data.error || "ระบบลองใส่ขัดข้อง กรุณาลองใหม่", remaining: data.remaining };
+    }
+    jobId = data.job_id;
+  } catch {
+    return { ok: false, error: "เชื่อมต่อไม่ได้ กรุณาลองใหม่" };
+  }
+
+  const started = Date.now();
+  const deadline = started + 4 * 60 * 1000;
+  let misses = 0;
+  while (Date.now() < deadline) {
+    await new Promise((r) => setTimeout(r, 2000));
+    onTick?.(Math.round((Date.now() - started) / 1000));
+    try {
+      const res = await fetch(`/api/shop/try-on/jobs/${jobId}`, { cache: "no-store" });
+      const data = await res.json().catch(() => ({}));
+      if (res.status === 202) continue;
+      if (res.ok && data.image) return { ok: true, image: data.image, remaining: data.remaining };
+      return { ok: false, error: data.error || "ระบบลองใส่ขัดข้อง กรุณาลองใหม่", remaining: data.remaining };
+    } catch {
+      // Transient network blip while polling — tolerate a few before giving up.
+      if (++misses >= 5) return { ok: false, error: "เชื่อมต่อไม่ได้ กรุณาลองใหม่" };
+    }
+  }
+  return { ok: false, error: "ใช้เวลานานผิดปกติ กรุณาลองใหม่อีกครั้ง" };
+}

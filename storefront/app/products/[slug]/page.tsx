@@ -4,6 +4,7 @@ import Link from "next/link";
 import { getProduct, getRelated, getSiteImages, sizeChartFor } from "@/lib/api";
 import { money, imageSrc, priceLabel, priceRange } from "@/lib/format";
 import AddToBag from "@/components/AddToBag";
+import TryOn from "@/components/TryOn";
 import ProductGallery from "@/components/ProductGallery";
 import Accordion from "@/components/Accordion";
 import Rating from "@/components/Rating";
@@ -156,6 +157,7 @@ export default async function ProductPage({ params }: Params) {
           <div className={styles.tax}>ราคารวมทุกอย่างแล้ว — ไม่มีบวกเพิ่มหน้างาน</div>
 
           <AddToBag product={product} sizeChartUrl={sizeChartUrl} />
+          <TryOn product={product} />
 
           <div className={styles.note}>
             Finished by hand in Thailand — แพ็คอย่างดี ส่งไวทั่วไทย
