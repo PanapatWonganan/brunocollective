@@ -391,19 +391,28 @@ func (h *TryOnHandler) Garment(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "ไม่พบสินค้า"})
 	}
 	url := pickGarmentURL(&product, c.Query("image"))
-	var data []byte
-	var mime string
-	var err error
-	if h.enabled() {
-		data, mime, err = h.garmentImage(context.Background(), &product, url)
-	} else {
-		data, mime, err = h.loadProductImage(url)
+	if url == "" {
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "สินค้านี้ยังไม่มีรูป"})
 	}
+	// Serve the cached cutout when it exists. Otherwise answer at once with
+	// the raw photo (never block a live session behind a 10–60s generation
+	// or the startup warm-up) and generate the cutout in the background for
+	// the next request.
+	if h.enabled() {
+		if data, err := os.ReadFile(h.garmentCachePath(url)); err == nil && len(data) > 0 {
+			c.Set("Content-Type", "image/jpeg")
+			c.Set("Cache-Control", "public, max-age=3600")
+			return c.Send(data)
+		}
+		p := product
+		go h.garmentImage(context.Background(), &p, url)
+	}
+	data, mime, err := h.loadProductImage(url)
 	if err != nil {
 		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "สินค้านี้ยังไม่มีรูป"})
 	}
 	c.Set("Content-Type", mime)
-	c.Set("Cache-Control", "public, max-age=3600")
+	c.Set("Cache-Control", "no-store")
 	return c.Send(data)
 }
 
