@@ -11,12 +11,12 @@
 .upsellTitle em{font-style:italic;color:var(--champagne);font-weight:300}
 
 .grid{
-  display:grid; grid-template-columns:repeat(4,1fr);
+  display:grid; grid-template-columns:repeat(4,minmax(0,1fr));
   gap:clamp(32px,4vw,48px) clamp(20px,2.4vw,26px);
 }
 @media (max-width:900px){
-  .grid{grid-template-columns:repeat(2,1fr)}
+  .grid{grid-template-columns:repeat(2,minmax(0,1fr))}
 }
 @media (max-width:560px){
-  .grid{grid-template-columns:1fr 1fr; gap:20px 12px}
+  .grid{grid-template-columns:repeat(2,minmax(0,1fr)); gap:20px 12px}
 }
