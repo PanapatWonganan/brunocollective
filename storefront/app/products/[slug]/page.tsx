@@ -60,7 +60,7 @@ export default async function ProductPage({ params }: Params) {
   // Someone hit the page by id or an old slug — send them to the canonical URL.
   if (product.slug && product.slug !== slug) permanentRedirect(productPath(product));
   const [related] = await Promise.all([getRelated(product.id, 4)]);
-  const sizeChartUrl = sizeChartFor(product.category, siteImages);
+  const sizeChartUrl = sizeChartFor(product, siteImages);
 
   const stock = product.variants?.length ? product.total_stock : product.stock;
   const { min: minPrice, max: maxPrice } = priceRange(product);

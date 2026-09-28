@@ -39,30 +39,45 @@ export interface SiteImage {
   caption_b: string;
 }
 
-// Pick the inline size chart for a product by its category: รองเท้า (shoes)
-// and แหวน/เครื่องประดับ (rings, jewellery) get their own charts, every other
-// sized category uses the shirt chart. Returns "" when the matching chart
-// hasn't been uploaded (chart hidden).
-export function sizeChartKey(category: string | undefined): string {
-  const cat = (category || "").toLowerCase();
-  if (cat.includes("รองเท้า") || cat.includes("shoe")) return "size_chart_shoes";
-  if (
-    cat.includes("แหวน") ||
-    cat.includes("เครื่องประดับ") ||
-    cat.includes("จิวเวอ") ||
-    cat.includes("ring") ||
-    cat.includes("jewel")
-  ) {
-    return "size_chart_rings";
+const has = (s: string, words: string[]) => words.some((w) => s.includes(w));
+
+// Candidate size-chart slots for a product, most specific first. Shoes and
+// bracelets get a per-model chart picked by name (the Monarch sneaker, the
+// loafer and the mule run on different lasts); an empty model slot falls back
+// to the category chart — shoes → รองเท้า, rings/jewellery → แหวน, everything
+// else → the shirt chart. Bracelets never fall back: a ring chart is wrong
+// for them.
+export function sizeChartKeys(product: { category?: string; name?: string } | undefined): string[] {
+  const cat = (product?.category || "").toLowerCase();
+  const name = (product?.name || "").toLowerCase();
+  if (has(cat, ["รองเท้า", "shoe"])) {
+    const model = has(name, ["mule", "มิวล์", "slipper", "slide"])
+      ? "size_chart_shoes_mule"
+      : has(name, ["loafer", "โลฟเฟอร์", "โลฟเฟอ"])
+        ? "size_chart_shoes_loafer"
+        : has(name, ["sneaker", "monarch", "ผ้าใบ", "สนีกเกอร์"])
+          ? "size_chart_shoes_sneaker"
+          : "";
+    return model ? [model, "size_chart_shoes"] : ["size_chart_shoes"];
   }
-  return "size_chart";
+  if (has(name, ["bracelet", "กำไล", "สร้อยข้อมือ", "bangle", "cuff"])) {
+    return ["size_chart_bracelet"];
+  }
+  if (has(cat, ["แหวน", "เครื่องประดับ", "จิวเวอ", "ring", "jewel"])) {
+    return ["size_chart_rings"];
+  }
+  return ["size_chart"];
 }
 
+// Returns "" when no matching chart has been uploaded (chart hidden).
 export function sizeChartFor(
-  category: string | undefined,
+  product: { category?: string; name?: string } | undefined,
   site: Record<string, SiteImage>
 ): string {
-  return site[sizeChartKey(category)]?.image_url || "";
+  for (const key of sizeChartKeys(product)) {
+    if (site[key]?.image_url) return site[key].image_url;
+  }
+  return "";
 }
 
 // Editable storefront images keyed by slot (hero, lookbook_1…6, journal_1…3).

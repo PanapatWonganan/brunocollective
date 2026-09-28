@@ -36,7 +36,7 @@ export default async function SaleLandingPage({ params, searchParams }: Props) {
     <SalePageClient
       page={page}
       isPreview={preview === "1"}
-      sizeChartUrl={sizeChartFor(page.product?.category, siteImages)}
+      sizeChartUrl={sizeChartFor(page.product, siteImages)}
     />
   );
 }

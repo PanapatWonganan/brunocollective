@@ -29,4 +29,8 @@ var SiteImageSlots = []string{
 	"lookbook_4", "lookbook_5", "lookbook_6",
 	"journal_1", "journal_2", "journal_3",
 	"size_chart", "size_chart_shoes", "size_chart_rings",
+	// Per-model charts, picked by product name (storefront lib/api.ts
+	// sizeChartKeys); an empty slot falls back to the category chart above.
+	"size_chart_shoes_sneaker", "size_chart_shoes_loafer", "size_chart_shoes_mule",
+	"size_chart_bracelet",
 }
